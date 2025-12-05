@@ -1,40 +1,59 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, ChevronRight, Search, ArchiveRestore, RotateCcw, X } from 'lucide-react';
+import { Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt } from 'lucide-react';
 import { CardStat } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
 // --- COMPONENTE: MODAL DE PAPELERA (PEDIDOS CANCELADOS) ---
 const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
+    const [busqueda, setBusqueda] = useState('');
+
+    const filtrados = pedidosCancelados.filter(p => 
+        p.cliente.toUpperCase().includes(busqueda) || 
+        (p.telefono && p.telefono.includes(busqueda))
+    );
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-gray-500">
-                <div className="bg-gray-50 p-4 flex justify-between items-center border-b border-gray-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-red-500 flex flex-col max-h-[90vh]">
+                <div className="bg-red-50 p-4 flex justify-between items-center border-b border-red-100 shrink-0">
                     <div>
-                        <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
-                            <ArchiveRestore size={24} className="text-gray-600"/> Papelera de Reciclaje
+                        <h3 className="font-bold text-xl text-red-900 flex items-center gap-2">
+                            <ArchiveRestore size={24} className="text-red-600"/> Papelera de Reciclaje
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">Los pedidos se eliminan permanentemente después de 48 horas.</p>
+                        <p className="text-xs text-red-700 mt-1">Los pedidos se eliminan permanentemente después de 48 horas.</p>
                     </div>
                     <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
                 </div>
                 
-                <div className="p-4 overflow-y-auto flex-1 bg-gray-100/50 max-h-[60vh]">
-                    {pedidosCancelados.length === 0 ? (
+                <div className="p-4 bg-white border-b border-gray-100 shrink-0">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-gray-400" /></div>
+                        <input 
+                            type="text"
+                            placeholder="BUSCAR POR NOMBRE O TELÉFONO..."
+                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent uppercase bg-gray-50"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
+                        />
+                    </div>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
+                    {filtrados.length === 0 ? (
                         <div className="text-center py-12 text-gray-400">
                             <Trash2 size={48} className="mx-auto mb-3 opacity-20"/>
-                            <p>La papelera está vacía.</p>
+                            <p>{busqueda ? "No se encontraron coincidencias." : "La papelera está vacía."}</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {pedidosCancelados.map((p, i) => {
-                                // Calcular tiempo restante
+                            {filtrados.map((p, i) => {
                                 const fechaCancelacion = new Date(p.fechaCancelacion);
                                 const ahora = new Date();
                                 const horasTranscurridas = (ahora - fechaCancelacion) / (1000 * 60 * 60);
                                 const horasRestantes = Math.max(0, 48 - horasTranscurridas);
                                 
                                 return (
-                                    <div key={i} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center group">
+                                    <div key={i} className="bg-white p-4 rounded-xl border border-red-100 shadow-sm flex justify-between items-center group hover:shadow-md transition">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase">Cancelado</span>
@@ -42,13 +61,13 @@ const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
                                             </div>
                                             <p className="font-bold text-gray-800">{p.cliente}</p>
                                             <p className="text-xs text-gray-500">{p.tipoProducto} • Entrega: {formatearFechaLocal(p.fechaEntrega)}</p>
-                                            <p className="text-xs text-orange-600 font-bold mt-1 flex items-center gap-1">
+                                            <p className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
                                                 <Clock size={10}/> Se elimina en {Math.floor(horasRestantes)} horas
                                             </p>
                                         </div>
                                         <button 
                                             onClick={() => onRestaurar(p.folio)} 
-                                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors"
+                                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-blue-200"
                                         >
                                             <RotateCcw size={16}/> Restaurar
                                         </button>
@@ -63,61 +82,251 @@ const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
     );
 };
 
+// --- COMPONENTE: MODAL ENTREGADOS (HISTORIAL DEL DÍA) ---
+const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
+    const [busqueda, setBusqueda] = useState('');
+
+    const filtrados = pedidosEntregados.filter(p => 
+        p.cliente.toUpperCase().includes(busqueda) || 
+        (p.telefono && p.telefono.includes(busqueda))
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-green-500 flex flex-col max-h-[90vh]">
+                <div className="bg-green-50 p-4 flex justify-between items-center border-b border-green-100 shrink-0">
+                    <div>
+                        <h3 className="font-bold text-xl text-green-900 flex items-center gap-2">
+                            <PackageCheck size={24} className="text-green-600"/> Pedidos Entregados
+                        </h3>
+                        <p className="text-xs text-green-700 mt-1">Historial de entregas.</p>
+                    </div>
+                    <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
+                </div>
+
+                <div className="p-4 bg-white border-b border-gray-100 shrink-0">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-gray-400" /></div>
+                        <input 
+                            type="text"
+                            placeholder="BUSCAR POR NOMBRE O TELÉFONO..."
+                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase bg-gray-50"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
+                        />
+                    </div>
+                </div>
+                
+                <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
+                    {filtrados.length === 0 ? (
+                        <div className="text-center py-12 text-gray-400">
+                            <CheckCircle size={48} className="mx-auto mb-3 opacity-20"/>
+                            <p>{busqueda ? "No se encontraron coincidencias." : "No hay pedidos entregados aún."}</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {filtrados.map((p, i) => (
+                                <div key={i} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex justify-between items-center group hover:shadow-md transition">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 uppercase">Entregado</span>
+                                            <span className="text-[10px] font-bold text-gray-400">{p.folio}</span>
+                                        </div>
+                                        <p className="font-bold text-gray-800">{p.cliente}</p>
+                                        <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => onDeshacerEntrega(p.folio)} 
+                                        className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200"
+                                        title="Regresar a Pendientes"
+                                    >
+                                        <RotateCcw size={16}/> Deshacer
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- NUEVO COMPONENTE: MODAL CORTE DE CAJA (HOY) ---
+const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
+    // Filtramos solo los pedidos que generaron ingresos hoy (pagosRealizados > 0)
+    const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up border-t-8 border-pink-500 flex flex-col max-h-[90vh]">
+                <div className="bg-pink-50 p-4 flex justify-between items-center border-b border-pink-100 shrink-0">
+                    <div>
+                        <h3 className="font-bold text-xl text-pink-900 flex items-center gap-2">
+                            <Receipt size={24} className="text-pink-600"/> Corte de Caja (Hoy)
+                        </h3>
+                        <p className="text-xs text-pink-700 mt-1">{ingresos.length} movimientos registrados hoy.</p>
+                    </div>
+                    <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
+                    {ingresos.length === 0 ? (
+                        <div className="text-center py-12 text-gray-400">
+                            <DollarSign size={48} className="mx-auto mb-3 opacity-20"/>
+                            <p>No hay ingresos registrados hoy.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {ingresos.map((p, i) => {
+                                const montoPorPago = p.total / p.numPagos;
+                                const montoIngresado = montoPorPago * p.pagosRealizados;
+                                const esLiquidado = p.pagosRealizados === p.numPagos;
+                                const esPagoUnico = p.numPagos === 1;
+
+                                return (
+                                    <div key={i} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center">
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-sm">{p.cliente}</p>
+                                            <p className="text-xs text-gray-500">{p.tipoProducto} ({p.folio})</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${esLiquidado ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                    {esPagoUnico ? 'PAGO ÚNICO' : esLiquidado ? 'LIQUIDADO' : `ABONO (${p.pagosRealizados}/${p.numPagos})`}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="block font-bold text-pink-600 text-lg">+${montoIngresado.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-pink-900 p-4 text-white flex justify-between items-center shrink-0">
+                    <span className="font-bold text-pink-200 uppercase tracking-wider text-sm">Total Recaudado</span>
+                    <span className="font-bold text-3xl">${totalCaja.toFixed(2)}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- VISTA: INICIO (DASHBOARD) ---
-export const VistaInicioPasteleria = ({ pedidos, onEditar, onToggleEstado, onVerDetalles, onCancelar, onRestaurar }) => {
+export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onVerDetalles, onCancelar, onRestaurar, onDeshacerEntrega }) => {
     const [busqueda, setBusqueda] = useState('');
     const [mostrarPapelera, setMostrarPapelera] = useState(false);
+    const [mostrarEntregados, setMostrarEntregados] = useState(false);
+    const [mostrarCajaHoy, setMostrarCajaHoy] = useState(false); // Estado para el nuevo modal
 
-    const pedidosActivos = useMemo(() => pedidos.filter(p => p.estado !== 'Cancelado'), [pedidos]);
+    // Separamos los pedidos
+    const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
+    const pedidosEntregados = useMemo(() => pedidos.filter(p => p.estado === 'Entregado'), [pedidos]);
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
 
+    // Filtramos solo los pendientes para la tabla principal
     const pedidosFiltrados = useMemo(() => {
-        let procesados = [...pedidosActivos].sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega));
+        let procesados = [...pedidosPendientes].sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega));
         if (busqueda) {
             const texto = busqueda;
             procesados = procesados.filter(p => p.cliente.toUpperCase().includes(texto) || p.telefono.includes(texto));
         }
         return procesados;
-    }, [pedidosActivos, busqueda]);
+    }, [pedidosPendientes, busqueda]);
 
-    const totalCajaHoy = useMemo(() => { const hoy = getFechaHoy(); return pedidosActivos.filter(p => p.fecha === hoy).reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosActivos]);
+    // Cálculos
+    const entregadosHoyCount = pedidos.filter(p => p.estado === 'Entregado' && p.fechaEntrega === getFechaHoy()).length; 
+    
+    // Obtenemos los pedidos que contribuyen a la caja de hoy para pasarlos al modal
+    const pedidosCajaHoy = useMemo(() => {
+        const hoy = getFechaHoy();
+        return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy);
+    }, [pedidos]);
+
+    const totalCajaHoy = useMemo(() => { 
+        return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); 
+    }, [pedidosCajaHoy]);
 
     return (
         <div className="p-8">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Pedidos de la Pastelería</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <CardStat titulo="Pedidos Pendientes" valor={pedidosActivos.filter(p => p.estado === 'Pendiente').length} color="bg-yellow-100 text-yellow-800" icon={<Clock size={30} />} />
-                <CardStat titulo="Entregados Hoy" valor={pedidosActivos.filter(p => p.estado === 'Entregado' && p.fechaEntrega === getFechaHoy()).length} color="bg-green-100 text-green-800" icon={<CheckCircle size={30} />} />
                 
-                {/* NUEVA TARJETA PAPELERA */}
+                {/* Tarjeta Pendientes (Clickeable para LIMPIAR BÚSQUEDA) - AMARILLO */}
                 <div 
-                    onClick={() => setMostrarPapelera(true)}
-                    className="p-6 rounded-xl shadow-sm border-l-4 border-gray-400 bg-white flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors group"
+                    onClick={() => setBusqueda('')} 
+                    className="p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 bg-white flex justify-between items-center cursor-pointer hover:bg-yellow-50 transition-colors group"
+                    title="Clic para ver todos los pendientes (Limpiar búsqueda)"
                 >
                     <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Pedidos Cancelados (48h)</p>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Pedidos Pendientes</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{pedidosPendientes.length}</p>
+                    </div>
+                    <div className="text-yellow-300 opacity-50 group-hover:text-yellow-500 group-hover:opacity-100 transition">
+                        {busqueda ? <FilterX size={30} /> : <Clock size={30}/>}
+                    </div>
+                </div>
+                
+                {/* Tarjeta Entregados Hoy (Clickeable) - VERDE */}
+                <div 
+                    onClick={() => setMostrarEntregados(true)}
+                    className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group"
+                >
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p>
+                    </div>
+                    <div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><PackageCheck size={30}/></div>
+                </div>
+                
+                {/* Tarjeta Papelera (Clickeable) - ROJA */}
+                <div 
+                    onClick={() => setMostrarPapelera(true)}
+                    className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group"
+                >
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados (48h)</p>
                         <p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p>
                     </div>
-                    <div className="text-gray-300 opacity-50 group-hover:text-gray-500 group-hover:opacity-100 transition"><ArchiveRestore size={30}/></div>
+                    <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30}/></div>
                 </div>
 
-                <CardStat titulo="Total Caja (Hoy)" valor={`$${totalCajaHoy.toFixed(0)}`} color="bg-pink-100 text-pink-800" icon={<DollarSign size={30} />} />
+                {/* Tarjeta Caja Hoy (Clickeable) - ROSA */}
+                <div 
+                    onClick={() => setMostrarCajaHoy(true)} // Abre el nuevo modal
+                    className="p-6 rounded-xl shadow-sm border-l-4 border-pink-500 bg-white flex justify-between items-center cursor-pointer hover:bg-pink-50 transition-colors group"
+                >
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja (Hoy)</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p>
+                    </div>
+                    <div className="text-pink-300 opacity-50 group-hover:text-pink-500 group-hover:opacity-100 transition"><DollarSign size={30}/></div>
+                </div>
             </div>
 
+            {/* Barra de Búsqueda PRINCIPAL (PENDIENTES) */}
             <div className="flex justify-end mb-4">
                 <div className="relative w-full md:w-96">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
                     <input 
                         type="text"
-                        placeholder="BUSCAR POR CLIENTE O TELÉFONO..."
+                        placeholder="BUSCAR POR NOMBRE O TELÉFONO..."
                         className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase"
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
                     />
+                    {busqueda && (
+                        <button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500">
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
 
+            {/* Tabla de Pedidos Pendientes */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -128,7 +337,9 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onToggleEstado, onVer
                         </thead>
                         <tbody>
                             {pedidosFiltrados.length === 0 ? (
-                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">No se encontraron pedidos activos. Revisa la papelera si cancelaste alguno.</td></tr>
+                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">
+                                    {busqueda ? "No se encontraron pedidos con esa búsqueda." : "No hay pedidos pendientes. ¡Buen trabajo!"}
+                                </td></tr>
                             ) : (
                                 pedidosFiltrados.map((p, i) => (
                                     <tr key={i} onClick={() => onVerDetalles(p)} className="border-b hover:bg-gray-50 cursor-pointer">
@@ -138,14 +349,17 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onToggleEstado, onVer
                                         <td className="p-4 font-bold text-green-600">${p.total}</td>
                                         <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
                                         <td className="p-4">
-                                            <button onClick={(e) => { e.stopPropagation(); onToggleEstado(p.folio); }} className={`px-2 py-1 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-colors ${p.estado === 'Entregado' ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'}`}>
-                                                {p.estado === 'Entregado' ? <CheckCircle size={12} /> : <Clock size={12} />} {p.estado}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} 
+                                                className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 hover:scale-105 border border-yellow-200"
+                                                title="Marcar como Entregado"
+                                            >
+                                                <Clock size={12} /> Pendiente
                                             </button>
                                         </td>
                                         <td className="p-4 flex gap-2">
                                             <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
-                                            {/* BOTÓN CANCELAR (Antes eliminar) */}
                                             <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar Pedido"><Trash2 size={18} /></button>
                                         </td>
                                     </tr>
@@ -164,12 +378,29 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onToggleEstado, onVer
                     onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} 
                 />
             )}
+
+            {/* MODAL ENTREGADOS */}
+            {mostrarEntregados && (
+                <ModalEntregados
+                    pedidosEntregados={pedidosEntregados}
+                    onClose={() => setMostrarEntregados(false)}
+                    onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }}
+                />
+            )}
+
+            {/* NUEVO MODAL CORTE DE CAJA */}
+            {mostrarCajaHoy && (
+                <ModalCorteCaja
+                    pedidosDelDia={pedidosCajaHoy}
+                    totalCaja={totalCajaHoy}
+                    onClose={() => setMostrarCajaHoy(false)}
+                />
+            )}
         </div>
     );
 };
 
-// ... (VistaNuevoPedido y VistaCalendarioPasteleria SE MANTIENEN IGUAL) ...
-// Copia las otras vistas del código anterior aquí abajo.
+// ... (Resto de componentes: VistaNuevoPedido y VistaCalendarioPasteleria se mantienen IGUAL) ...
 export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedidoAEditar, mostrarNotificacion }) => {
     const [formulario, setFormulario] = useState({ folio: '', cliente: '', telefono: '', tipoProducto: 'Pastel', detalles: '', total: '', numPagos: 1, fechaEntrega: '', horaEntrega: '' });
     const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Pastel');

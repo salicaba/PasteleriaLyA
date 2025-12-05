@@ -1,13 +1,42 @@
 import React, { useState, useMemo } from 'react';
-import { ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign } from 'lucide-react';
+import { ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package } from 'lucide-react';
 import { ORDEN_CATEGORIAS } from '../utils/config';
 
 // COMPONENTE: PANTALLA INICIAL (LOGIN)
 const PantallaLogin = ({ onIngresar, mesaNombre }) => {
     const [nombre, setNombre] = useState('');
+    const [telefono, setTelefono] = useState('');
+    const [error, setError] = useState('');
 
-    const handleChange = (e) => {
+    // Detectamos si es "Para Llevar" buscando la palabra clave en el nombre de la mesa/zona
+    const esParaLlevar = mesaNombre.toLowerCase().includes('llevar');
+
+    const handleChangeNombre = (e) => {
         setNombre(e.target.value.toUpperCase());
+        if (error) setError('');
+    };
+
+    const handleChangeTelefono = (e) => {
+        const val = e.target.value;
+        if (/^\d*$/.test(val) && val.length <= 10) {
+            setTelefono(val);
+            if (error) setError('');
+        }
+    };
+
+    const handleContinuar = () => {
+        if (nombre.trim().length < 3) {
+            setError("Por favor, ingresa un nombre válido (mínimo 3 letras).");
+            return;
+        }
+        
+        // Validación de teléfono SOLO si es para llevar
+        if (esParaLlevar && telefono.length !== 10) {
+            setError("El teléfono debe ser de 10 dígitos para avisarte.");
+            return;
+        }
+
+        onIngresar(nombre, telefono);
     };
 
     return (
@@ -16,23 +45,51 @@ const PantallaLogin = ({ onIngresar, mesaNombre }) => {
                 <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Coffee size={32} className="text-orange-600" />
                 </div>
-                {/* NOMBRE ACTUALIZADO A LyA EN CURSIVA */}
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Bienvenido a <span className="italic font-serif">LyA</span></h1>
-                <p className="text-gray-500 mb-6">Estás en: <span className="font-bold text-orange-600">{mesaNombre}</span></p>
                 
-                <div className="text-left mb-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase">Tu Nombre</label>
-                    <input 
-                        value={nombre}
-                        onChange={handleChange}
-                        placeholder="INGRESA TU NOMBRE"
-                        className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors"
-                    />
+                <h1 className="text-3xl font-bold text-gray-800 mb-1">Bienvenido a <span className="italic font-serif text-orange-600">LyA</span></h1>
+                <p className="text-orange-500 font-medium italic mb-6 text-sm">¡Satisface tu antojo hoy!</p>
+                <p className="text-gray-500 mb-6 text-sm">Estás en: <span className="font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded">{mesaNombre}</span></p>
+                
+                <div className="text-left space-y-4 mb-6">
+                    <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Nombre</label>
+                        <input 
+                            value={nombre}
+                            onChange={handleChangeNombre}
+                            placeholder="Ej. JUAN PÉREZ"
+                            className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors uppercase"
+                        />
+                    </div>
+                    
+                    {/* CAMPO DE TELÉFONO (SOLO VISIBLE SI ES PARA LLEVAR) */}
+                    {esParaLlevar && (
+                        <div className="animate-fade-in">
+                            <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono (Para avisarte)</label>
+                            <input 
+                                value={telefono}
+                                onChange={handleChangeTelefono}
+                                placeholder="10 DÍGITOS"
+                                type="tel"
+                                inputMode="numeric"
+                                className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors"
+                            />
+                        </div>
+                    )}
                 </div>
+
+                {error && (
+                    <div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold flex items-center gap-2 animate-bounce-in">
+                        <AlertCircle size={16}/> {error}
+                    </div>
+                )}
+
                 <button 
-                    onClick={() => { if(nombre.length > 2) onIngresar(nombre); }}
-                    disabled={nombre.length <= 2}
-                    className={`w-full py-4 rounded-xl font-bold text-white transition-all ${nombre.length > 2 ? 'bg-orange-600 hover:bg-orange-700 shadow-lg' : 'bg-gray-300'}`}
+                    onClick={handleContinuar}
+                    className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${
+                        nombre.length >= 3 && (!esParaLlevar || telefono.length === 10) 
+                        ? 'bg-orange-600 hover:bg-orange-700' 
+                        : 'bg-gray-300 cursor-not-allowed'
+                    }`}
                 >
                     Comenzar a Pedir
                 </button>
@@ -173,9 +230,13 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
 // COMPONENTE PRINCIPAL VISTA CLIENTE
 export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => {
     const [nombreCliente, setNombreCliente] = useState(null);
+    const [telefonoCliente, setTelefonoCliente] = useState(null);
     const [carrito, setCarrito] = useState([]);
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
+
+    // Detectar si es para llevar
+    const esParaLlevar = useMemo(() => mesa?.nombre.toLowerCase().includes('llevar'), [mesa]);
 
     // Obtener la cuenta real acumulada del cliente en esta mesa
     const miCuentaAcumulada = useMemo(() => {
@@ -207,14 +268,14 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     };
 
     const confirmarPedido = () => {
-        onRealizarPedido(mesa.id, nombreCliente, carrito);
+        onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente);
         setPedidoEnviado(true);
         setCarrito([]);
     };
 
     // 1. Pantalla Login
     if (!nombreCliente) {
-        return <PantallaLogin mesaNombre={mesa.nombre} onIngresar={setNombreCliente} />;
+        return <PantallaLogin mesaNombre={mesa.nombre} onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} />;
     }
 
     // 2. Pantalla Ver Cuenta Total
@@ -226,10 +287,47 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     if (pedidoEnviado) {
         return (
             <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up">
-                <CheckCircle size={80} className="text-green-500 mb-6" />
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                    <CheckCircle size={60} className="text-green-600" />
+                </div>
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Recibido!</h2>
-                <p className="text-gray-600 mb-8">Gracias <strong>{nombreCliente}</strong>, estamos preparando tus alimentos.</p>
+                <p className="text-gray-600 mb-6">Gracias <strong>{nombreCliente}</strong>.</p>
                 
+                {/* --- MENSAJE CONDICIONAL SEGÚN TIPO DE PEDIDO --- */}
+                {esParaLlevar ? (
+                    // MENSAJE PARA LLEVAR
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
+                        <div className="flex items-start gap-3 mb-4">
+                            <ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-600">Estamos preparando tus alimentos para llevar.</p>
+                        </div>
+                        <div className="flex items-start gap-3 mb-4">
+                            <DollarSign className="text-green-600 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-600 font-bold">Por favor, acércate a caja para realizar tu pago y esperar tu entrega.</p>
+                        </div>
+                        {telefonoCliente && (
+                            <div className="flex items-start gap-3">
+                                <Phone className="text-green-600 mt-1 shrink-0" size={20}/>
+                                <p className="text-sm text-gray-600">Te llamaremos al <strong>{telefonoCliente}</strong> cuando esté listo.</p>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    // MENSAJE PARA MESA (CON NOTA EDUCADA SOBRE LLEVAR)
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
+                        <div className="flex items-start gap-3 mb-4">
+                            <Coffee className="text-green-600 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-600">Tus alimentos llegarán pronto a tu mesa. ¡Disfruta!</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <Package className="text-orange-500 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-500 italic">
+                                ¿Deseas llevar algo a casa? Si necesitas empaquetar algún producto o pedir algo extra para llevar, por favor coméntalo a nuestro personal o en caja.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3 w-full max-w-xs">
                     <button onClick={() => setPedidoEnviado(false)} className="bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-green-700 transition">
                         Pedir más cosas
@@ -273,8 +371,12 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                             <div className="grid grid-cols-1 gap-3">
                                 {prods.map(prod => (
                                     <div key={prod.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-4">
-                                        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-4xl shrink-0">
-                                            {prod.imagen}
+                                        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-4xl shrink-0 overflow-hidden">
+                                            {prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? (
+                                                <img src={prod.imagen} className="w-full h-full object-contain" alt={prod.nombre}/>
+                                            ) : (
+                                                prod.imagen
+                                            )}
                                         </div>
                                         <div className="flex-1 flex flex-col justify-between">
                                             <div>

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange 
+    Printer, FileText, CalendarRange, Menu, LogOut // <--- AÑADIDO LogOut
 } from 'lucide-react';
-import { formatearFechaLocal, imprimirTicket } from '../utils/config';
+import { imprimirTicket } from '../utils/config';
+import { formatearFechaLocal } from '../utils/config';
 
+// --- NOTIFICACIÓN FLOTANTE ---
 export const Notificacion = ({ data, onClose }) => {
     if (!data.visible) return null;
     const estilos = {
@@ -22,6 +24,7 @@ export const Notificacion = ({ data, onClose }) => {
     );
 };
 
+// --- TARJETA DE ESTADÍSTICAS (DASHBOARD) ---
 export const CardStat = ({ titulo, valor, color, icon }) => (
     <div className={`p-6 rounded-xl shadow-sm border-l-4 ${color.split(' ')[0].replace('bg-', 'border-')} bg-white flex justify-between items-center`}>
         <div>
@@ -32,6 +35,33 @@ export const CardStat = ({ titulo, valor, color, icon }) => (
     </div>
 );
 
+// --- TARJETA DE PRODUCTO (PARA EL MENÚ) ---
+export const CardProducto = ({ producto, onClick }) => {
+    const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
+
+    return (
+        <div onClick={onClick} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group border border-orange-100 flex flex-col cursor-pointer h-full">
+            <div className="h-40 bg-orange-50 flex items-center justify-center overflow-hidden relative">
+                <div style={{ transform: `scale(${producto.zoom ? producto.zoom / 100 : 1})` }} className="text-6xl transition-transform duration-300 w-full h-full flex items-center justify-center">
+                    {esImagen(producto.imagen) ? (
+                        <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain" />
+                    ) : (
+                        producto.imagen || '☕'
+                    )}
+                </div>
+            </div>
+            <div className="p-4 flex-1 flex flex-col">
+                <h4 className="font-bold text-gray-800 text-lg mb-1 leading-tight">{producto.nombre}</h4>
+                <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">{producto.descripcion || 'Sin descripción'}</p>
+                <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-100">
+                    <span className="text-xl font-bold text-orange-700">${producto.precio}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- SIDEBAR ---
 const BotonNav = ({ icon, label, active, onClick, colorTheme = "pink" }) => {
     const activeClass = colorTheme === "orange" ? "bg-orange-600 text-white shadow-md" : "bg-pink-700 text-white shadow-md";
     const hoverClass = colorTheme === "orange" ? "hover:bg-orange-700 text-orange-100" : "hover:bg-pink-800 text-pink-100";
@@ -42,7 +72,8 @@ const BotonNav = ({ icon, label, active, onClick, colorTheme = "pink" }) => {
     );
 };
 
-export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, toggleSidebar }) => {
+// AGREGAMOS LA PROP 'onLogout' AQUÍ
+export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, toggleSidebar, onLogout }) => {
     const esCafeteria = modo === 'cafeteria';
     const colorBg = esCafeteria ? "bg-orange-900" : "bg-pink-900";
     const colorText = esCafeteria ? "text-orange-200" : "text-pink-200";
@@ -51,7 +82,6 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
         <div className={`${isOpen ? 'w-64 p-4' : 'w-0 p-0'} ${colorBg} text-white min-h-screen flex flex-col shadow-2xl transition-all duration-300 overflow-hidden relative`}>
             {isOpen && <button onClick={toggleSidebar} className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full text-white/70 hover:text-white transition"><PanelLeftClose size={20} /></button>}
             <div className="mb-8 text-center mt-6">
-                {/* LOGO PERSONALIZADO LyA */}
                 <h1 className="text-5xl font-bold text-white whitespace-nowrap mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>LyA</h1>
                 <p className={`text-xs ${colorText} uppercase tracking-widest mt-1 whitespace-nowrap`}>{modo === 'admin' ? 'Administración' : modo === 'pasteleria' ? 'Modo Pastelería' : 'Modo Cafetería'}</p>
             </div>
@@ -70,7 +100,6 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                     <>
                         <BotonNav icon={<LayoutDashboard size={20} />} label="Inicio" active={vistaActual === 'inicio'} onClick={() => setVistaActual('inicio')} />
                         <BotonNav icon={<PlusCircle size={20} />} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => setVistaActual('pedidos')} />
-                        {/* NUEVO BOTÓN DE AGENDA */}
                         <BotonNav icon={<CalendarRange size={20} />} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => setVistaActual('agenda')} />
                         <BotonNav icon={<BarChart3 size={20} />} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => setVistaActual('ventas')} />
                     </>
@@ -84,10 +113,25 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                     </>
                 )}
             </nav>
-            {modo !== 'admin' && <button onClick={() => { setModo('admin'); setVistaActual('inicio'); }} className="mt-4 flex items-center justify-center space-x-2 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm whitespace-nowrap"><ArrowLeft size={16} /><span>Volver al Admin</span></button>}
+            
+            {/* SECCIÓN INFERIOR CON VOLVER Y CERRAR SESIÓN */}
+            <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
+                {modo !== 'admin' && (
+                    <button onClick={() => { setModo('admin'); setVistaActual('inicio'); }} className="w-full flex items-center justify-center space-x-2 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm whitespace-nowrap">
+                        <ArrowLeft size={16} /><span>Volver al Admin</span>
+                    </button>
+                )}
+                
+                {/* BOTÓN DE CERRAR SESIÓN AÑADIDO AQUÍ */}
+                <button onClick={onLogout} className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition text-red-200 hover:text-red-100">
+                    <LogOut size={20} /> <span className="font-medium whitespace-nowrap">Cerrar Sesión</span>
+                </button>
+            </div>
         </div>
     );
 };
+
+// --- MODALES (CONFIRMACIÓN, DETALLES, ETC) ---
 
 export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Estás seguro?", mensaje = "Esta acción no se puede deshacer." }) => {
     if (!isOpen) return null;
@@ -143,7 +187,6 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
                         <div><p className="text-xs text-gray-400">Fecha Registro</p><p className="font-medium text-gray-700 flex items-center gap-1"><CalendarDays size={14} />{formatearFechaLocal(pedido.fecha)}</p></div>
                     </div>
                     
-                    {/* BOTONES DE IMPRESIÓN */}
                     <div className="flex gap-2">
                         <button onClick={() => imprimirTicket({ ...pedido, saldoPendiente }, 'ticket')} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold flex items-center justify-center gap-2 text-gray-700">
                             <Printer size={16}/> Imprimir Ticket
@@ -224,7 +267,6 @@ export const ModalVentasDia = ({ dia, mes, anio, ventas, cerrar, onVerDetalle })
     );
 };
 
-// --- NUEVO: MODAL AGENDA DEL DÍA (Lista de entregas para la cocina) ---
 export const ModalAgendaDia = ({ fechaIso, pedidos, cerrar, onVerDetalle }) => {
     if (!fechaIso) return null;
     const [anio, mes, dia] = fechaIso.split('-').map(Number);

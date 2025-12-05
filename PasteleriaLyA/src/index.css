@@ -1,17 +1,24 @@
 /* 1. Importamos la fuente cursiva 'Dancing Script' de Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
 
-/* 2. Configuraciones de Tailwind (esto ya lo tenías) */
+/* 2. Configuraciones de Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* 3. Estilos base opcionales */
 body {
-  background-color: #f9fafb; /* Un gris muy suave de fondo para toda la app */
+  background-color: #f9fafb;
 }
 
-/* 4. ANIMACIONES PERSONALIZADAS (Necesarias para que los modales se muevan bonito) */
+/* --- SOLUCIÓN PARA EL DOBLE OJO EN CONTRASEÑA --- */
+/* Esto oculta el ícono automático de Edge y otros navegadores */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+
+/* 4. ANIMACIONES PERSONALIZADAS */
 
 /* Aparición suave hacia arriba */
 @keyframes fade-in-up {
