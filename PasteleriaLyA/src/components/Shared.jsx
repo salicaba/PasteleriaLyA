@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
-    AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, Printer, FileText
+    AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
+    Printer, FileText, CalendarRange 
 } from 'lucide-react';
 import { formatearFechaLocal, imprimirTicket } from '../utils/config';
 
@@ -69,6 +70,8 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                     <>
                         <BotonNav icon={<LayoutDashboard size={20} />} label="Inicio" active={vistaActual === 'inicio'} onClick={() => setVistaActual('inicio')} />
                         <BotonNav icon={<PlusCircle size={20} />} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => setVistaActual('pedidos')} />
+                        {/* NUEVO BOTÓN DE AGENDA */}
+                        <BotonNav icon={<CalendarRange size={20} />} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => setVistaActual('agenda')} />
                         <BotonNav icon={<BarChart3 size={20} />} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => setVistaActual('ventas')} />
                     </>
                 )}
@@ -210,6 +213,61 @@ export const ModalVentasDia = ({ dia, mes, anio, ventas, cerrar, onVerDetalle })
                                     <div className="text-right">
                                         <span className="block font-bold text-green-600 text-lg">${v.total}</span>
                                         <span className="text-[10px] text-gray-400 font-mono">{v.folio || v.id}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- NUEVO: MODAL AGENDA DEL DÍA (Lista de entregas para la cocina) ---
+export const ModalAgendaDia = ({ fechaIso, pedidos, cerrar, onVerDetalle }) => {
+    if (!fechaIso) return null;
+    const [anio, mes, dia] = fechaIso.split('-').map(Number);
+    const entregasDelDia = pedidos.filter(p => p.fechaEntrega === fechaIso && p.estado !== 'Cancelado');
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col animate-fade-in-up border-t-8 border-pink-500">
+                <div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 sticky top-0 z-10">
+                    <div>
+                        <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
+                            <CalendarRange size={24} className="text-pink-600"/> Agenda {dia}/{mes}/{anio}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">{entregasDelDia.length} pedidos por entregar</p>
+                    </div>
+                    <button onClick={cerrar} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                </div>
+                
+                <div className="p-4 overflow-y-auto flex-1 bg-pink-50/30">
+                    {entregasDelDia.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400">
+                            <Cake size={48} className="mx-auto mb-2 opacity-20"/>
+                            <p>Día libre. No hay entregas programadas.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {entregasDelDia.map((p, i) => (
+                                <div 
+                                    key={i} 
+                                    onClick={() => onVerDetalle(p)} 
+                                    className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center cursor-pointer hover:shadow-md hover:border-pink-300 transition-all group relative overflow-hidden"
+                                >
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-500"></div>
+                                    <div className="flex-1 pl-3">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 uppercase tracking-wider">{p.tipoProducto}</span>
+                                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs flex items-center gap-1"><Eye size={12} /> Detalles</span>
+                                        </div>
+                                        <p className="font-bold text-gray-800 text-lg">{p.cliente}</p>
+                                        <p className="text-xs text-gray-500 line-clamp-1 italic">{p.detalles || 'Sin detalles especificados'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${p.estado === 'Entregado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.estado}</span>
                                     </div>
                                 </div>
                             ))}
