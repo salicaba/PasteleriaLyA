@@ -1,3 +1,48 @@
+/* 1. Importamos la fuente cursiva 'Dancing Script' de Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
+
+/* 2. Configuraciones de Tailwind (esto ya lo tenías) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 3. Estilos base opcionales */
+body {
+  background-color: #f9fafb; /* Un gris muy suave de fondo para toda la app */
+}
+
+/* 4. ANIMACIONES PERSONALIZADAS (Necesarias para que los modales se muevan bonito) */
+
+/* Aparición suave hacia arriba */
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { 
+    animation: fade-in-up 0.3s ease-out forwards; 
+}
+
+/* Efecto rebote al abrir ventanas (Pop) */
+@keyframes bounce-in {
+    0% { opacity: 0; transform: scale(0.3); }
+    50% { opacity: 1; transform: scale(1.05); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+.animate-bounce-in { 
+    animation: bounce-in 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) both; 
+}
+
+/* Animación lenta de "flotar" para el pastel de confirmación */
+@keyframes bounce-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+.animate-bounce-slow { 
+    animation: bounce-slow 2s infinite ease-in-out; 
+}
+
+/* Aparición simple */
+.animate-fade-in { 
+    animation: fade-in-up 0.5s ease-out; 
+}
