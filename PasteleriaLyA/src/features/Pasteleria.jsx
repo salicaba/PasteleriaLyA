@@ -3,14 +3,10 @@ import { Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, P
 import { CardStat } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
-// --- COMPONENTE: MODAL DE PAPELERA (PEDIDOS CANCELADOS) ---
+// --- MODAL PAPELERA (PEDIDOS CANCELADOS) ---
 const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
     const [busqueda, setBusqueda] = useState('');
-
-    const filtrados = pedidosCancelados.filter(p => 
-        p.cliente.toUpperCase().includes(busqueda) || 
-        (p.telefono && p.telefono.includes(busqueda))
-    );
+    const filtrados = pedidosCancelados.filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)));
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
@@ -18,22 +14,22 @@ const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
                 <div className="bg-red-50 p-4 flex justify-between items-center border-b border-red-100 shrink-0">
                     <div>
                         <h3 className="font-bold text-xl text-red-900 flex items-center gap-2">
-                            <ArchiveRestore size={24} className="text-red-600"/> Papelera de Reciclaje
+                            <ArchiveRestore size={24} className="text-red-600"/> Papelera
                         </h3>
-                        <p className="text-xs text-red-700 mt-1">Los pedidos se eliminan permanentemente después de 48 horas.</p>
+                        <p className="text-xs text-red-700 mt-1">Los pedidos se eliminan en 48h.</p>
                     </div>
                     <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
                 </div>
                 
                 <div className="p-4 bg-white border-b border-gray-100 shrink-0">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-gray-400" /></div>
+                        <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
                         <input 
-                            type="text"
-                            placeholder="BUSCAR POR NOMBRE O TELÉFONO..."
-                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent uppercase bg-gray-50"
-                            value={busqueda}
-                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
+                            type="text" 
+                            placeholder="BUSCAR..." 
+                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-red-500 focus:outline-none" 
+                            value={busqueda} 
+                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
                         />
                     </div>
                 </div>
@@ -49,9 +45,7 @@ const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
                             {filtrados.map((p, i) => {
                                 const fechaCancelacion = new Date(p.fechaCancelacion);
                                 const ahora = new Date();
-                                const horasTranscurridas = (ahora - fechaCancelacion) / (1000 * 60 * 60);
-                                const horasRestantes = Math.max(0, 48 - horasTranscurridas);
-                                
+                                const horasRestantes = Math.max(0, 48 - ((ahora - fechaCancelacion) / (1000 * 60 * 60)));
                                 return (
                                     <div key={i} className="bg-white p-4 rounded-xl border border-red-100 shadow-sm flex justify-between items-center group hover:shadow-md transition">
                                         <div className="flex-1">
@@ -60,16 +54,11 @@ const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
                                                 <span className="text-[10px] font-bold text-gray-400">{p.folio}</span>
                                             </div>
                                             <p className="font-bold text-gray-800">{p.cliente}</p>
-                                            <p className="text-xs text-gray-500">{p.tipoProducto} • Entrega: {formatearFechaLocal(p.fechaEntrega)}</p>
-                                            <p className="text-xs text-red-600 font-bold mt-1 flex items-center gap-1">
-                                                <Clock size={10}/> Se elimina en {Math.floor(horasRestantes)} horas
-                                            </p>
+                                            <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
+                                            <p className="text-[10px] text-red-400 mt-1 font-medium"><Clock size={10} className="inline mr-1"/>Eliminación en {Math.floor(horasRestantes)}h</p>
                                         </div>
-                                        <button 
-                                            onClick={() => onRestaurar(p.folio)} 
-                                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-blue-200"
-                                        >
-                                            <RotateCcw size={16}/> Restaurar
+                                        <button onClick={() => onRestaurar(p.folio)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-blue-200">
+                                            <RotateCcw size={16}/>
                                         </button>
                                     </div>
                                 );
@@ -82,14 +71,10 @@ const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
     );
 };
 
-// --- COMPONENTE: MODAL ENTREGADOS (HISTORIAL DEL DÍA) ---
+// --- MODAL ENTREGADOS (HISTORIAL DEL DÍA) ---
 const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     const [busqueda, setBusqueda] = useState('');
-
-    const filtrados = pedidosEntregados.filter(p => 
-        p.cliente.toUpperCase().includes(busqueda) || 
-        (p.telefono && p.telefono.includes(busqueda))
-    );
+    const filtrados = pedidosEntregados.filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)));
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
@@ -97,22 +82,22 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
                 <div className="bg-green-50 p-4 flex justify-between items-center border-b border-green-100 shrink-0">
                     <div>
                         <h3 className="font-bold text-xl text-green-900 flex items-center gap-2">
-                            <PackageCheck size={24} className="text-green-600"/> Pedidos Entregados
+                            <PackageCheck size={24} className="text-green-600"/> Entregados
                         </h3>
-                        <p className="text-xs text-green-700 mt-1">Historial de entregas.</p>
+                        <p className="text-xs text-green-700 mt-1">Historial de entregas del día.</p>
                     </div>
                     <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
                 </div>
 
                 <div className="p-4 bg-white border-b border-gray-100 shrink-0">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-gray-400" /></div>
+                        <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
                         <input 
-                            type="text"
-                            placeholder="BUSCAR POR NOMBRE O TELÉFONO..."
-                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase bg-gray-50"
-                            value={busqueda}
-                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
+                            type="text" 
+                            placeholder="BUSCAR..." 
+                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none" 
+                            value={busqueda} 
+                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
                         />
                     </div>
                 </div>
@@ -135,11 +120,7 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
                                         <p className="font-bold text-gray-800">{p.cliente}</p>
                                         <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
                                     </div>
-                                    <button 
-                                        onClick={() => onDeshacerEntrega(p.folio)} 
-                                        className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200"
-                                        title="Regresar a Pendientes"
-                                    >
+                                    <button onClick={() => onDeshacerEntrega(p.folio)} className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200" title="Regresar a Pendientes">
                                         <RotateCcw size={16}/> Deshacer
                                     </button>
                                 </div>
@@ -152,20 +133,18 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     );
 };
 
-// --- NUEVO COMPONENTE: MODAL CORTE DE CAJA (HOY) ---
+// --- MODAL CORTE DE CAJA (HOY) ---
 const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
-    // Filtramos solo los pedidos que generaron ingresos hoy (pagosRealizados > 0)
     const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up border-t-8 border-pink-500 flex flex-col max-h-[90vh]">
                 <div className="bg-pink-50 p-4 flex justify-between items-center border-b border-pink-100 shrink-0">
                     <div>
                         <h3 className="font-bold text-xl text-pink-900 flex items-center gap-2">
-                            <Receipt size={24} className="text-pink-600"/> Corte de Caja (Hoy)
+                            <Receipt size={24} className="text-pink-600"/> Corte de Caja
                         </h3>
-                        <p className="text-xs text-pink-700 mt-1">{ingresos.length} movimientos registrados hoy.</p>
+                        <p className="text-xs text-pink-700 mt-1">Ingresos registrados hoy.</p>
                     </div>
                     <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
                 </div>
@@ -179,16 +158,14 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
                     ) : (
                         <div className="space-y-3">
                             {ingresos.map((p, i) => {
-                                const montoPorPago = p.total / p.numPagos;
-                                const montoIngresado = montoPorPago * p.pagosRealizados;
+                                const montoIngresado = (p.total / p.numPagos) * p.pagosRealizados;
                                 const esLiquidado = p.pagosRealizados === p.numPagos;
                                 const esPagoUnico = p.numPagos === 1;
-
                                 return (
                                     <div key={i} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center">
                                         <div>
                                             <p className="font-bold text-gray-800 text-sm">{p.cliente}</p>
-                                            <p className="text-xs text-gray-500">{p.tipoProducto} ({p.folio})</p>
+                                            <p className="text-xs text-gray-500">{p.tipoProducto}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${esLiquidado ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                                     {esPagoUnico ? 'PAGO ÚNICO' : esLiquidado ? 'LIQUIDADO' : `ABONO (${p.pagosRealizados}/${p.numPagos})`}
@@ -204,7 +181,6 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
                         </div>
                     )}
                 </div>
-
                 <div className="bg-pink-900 p-4 text-white flex justify-between items-center shrink-0">
                     <span className="font-bold text-pink-200 uppercase tracking-wider text-sm">Total Recaudado</span>
                     <span className="font-bold text-3xl">${totalCaja.toFixed(2)}</span>
@@ -219,14 +195,12 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
     const [busqueda, setBusqueda] = useState('');
     const [mostrarPapelera, setMostrarPapelera] = useState(false);
     const [mostrarEntregados, setMostrarEntregados] = useState(false);
-    const [mostrarCajaHoy, setMostrarCajaHoy] = useState(false); // Estado para el nuevo modal
+    const [mostrarCajaHoy, setMostrarCajaHoy] = useState(false);
 
-    // Separamos los pedidos
     const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
     const pedidosEntregados = useMemo(() => pedidos.filter(p => p.estado === 'Entregado'), [pedidos]);
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
 
-    // Filtramos solo los pendientes para la tabla principal
     const pedidosFiltrados = useMemo(() => {
         let procesados = [...pedidosPendientes].sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega));
         if (busqueda) {
@@ -236,100 +210,59 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         return procesados;
     }, [pedidosPendientes, busqueda]);
 
-    // Cálculos
     const entregadosHoyCount = pedidos.filter(p => p.estado === 'Entregado' && p.fechaEntrega === getFechaHoy()).length; 
-    
-    // Obtenemos los pedidos que contribuyen a la caja de hoy para pasarlos al modal
-    const pedidosCajaHoy = useMemo(() => {
-        const hoy = getFechaHoy();
-        return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy);
-    }, [pedidos]);
-
-    const totalCajaHoy = useMemo(() => { 
-        return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); 
-    }, [pedidosCajaHoy]);
+    const pedidosCajaHoy = useMemo(() => { const hoy = getFechaHoy(); return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy); }, [pedidos]);
+    const totalCajaHoy = useMemo(() => { return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosCajaHoy]);
 
     return (
-        <div className="p-8">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">Pedidos de la Pastelería</h2>
+        <div className="p-4 md:p-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Pedidos de la Pastelería</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                
-                {/* Tarjeta Pendientes (Clickeable para LIMPIAR BÚSQUEDA) - AMARILLO */}
-                <div 
-                    onClick={() => setBusqueda('')} 
-                    className="p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 bg-white flex justify-between items-center cursor-pointer hover:bg-yellow-50 transition-colors group"
-                    title="Clic para ver todos los pendientes (Limpiar búsqueda)"
-                >
-                    <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Pedidos Pendientes</p>
-                        <p className="text-3xl font-bold text-gray-800 mt-2">{pedidosPendientes.length}</p>
-                    </div>
-                    <div className="text-yellow-300 opacity-50 group-hover:text-yellow-500 group-hover:opacity-100 transition">
-                        {busqueda ? <FilterX size={30} /> : <Clock size={30}/>}
-                    </div>
+            {/* GRID DE TARJETAS (RESPONSIVO) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+                {/* Pendientes */}
+                <div onClick={() => setBusqueda('')} className="p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 bg-white flex justify-between items-center cursor-pointer hover:bg-yellow-50 transition-colors group" title="Limpiar búsqueda">
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Pendientes</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosPendientes.length}</p></div>
+                    <div className="text-yellow-300 opacity-50 group-hover:text-yellow-500 group-hover:opacity-100 transition">{busqueda ? <FilterX size={30} /> : <Clock size={30}/>}</div>
                 </div>
-                
-                {/* Tarjeta Entregados Hoy (Clickeable) - VERDE */}
-                <div 
-                    onClick={() => setMostrarEntregados(true)}
-                    className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group"
-                >
-                    <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p>
-                        <p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p>
-                    </div>
+                {/* Entregados Hoy */}
+                <div onClick={() => setMostrarEntregados(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group">
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p></div>
                     <div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><PackageCheck size={30}/></div>
                 </div>
-                
-                {/* Tarjeta Papelera (Clickeable) - ROJA */}
-                <div 
-                    onClick={() => setMostrarPapelera(true)}
-                    className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group"
-                >
-                    <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados (48h)</p>
-                        <p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p>
-                    </div>
+                {/* Cancelados */}
+                <div onClick={() => setMostrarPapelera(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados (48h)</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p></div>
                     <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30}/></div>
                 </div>
-
-                {/* Tarjeta Caja Hoy (Clickeable) - ROSA */}
-                <div 
-                    onClick={() => setMostrarCajaHoy(true)} // Abre el nuevo modal
-                    className="p-6 rounded-xl shadow-sm border-l-4 border-pink-500 bg-white flex justify-between items-center cursor-pointer hover:bg-pink-50 transition-colors group"
-                >
-                    <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja (Hoy)</p>
-                        <p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p>
-                    </div>
+                {/* Total Caja */}
+                <div onClick={() => setMostrarCajaHoy(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-pink-500 bg-white flex justify-between items-center cursor-pointer hover:bg-pink-50 transition-colors group">
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja (Hoy)</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p></div>
                     <div className="text-pink-300 opacity-50 group-hover:text-pink-500 group-hover:opacity-100 transition"><DollarSign size={30}/></div>
                 </div>
             </div>
 
-            {/* Barra de Búsqueda PRINCIPAL (PENDIENTES) */}
+            {/* BUSCADOR */}
             <div className="flex justify-end mb-4">
                 <div className="relative w-full md:w-96">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
                     <input 
-                        type="text"
-                        placeholder="BUSCAR POR NOMBRE O TELÉFONO..."
-                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase"
-                        value={busqueda}
+                        type="text" 
+                        placeholder="BUSCAR POR NOMBRE O TELÉFONO..." 
+                        className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" 
+                        value={busqueda} 
                         onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
                     />
                     {busqueda && (
-                        <button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500">
-                            <X size={16} />
-                        </button>
+                        <button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"><X size={16} /></button>
                     )}
                 </div>
             </div>
 
-            {/* Tabla de Pedidos Pendientes */}
+            {/* TABLA PENDIENTES (CON SCROLL) */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-pink-50 text-pink-800 text-sm">
                                 <th className="p-4">Folio</th><th className="p-4">Cliente</th><th className="p-4">Entrega</th><th className="p-4">Total</th><th className="p-4">Pagos</th><th className="p-4">Estado</th><th className="p-4">Acciones</th>
@@ -337,9 +270,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                         </thead>
                         <tbody>
                             {pedidosFiltrados.length === 0 ? (
-                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">
-                                    {busqueda ? "No se encontraron pedidos con esa búsqueda." : "No hay pedidos pendientes. ¡Buen trabajo!"}
-                                </td></tr>
+                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda ? "No se encontraron coincidencias." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
                             ) : (
                                 pedidosFiltrados.map((p, i) => (
                                     <tr key={i} onClick={() => onVerDetalles(p)} className="border-b hover:bg-gray-50 cursor-pointer">
@@ -349,18 +280,14 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                         <td className="p-4 font-bold text-green-600">${p.total}</td>
                                         <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
                                         <td className="p-4">
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} 
-                                                className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 hover:scale-105 border border-yellow-200"
-                                                title="Marcar como Entregado"
-                                            >
+                                            <button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado">
                                                 <Clock size={12} /> Pendiente
                                             </button>
                                         </td>
                                         <td className="p-4 flex gap-2">
                                             <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar Pedido"><Trash2 size={18} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar"><Trash2 size={18} /></button>
                                         </td>
                                     </tr>
                                 ))
@@ -370,37 +297,14 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {/* MODAL PAPELERA */}
-            {mostrarPapelera && (
-                <ModalPapelera 
-                    pedidosCancelados={pedidosCancelados} 
-                    onClose={() => setMostrarPapelera(false)} 
-                    onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} 
-                />
-            )}
-
-            {/* MODAL ENTREGADOS */}
-            {mostrarEntregados && (
-                <ModalEntregados
-                    pedidosEntregados={pedidosEntregados}
-                    onClose={() => setMostrarEntregados(false)}
-                    onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }}
-                />
-            )}
-
-            {/* NUEVO MODAL CORTE DE CAJA */}
-            {mostrarCajaHoy && (
-                <ModalCorteCaja
-                    pedidosDelDia={pedidosCajaHoy}
-                    totalCaja={totalCajaHoy}
-                    onClose={() => setMostrarCajaHoy(false)}
-                />
-            )}
+            {mostrarPapelera && <ModalPapelera pedidosCancelados={pedidosCancelados} onClose={() => setMostrarPapelera(false)} onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} />}
+            {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregados} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
+            {mostrarCajaHoy && <ModalCorteCaja pedidosDelDia={pedidosCajaHoy} totalCaja={totalCajaHoy} onClose={() => setMostrarCajaHoy(false)} />}
         </div>
     );
 };
 
-// ... (Resto de componentes: VistaNuevoPedido y VistaCalendarioPasteleria se mantienen IGUAL) ...
+// --- VISTA: NUEVO PEDIDO ---
 export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedidoAEditar, mostrarNotificacion }) => {
     const [formulario, setFormulario] = useState({ folio: '', cliente: '', telefono: '', tipoProducto: 'Pastel', detalles: '', total: '', numPagos: 1, fechaEntrega: '', horaEntrega: '' });
     const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Pastel');
@@ -452,26 +356,16 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
     const montoPorPago = formulario.total && formulario.numPagos > 0 ? (parseFloat(formulario.total) / parseInt(formulario.numPagos)).toFixed(2) : '0.00';
 
     return (
-        <div className="p-8 max-w-4xl mx-auto">
+        <div className="p-4 md:p-8 max-w-4xl mx-auto">
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-3xl font-bold text-pink-900">{pedidoAEditar ? 'Editar Pedido' : 'Nuevo Pedido Pastelería'}</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-pink-900">{pedidoAEditar ? 'Editar Pedido' : 'Nuevo Pedido'}</h2>
                 {pedidoAEditar && <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-mono">{pedidoAEditar.folio}</span>}
             </div>
-            <form onSubmit={manejarSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-pink-100">
+            <form onSubmit={manejarSubmit} className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-pink-100">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                         <label className="flex items-center text-sm font-medium text-gray-700"><User size={16} className="mr-2 text-pink-500" /> Cliente</label>
-                        <input 
-                            required 
-                            type="text" 
-                            placeholder="EJ. MARÍA PÉREZ" 
-                            className="w-full p-3 border rounded-lg uppercase" 
-                            value={formulario.cliente} 
-                            onChange={e => { 
-                                const val = e.target.value.toUpperCase();
-                                if (/^[A-Z\sÑÁÉÍÓÚ]*$/.test(val)) setFormulario({ ...formulario, cliente: val });
-                            }} 
-                        />
+                        <input required type="text" placeholder="EJ. MARÍA PÉREZ" className="w-full p-3 border rounded-lg uppercase" value={formulario.cliente} onChange={e => { const val = e.target.value.toUpperCase(); if (/^[A-Z\sÑÁÉÍÓÚ]*$/.test(val)) setFormulario({ ...formulario, cliente: val }); }} />
                     </div>
                     <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><Phone size={16} className="mr-2 text-pink-500" /> Teléfono</label><input required type="tel" placeholder="10 dígitos" className="w-full p-3 border rounded-lg" value={formulario.telefono} onChange={e => { if (/^\d{0,10}$/.test(e.target.value)) setFormulario({ ...formulario, telefono: e.target.value }) }} /></div>
                     <div className="space-y-2">
@@ -479,18 +373,10 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
                         <select className="w-full p-3 border rounded-lg bg-white" value={categoriaSeleccionada} onChange={e => setCategoriaSeleccionada(e.target.value)}><option value="Pastel">Pastel</option><option value="Cheesecake">Cheesecake</option><option value="Rosca">Rosca</option><option value="Otro">Otro (Escribir)</option></select>
                         {categoriaSeleccionada === 'Otro' && (<input type="text" placeholder="Especifique..." className="w-full p-3 mt-2 border rounded-lg bg-pink-50" value={otroTexto} onChange={e => setOtroTexto(e.target.value)} required />)}
                     </div>
-                    
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label>
-                            <input required type="date" min="2025-12-01" className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario, fechaEntrega: e.target.value })} />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="flex items-center text-sm font-medium text-gray-700"><Clock size={16} className="mr-2 text-pink-500" /> Hora Entrega</label>
-                            <input required type="time" className="w-full p-3 border rounded-lg" value={formulario.horaEntrega} onChange={e => setFormulario({ ...formulario, horaEntrega: e.target.value })} />
-                        </div>
+                        <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label><input required type="date" min="2025-12-01" className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario, fechaEntrega: e.target.value })} /></div>
+                        <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><Clock size={16} className="mr-2 text-pink-500" /> Hora Entrega</label><input required type="time" className="w-full p-3 border rounded-lg" value={formulario.horaEntrega} onChange={e => setFormulario({ ...formulario, horaEntrega: e.target.value })} /></div>
                     </div>
-
                     <div className="space-y-2 md:col-span-2"><label className="flex items-center text-sm font-medium text-gray-700"><ShoppingBag size={16} className="mr-2 text-pink-500" /> Detalles</label><textarea placeholder="Sabor, dedicatoria, decoración especial..." className="w-full p-3 border rounded-lg h-24" value={formulario.detalles} onChange={e => setFormulario({ ...formulario, detalles: e.target.value })} /></div>
                     <div className="md:col-span-2 bg-pink-50 p-4 rounded-xl border border-pink-100">
                         <div className="flex items-center mb-4 text-pink-700 font-semibold"><Calculator size={18} className="mr-2" /> Calculadora de Liquidación</div>
@@ -507,126 +393,42 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
     );
 };
 
+// --- VISTA: CALENDARIO ---
 export const VistaCalendarioPasteleria = ({ pedidos, onSeleccionarDia }) => {
     const [fechaVisual, setFechaVisual] = useState(new Date(2025, 11, 1)); 
     const [fechaBusqueda, setFechaBusqueda] = useState('');
-
     const anio = fechaVisual.getFullYear();
     const mes = fechaVisual.getMonth();
-
     const diasEnMes = new Date(anio, mes + 1, 0).getDate();
     const diaInicioSemana = new Date(anio, mes, 1).getDay(); 
-
     const dias = [];
     for (let i = 0; i < diaInicioSemana; i++) dias.push(null);
     for (let i = 1; i <= diasEnMes; i++) dias.push(i);
 
-    const cambiarMes = (delta) => {
-        const nueva = new Date(fechaVisual);
-        nueva.setMonth(nueva.getMonth() + delta);
-        if (nueva < new Date(2025, 11, 1)) return;
-        setFechaVisual(nueva);
-    };
+    const cambiarMes = (delta) => { const nueva = new Date(fechaVisual); nueva.setMonth(nueva.getMonth() + delta); if (nueva < new Date(2025, 11, 1)) return; setFechaVisual(nueva); };
+    const handleCambiarMesInput = (e) => { const [y, m] = e.target.value.split('-').map(Number); const nueva = new Date(y, m - 1, 1); if (nueva < new Date(2025, 11, 1)) return; setFechaVisual(nueva); };
+    const handleBuscarDia = (e) => { const fechaStr = e.target.value; setFechaBusqueda(fechaStr); if(fechaStr) { const [y, m] = fechaStr.split('-').map(Number); if (new Date(y, m - 1, 1) >= new Date(2025, 11, 1)) { setFechaVisual(new Date(y, m - 1, 1)); } onSeleccionarDia(fechaStr); } };
 
-    const handleCambiarMesInput = (e) => {
-        const [y, m] = e.target.value.split('-').map(Number);
-        const nueva = new Date(y, m - 1, 1);
-        if (nueva < new Date(2025, 11, 1)) return;
-        setFechaVisual(nueva);
-    };
-
-    const handleBuscarDia = (e) => {
-        const fechaStr = e.target.value;
-        setFechaBusqueda(fechaStr);
-        if(fechaStr) {
-            const [y, m] = fechaStr.split('-').map(Number);
-            if (new Date(y, m - 1, 1) >= new Date(2025, 11, 1)) {
-                setFechaVisual(new Date(y, m - 1, 1));
-            }
-            onSeleccionarDia(fechaStr);
-        }
-    };
-
-    const getPedidosDelDia = (dia) => {
-        if (!dia) return [];
-        const fechaString = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-        return pedidos
-            .filter(p => p.fechaEntrega === fechaString && p.estado !== 'Cancelado')
-            .sort((a, b) => (a.horaEntrega || '00:00').localeCompare(b.horaEntrega || '00:00'));
-    };
-
+    const getPedidosDelDia = (dia) => { if (!dia) return []; const fechaString = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`; return pedidos.filter(p => p.fechaEntrega === fechaString && p.estado !== 'Cancelado').sort((a, b) => (a.horaEntrega || '00:00').localeCompare(b.horaEntrega || '00:00')); };
     const mesInputValue = `${anio}-${String(mes + 1).padStart(2, '0')}`;
 
     return (
-        <div className="p-8 h-screen flex flex-col">
+        <div className="p-4 md:p-8 h-screen flex flex-col">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                    <CalendarDays size={32} className="text-pink-600"/> Agenda de Pedidos
-                </h2>
-                
-                <div className="flex flex-wrap gap-3 items-center">
-                    <div className="flex items-center bg-white rounded-xl shadow-sm border border-pink-100 p-1">
-                        <button onClick={() => cambiarMes(-1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600"><ChevronLeft /></button>
-                        <input 
-                            type="month" 
-                            value={mesInputValue}
-                            min="2025-12"
-                            onChange={handleCambiarMesInput}
-                            className="px-2 py-1 font-bold text-lg text-gray-700 bg-transparent border-none focus:outline-none text-center min-w-[220px] cursor-pointer"
-                        />
-                        <button onClick={() => cambiarMes(1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600"><ChevronRight /></button>
-                    </div>
-
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search size={16} className="text-gray-400"/>
-                        </div>
-                        <input 
-                            type="date"
-                            value={fechaBusqueda}
-                            min="2025-12-01"
-                            onChange={handleBuscarDia}
-                            className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm"
-                            placeholder="Buscar día..."
-                        />
-                    </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3"><CalendarDays size={32} className="text-pink-600"/> Agenda</h2>
+                <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
+                    <div className="flex items-center bg-white rounded-xl shadow-sm border border-pink-100 p-1"><button onClick={() => cambiarMes(-1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600"><ChevronLeft /></button><input type="month" value={mesInputValue} min="2025-12" onChange={handleCambiarMesInput} className="px-2 py-1 font-bold text-lg text-gray-700 bg-transparent border-none focus:outline-none text-center min-w-[150px] cursor-pointer" /><button onClick={() => cambiarMes(1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600"><ChevronRight /></button></div>
+                    <div className="relative w-full md:w-auto"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-gray-400"/></div><input type="date" value={fechaBusqueda} min="2025-12-01" onChange={handleBuscarDia} className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm w-full" placeholder="Buscar día..." /></div>
                 </div>
             </div>
-
             <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-                <div className="grid grid-cols-7 bg-pink-50 border-b border-pink-100">
-                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (
-                        <div key={d} className="py-3 text-center text-sm font-bold text-pink-800 uppercase tracking-wider">{d}</div>
-                    ))}
-                </div>
-                
+                <div className="grid grid-cols-7 bg-pink-50 border-b border-pink-100">{['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (<div key={d} className="py-3 text-center text-xs md:text-sm font-bold text-pink-800 uppercase tracking-wider">{d}</div>))}</div>
                 <div className="grid grid-cols-7 flex-1 auto-rows-fr">
                     {dias.map((dia, idx) => {
-                        const pedidosDia = getPedidosDelDia(dia);
-                        const tienePedidos = pedidosDia.length > 0;
-                        
+                        const pedidosDia = getPedidosDelDia(dia); const tienePedidos = pedidosDia.length > 0;
                         return (
-                            <div 
-                                key={idx} 
-                                className={`border-b border-r border-gray-100 p-2 min-h-[100px] relative transition-colors hover:bg-gray-50 ${!dia ? 'bg-gray-50/30' : 'cursor-pointer'}`}
-                                onClick={() => { if (dia) onSeleccionarDia(`${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`); }}
-                            >
-                                {dia && (
-                                    <>
-                                        <span className={`text-sm font-bold mb-1 block ${tienePedidos ? 'text-pink-600' : 'text-gray-400'}`}>{dia}</span>
-                                        <div className="space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                                            {pedidosDia.map((p, i) => (
-                                                <div key={i} className="text-[10px] bg-pink-100 text-pink-800 px-1.5 py-0.5 rounded border border-pink-200 truncate font-medium flex justify-between gap-1" title={`${p.tipoProducto} - ${p.cliente}`}>
-                                                    <span>{p.tipoProducto}</span>
-                                                    {p.horaEntrega && <span className="text-pink-500">{p.horaEntrega}</span>}
-                                                </div>
-                                            ))}
-                                            {tienePedidos && pedidosDia.length > 3 && (
-                                                <div className="text-[9px] text-gray-400 text-center font-bold">+ {pedidosDia.length - 3} más</div>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
+                            <div key={idx} className={`border-b border-r border-gray-100 p-1 md:p-2 min-h-[80px] md:min-h-[100px] relative transition-colors hover:bg-gray-50 ${!dia ? 'bg-gray-50/30' : 'cursor-pointer'}`} onClick={() => { if (dia) onSeleccionarDia(`${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`); }}>
+                                {dia && (<><span className={`text-xs md:text-sm font-bold mb-1 block ${tienePedidos ? 'text-pink-600' : 'text-gray-400'}`}>{dia}</span><div className="space-y-1 overflow-y-auto max-h-[60px] md:max-h-[80px] custom-scrollbar">{pedidosDia.map((p, i) => (<div key={i} className="text-[9px] md:text-[10px] bg-pink-100 text-pink-800 px-1 py-0.5 rounded border border-pink-200 truncate font-medium flex justify-between gap-1"><span>{p.tipoProducto}</span>{p.horaEntrega && <span className="text-pink-500 hidden md:inline">{p.horaEntrega}</span>}</div>))}{tienePedidos && pedidosDia.length > 3 && (<div className="text-[8px] text-gray-400 text-center font-bold">+ {pedidosDia.length - 3} más</div>)}</div></>)}
                             </div>
                         );
                     })}

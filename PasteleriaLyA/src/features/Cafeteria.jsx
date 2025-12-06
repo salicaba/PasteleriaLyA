@@ -6,16 +6,15 @@ import {
     Grid, QrCode, ArrowLeft, Receipt, Users, Printer, Merge, CheckSquare, Square, 
     Cake, Sparkles, AlertCircle 
 } from 'lucide-react';
-// IMPORTAMOS EL MODAL DE CONFIRMACIÓN
 import { Notificacion, CardStat, CardProducto, ModalConfirmacion } from '../components/Shared';
 import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
 
-// Estado inicial de categorías
+// Estado inicial de categorías para asegurar un orden predeterminado
 const CATEGORIAS_INICIALES = ['Bebidas Calientes', 'Bebidas Frías', 'Pastelería', 'Bocadillos', 'Otros'];
 
-// ... (El código de los Modales QR, Cuenta Mesa, FusionCuentas, NuevoLlevar, GestionarCategorias, ModalProducto se mantienen IGUAL) ...
-// (PARA AHORRAR ESPACIO, ASUMIRÉ QUE COPIAS LO ANTERIOR HASTA LLEGAR A LAS VISTAS PRINCIPALES)
-// ... COPIA Y PEGA LOS MODALES ANTERIORES AQUÍ ...
+// ==========================================
+// 1. MODALES UTILITARIOS (QR, CUENTAS, ETC)
+// ==========================================
 
 export const ModalQR = ({ isOpen, onClose, titulo, subtitulo, valorQR }) => {
     if (!isOpen) return null;
@@ -138,6 +137,10 @@ export const ModalNuevoLlevar = ({ isOpen, onClose, onConfirm }) => {
         </div>
     );
 };
+
+// ==========================================
+// 2. GESTIÓN DE MENÚ Y PRODUCTOS
+// ==========================================
 
 const ModalGestionarCategorias = ({ isOpen, onClose, categorias, setCategorias, productos, setProductos, mostrarNotificacion }) => {
     const [listaCategorias, setListaCategorias] = useState(categorias);
@@ -356,6 +359,10 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     );
 };
 
+// ==========================================
+// 3. VISTAS PRINCIPALES
+// ==========================================
+
 export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => {
     const [modalUnirOpen, setModalUnirOpen] = useState(false);
     const [modalCrearOpen, setModalCrearOpen] = useState(false);
@@ -413,22 +420,13 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa }) => {
                 <div key={mesa.id} className="relative p-6 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[160px] bg-white border-gray-200 hover:border-orange-300 transition group">
                     <QrCode size={40} className="text-gray-300 mb-2 group-hover:text-orange-500 transition-colors" /><h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3>
                     <div className="flex gap-2 mt-3 w-full"><button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver/Imprimir QR</button></div>
-                    {/* Botón de Eliminar Mesa (Abre Modal Bonito) */}
                     <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button>
                 </div>
             ))}</div></div>
             <div className="mt-8 border-t pt-8"><h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3><div className="bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between"><div><h4 className="font-bold text-orange-900">QR General para Mostrador</h4><p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p></div><button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: "https://app.lya.com/llevar" })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><QrCode size={20} /> Ver/Imprimir QR</button></div></div>
             
             <ModalQR isOpen={!!qrData} onClose={() => setQrData(null)} titulo={qrData?.titulo} subtitulo={qrData?.sub} valorQR={qrData?.val} />
-            
-            {/* Modal de Confirmación Bonito para Eliminar Mesa */}
-            <ModalConfirmacion 
-                isOpen={!!mesaAEliminar} 
-                onClose={() => setMesaAEliminar(null)} 
-                onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} 
-                titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} 
-                mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" 
-            />
+            <ModalConfirmacion isOpen={!!mesaAEliminar} onClose={() => setMesaAEliminar(null)} onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" />
         </div>
     );
 };
@@ -466,7 +464,46 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
             <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4"><div><h2 className="text-4xl font-bold text-gray-800 flex items-center gap-3"><Coffee size={40} className="text-orange-600"/> Menú de Cafetería</h2><p className="text-gray-500 mt-2">Gestiona tus productos, precios y categorías.</p></div><div className="flex gap-3 w-full md:w-auto relative z-10"><button onClick={() => setModalCategoriasOpen(true)} className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all active:scale-95"><Settings size={20}/> Gestionar Categorías</button><button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all active:scale-95"><PlusCircle size={20}/> Nuevo Producto</button></div></div>
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-8 flex flex-col md:flex-row gap-4 relative z-0"><div className="relative flex-1"><Search size={20} className="absolute left-3 top-3.5 text-gray-400" /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:border-orange-500 focus:ring-0 transition-all" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></div><div className="relative md:w-64"><Filter size={20} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" /><select className="w-full pl-10 pr-10 py-3 border-2 border-gray-100 rounded-xl focus:border-orange-500 focus:ring-0 transition-all appearance-none bg-white font-medium text-gray-700 cursor-pointer" value={categoriaFiltro} onChange={e => setCategoriaFiltro(e.target.value)}><option value="Todas">Todas las Categorías</option>{categoriasOrdenadas.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select><ChevronRight size={20} className="absolute right-3 top-3.5 text-gray-400 rotate-90 pointer-events-none" /></div></div>
-            <div className="space-y-8 relative z-0">{categoriasOrdenadas.map(categoria => { const productosCat = productosFiltrados.filter(p => p.categoria === categoria); if (productosCat.length === 0 && categoriaFiltro !== 'Todas' && categoriaFiltro !== categoria) return null; if (productosCat.length === 0 && busqueda) return null; return (<section key={categoria} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fade-in"><div className="flex items-center justify-between mb-6 border-b pb-4"><h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Tag size={24} className="text-orange-500"/> {categoria}<span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{productosCat.length}</span></h3><button onClick={() => setModalCategoriasOpen(true)} className="text-gray-400 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition" title="Editar Categoría"><Edit size={18}/></button></div>{productosCat.length > 0 ? (<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">{productosCat.map(producto => (<div key={producto.id} className="relative group"><CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} /><div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={(e) => { e.stopPropagation(); setProductoAEditar(producto); setModalProductoOpen(true); }} className="p-2 bg-white text-blue-600 rounded-full shadow-sm hover:bg-blue-50 border border-gray-200" title="Editar"><Edit size={16} /></button><button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-sm hover:bg-red-50 border border-gray-200" title="Eliminar"><Trash2 size={16} /></button></div></div>))}</div>) : (<p className="text-gray-400 text-center py-8 italic bg-gray-50 rounded-xl border border-dashed">No hay productos en esta categoría que coincidan con la búsqueda.</p>)}</section>); })}</div>
+            
+            {/* CARRUSEL HORIZONTAL DE PRODUCTOS */}
+            <div className="space-y-8 relative z-0">
+                {categoriasOrdenadas.map(categoria => {
+                    const productosCat = productosFiltrados.filter(p => p.categoria === categoria);
+                    if (productosCat.length === 0 && categoriaFiltro !== 'Todas' && categoriaFiltro !== categoria) return null;
+                    if (productosCat.length === 0 && busqueda) return null;
+
+                    return (
+                        <section key={categoria} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
+                            <div className="flex items-center justify-between mb-6 border-b pb-4">
+                                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Tag size={24} className="text-orange-500"/> {categoria}
+                                    <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{productosCat.length}</span>
+                                </h3>
+                                <button onClick={() => setModalCategoriasOpen(true)} className="text-gray-400 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition" title="Editar Categoría"><Edit size={18}/></button>
+                            </div>
+                            
+                            {productosCat.length > 0 ? (
+                                // CONTENEDOR FLEX CON SCROLL HORIZONTAL
+                                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                                    {productosCat.map(producto => (
+                                        // WRAPPER CON SHRINK-0 PARA QUE NO SE ENCOJA
+                                        <div key={producto.id} className="relative group shrink-0">
+                                            <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
+                                            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={(e) => { e.stopPropagation(); setProductoAEditar(producto); setModalProductoOpen(true); }} className="p-2 bg-white text-blue-600 rounded-full shadow-sm hover:bg-blue-50 border border-gray-200" title="Editar"><Edit size={16} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-sm hover:bg-red-50 border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-400 text-center py-8 italic bg-gray-50 rounded-xl border border-dashed">No hay productos en esta categoría que coincidan con la búsqueda.</p>
+                            )}
+                        </section>
+                    );
+                })}
+            </div>
+
             <ModalProducto isOpen={modalProductoOpen} onClose={() => { setModalProductoOpen(false); setProductoAEditar(null); }} producto={productoAEditar} onGuardar={handleGuardarWrapper} onEliminar={onEliminarProducto} categoriasDisponibles={categoriasOrdenadas} />
             <ModalGestionarCategorias isOpen={modalCategoriasOpen} onClose={() => setModalCategoriasOpen(false)} categorias={categoriasOrdenadas} setCategorias={setCategoriasOrdenadas} productos={productos} setProductos={onGuardarProducto} mostrarNotificacion={mostrarNotificacion} />
         </div>
