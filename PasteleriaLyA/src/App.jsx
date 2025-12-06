@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Smartphone, ShoppingBag } from 'lucide-react';
 
-import { PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, PEDIDOS_PASTELERIA_INIT, getFechaHoy } from './utils/config';
+import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, PEDIDOS_PASTELERIA_INIT, getFechaHoy } from './utils/config';
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
 import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } from './features/Pasteleria';
 import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa } from './features/Cafeteria';
@@ -60,6 +60,9 @@ export default function PasteleriaApp() {
   const [pedidosPasteleria, setPedidosPasteleria] = useState(PEDIDOS_PASTELERIA_INIT);
   const [ventasCafeteria, setVentasCafeteria] = useState(VENTAS_CAFETERIA_INIT);
   
+  // --- NUEVOS ESTADOS PARA HISTORIAL ---
+  const [cancelados, setCancelados] = useState([]); 
+
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
   const [cuentaActiva, setCuentaActiva] = useState(null); 
   const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
@@ -77,6 +80,16 @@ export default function PasteleriaApp() {
   const [pedidoAEntregar, setPedidoAEntregar] = useState(null);
   
   const ID_QR_LLEVAR = 'QR_LLEVAR';
+
+  // --- EFECTO: LIMPIEZA DE CANCELADOS (5 MINUTOS) ---
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+        const ahora = Date.now();
+        // Filtramos: Solo dejamos los que tengan menos de 5 mins (300,000 ms)
+        setCancelados(prev => prev.filter(item => (ahora - item.timestamp) < 300000));
+    }, 30000); // Revisa cada 30 segundos
+    return () => clearInterval(intervalo);
+  }, []);
 
   useEffect(() => {
       const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
@@ -206,28 +219,19 @@ export default function PasteleriaApp() {
     }
   };
 
-  // --- LÓGICA DE ACUMULACIÓN AL AGREGAR (CORREGIDA) ---
   const agregarProductoASesion = (idSesion, producto) => { 
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if(c.id === cuentaActiva.id) {
-                    // BUSCAMOS SI YA EXISTE EL PRODUCTO
                     let items = [...c.cuenta];
                     const itemIndex = items.findIndex(i => i.id === producto.id);
-                    
                     if (itemIndex > -1) {
-                        // SI EXISTE, SUMAMOS CANTIDAD
-                        items[itemIndex] = {
-                            ...items[itemIndex],
-                            cantidad: (items[itemIndex].cantidad || 1) + 1
-                        };
+                        items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
                     } else {
-                        // SI NO EXISTE, LO AGREGAMOS
                         items.push({ ...producto, cantidad: 1 });
                     }
-
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -241,16 +245,11 @@ export default function PasteleriaApp() {
             if (s.id === idSesion) { 
                 let items = [...s.cuenta];
                 const itemIndex = items.findIndex(i => i.id === producto.id);
-                
                 if (itemIndex > -1) {
-                    items[itemIndex] = {
-                        ...items[itemIndex],
-                        cantidad: (items[itemIndex].cantidad || 1) + 1
-                    };
+                    items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
                 } else {
                     items.push({ ...producto, cantidad: 1 });
                 }
-
                 const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                 setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                 return { ...s, cuenta: items, total }; 
@@ -271,11 +270,8 @@ export default function PasteleriaApp() {
                     const itemIndex = items.findIndex(i => i.id === idProducto);
                     if(itemIndex > -1) {
                         const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
-                        if(nuevaCant <= 0) {
-                            items.splice(itemIndex, 1);
-                        } else {
-                            items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
-                        }
+                        if(nuevaCant <= 0) items.splice(itemIndex, 1);
+                        else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
                     }
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
@@ -292,11 +288,8 @@ export default function PasteleriaApp() {
                 const itemIndex = items.findIndex(i => i.id === idProducto);
                 if(itemIndex > -1) {
                     const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
-                    if(nuevaCant <= 0) {
-                        items.splice(itemIndex, 1);
-                    } else {
-                        items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
-                    }
+                    if(nuevaCant <= 0) items.splice(itemIndex, 1);
+                    else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
                 }
                 const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                 setCuentaActiva(act => ({...act, cuenta: items, total}));
@@ -307,7 +300,59 @@ export default function PasteleriaApp() {
     }
   };
 
+  // --- LÓGICA DE PAGO (GUARDA DATOS PARA RESTAURAR) ---
+  const pagarCuenta = (sesion) => { 
+    const total = sesion.cuenta.reduce((acc, p) => acc + (p.precio * (p.cantidad || 1)), 0); 
+    
+    // Guardamos la venta con todos los detalles para poder RESTAURARLA si es necesario
+    const nuevaVenta = { 
+        id: `T-${Date.now().toString().slice(-6)}`, 
+        fecha: getFechaHoy(), 
+        hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
+        total, 
+        items: sesion.cuenta.length, 
+        cliente: sesion.tipo === 'mesa' ? `${sesion.nombreMesa} - ${sesion.cliente}` : `${sesion.nombreCliente} (Llevar)`, 
+        origen: 'Cafetería',
+        // DATOS PARA RESTAURACIÓN:
+        origenMesaId: sesion.tipo === 'mesa' ? sesion.idMesa : null,
+        nombreMesa: sesion.tipo === 'mesa' ? sesion.nombreMesa : null,
+        nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente,
+        cuentaOriginal: sesion.cuenta,
+        telefono: sesion.telefono || '',
+        tipo: sesion.tipo
+    }; 
+
+    setVentasCafeteria([...ventasCafeteria, nuevaVenta]); 
+    
+    // Limpieza de mesa/llevar
+    if (sesion.tipo === 'mesa') { 
+        const mesa = mesas.find(m => m.id === sesion.idMesa);
+        if(mesa) {
+            const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
+            actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
+        }
+    } else { 
+        setSesionesLlevar(sesionesLlevar.filter(s => s.id !== sesion.id)); 
+    } 
+    setCuentaActiva(null); 
+    mostrarNotificacion(`Cuenta pagada. Ticket: ${nuevaVenta.id}`, "exito"); 
+  };
+
+  // --- LÓGICA MODIFICADA: CANCELAR A PAPELERA TEMPORAL ---
   const cancelarCuentaSinPagar = (sesion) => {
+      // 1. Guardar en la lista temporal de Cancelados
+      const canceladoItem = {
+          ...sesion,
+          timestamp: Date.now(), // Importante para el timer de 5 min
+          origenMesaId: sesion.tipo === 'llevar' ? null : sesion.idMesa,
+          nombreMesa: sesion.nombreMesa,
+          // Aseguramos que tenga estos datos para restaurar
+          cuentaOriginal: sesion.cuenta,
+          nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente
+      };
+      setCancelados([...cancelados, canceladoItem]);
+
+      // 2. Borrar de la mesa o de llevar (Lógica existente)
       if (sesion.tipo === 'mesa') {
           const mesa = mesas.find(m => m.id === sesion.idMesa);
           if (mesa) {
@@ -318,7 +363,44 @@ export default function PasteleriaApp() {
           setSesionesLlevar(prev => prev.filter(s => s.id !== sesion.id));
       }
       setCuentaActiva(null);
-      mostrarNotificacion("Cuenta cancelada/eliminada", "info");
+      mostrarNotificacion("Pedido enviado a Cancelados (5 min para deshacer)", "info");
+  };
+
+  // --- NUEVA FUNCIÓN: RESTAURAR (Sirve para Vendidos y Cancelados) ---
+  const restaurarDeHistorial = (item) => {
+      const cuentaRestaurada = {
+          id: `R-${Date.now().toString().slice(-4)}`, // Nuevo ID para evitar conflictos
+          cliente: item.nombreCliente || item.cliente,
+          nombreCliente: item.nombreCliente || item.cliente, // Por si acaso es 'llevar'
+          cuenta: item.cuentaOriginal || item.cuenta, // Usamos la cuenta guardada
+          total: item.total,
+          telefono: item.telefono || '',
+          tipo: item.origenMesaId ? 'mesa' : 'llevar',
+          idMesa: item.origenMesaId,
+          nombreMesa: item.nombreMesa,
+          estado: 'Activa'
+      };
+
+      if (item.origenMesaId) {
+          // Lógica para devolver a MESA
+          const existeMesa = mesas.find(m => m.id === item.origenMesaId);
+          if (!existeMesa) {
+              alert("La mesa original ya no existe. Se restaurará como 'Para Llevar'.");
+              setSesionesLlevar([...sesionesLlevar, { ...cuentaRestaurada, tipo: 'llevar', id: `L-R-${Date.now()}` }]);
+          } else {
+              const cuentasActualizadas = [...existeMesa.cuentas, cuentaRestaurada];
+              actualizarMesaEnBD({ ...existeMesa, cuentas: cuentasActualizadas });
+          }
+      } else {
+          // Lógica para devolver a LLEVAR
+          setSesionesLlevar([...sesionesLlevar, { ...cuentaRestaurada, tipo: 'llevar' }]);
+      }
+
+      // Borrar de la lista donde estaba (Ventas o Cancelados)
+      setVentasCafeteria(prev => prev.filter(v => v.id !== item.id));
+      setCancelados(prev => prev.filter(c => c.id !== item.id));
+      
+      mostrarNotificacion("Pedido restaurado correctamente", "exito");
   };
 
   const generarFolio = () => `FOL-${Date.now().toString().slice(-6)}`;
@@ -371,23 +453,6 @@ export default function PasteleriaApp() {
   
   const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
   
-  const pagarCuenta = (sesion) => { 
-    const total = sesion.cuenta.reduce((acc, p) => acc + p.precio, 0); 
-    const nuevaVenta = { id: `T-${Date.now().toString().slice(-6)}`, fecha: getFechaHoy(), hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), total, items: sesion.cuenta.length, cliente: sesion.tipo === 'mesa' ? `${sesion.nombreMesa} - ${sesion.cliente}` : `${sesion.nombreCliente} (Llevar)`, origen: 'Cafetería' }; 
-    setVentasCafeteria([...ventasCafeteria, nuevaVenta]); 
-    if (sesion.tipo === 'mesa') { 
-        const mesa = mesas.find(m => m.id === sesion.idMesa);
-        if(mesa) {
-            const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
-            actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
-        }
-        setCuentaActiva(null); 
-    } else { 
-        setSesionesLlevar(sesionesLlevar.filter(s => s.id !== sesion.id)); setCuentaActiva(null); 
-    } 
-    mostrarNotificacion(`Cuenta pagada. Ticket: ${nuevaVenta.id}`, "exito"); 
-  };
-
   const iniciarCancelacion = (f) => setPedidoACancelar(f);
   const confirmarCancelacion = () => { 
       setPedidosPasteleria(pedidosPasteleria.map(p => p.folio === pedidoACancelar ? { ...p, estado: 'Cancelado', fechaCancelacion: new Date().toISOString() } : p)); 
@@ -410,7 +475,29 @@ export default function PasteleriaApp() {
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
       {modo === 'admin' && ( <> {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
       {modo === 'pasteleria' && ( <> {vistaActual === 'inicio' && <VistaInicioPasteleria pedidos={pedidosPasteleria} onEditar={(p) => { setPedidoAEditar(p); setVistaActual('pedidos'); }} onVerDetalles={(p) => setPedidoVerDetalles(p)} onIniciarEntrega={iniciarEntrega} onCancelar={iniciarCancelacion} onRestaurar={iniciarRestauracion} onDeshacerEntrega={restaurarDeEntregados} />} {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
-      {modo === 'cafeteria' && ( <> {vistaActual === 'inicio' && <VistaInicioCafeteria mesas={mesas} pedidosLlevar={sesionesLlevar} onSeleccionarMesa={abrirHubMesa} onCrearLlevar={crearSesionLlevar} onAbrirLlevar={abrirPOSLlevar} />} {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} {vistaActual === 'mesas' && <VistaGestionMesas mesas={mesas} onAgregarMesa={agregarMesa} onEliminarMesa={eliminarMesa} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
+      
+      {/* --- SECCIÓN CAFETERÍA ACTUALIZADA CON LOS NUEVOS PROPS --- */}
+      {modo === 'cafeteria' && ( 
+        <> 
+            {vistaActual === 'inicio' && (
+                <VistaInicioCafeteria 
+                    mesas={mesas} 
+                    pedidosLlevar={sesionesLlevar} 
+                    ventasHoy={ventasCafeteria}      // Pasamos las ventas para el cuadro verde
+                    cancelados={cancelados}          // Pasamos los cancelados para el cuadro rojo
+                    onSeleccionarMesa={abrirHubMesa} 
+                    onCrearLlevar={crearSesionLlevar} 
+                    onAbrirLlevar={abrirPOSLlevar}
+                    onRestaurarVenta={restaurarDeHistorial}      // Función para restaurar vendidos
+                    onDeshacerCancelacion={restaurarDeHistorial} // Función para restaurar cancelados
+                />
+            )} 
+            {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
+            {vistaActual === 'mesas' && <VistaGestionMesas mesas={mesas} onAgregarMesa={agregarMesa} onEliminarMesa={eliminarMesa} />} 
+            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+        </> 
+      )}
+      {/* ---------------------------------------------------------- */}
       
       {mesaSeleccionadaId && !cuentaActiva && <VistaHubMesa mesa={mesaSeleccionadaObj} onVolver={() => setMesaSeleccionadaId(null)} onAbrirCuenta={abrirPOSCuentaMesa} onCrearCuenta={(id, nombre) => crearCuentaEnMesa(id, nombre.toUpperCase())} onUnirCuentas={unirCuentas} />}
       
@@ -421,7 +508,7 @@ export default function PasteleriaApp() {
           onAgregarProducto={agregarProductoASesion} 
           onPagarCuenta={pagarCuenta}
           onActualizarProducto={actualizarProductoEnSesion}
-          onCancelarCuenta={cancelarCuentaSinPagar}
+          onCancelarCuenta={cancelarCuentaSinPagar} // Esta función ahora mueve a cancelados
       />}
       
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />

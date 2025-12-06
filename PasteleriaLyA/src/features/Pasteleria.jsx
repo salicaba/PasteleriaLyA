@@ -4,70 +4,109 @@ import { CardStat } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
 // --- MODAL PAPELERA (PEDIDOS CANCELADOS) ---
-const ModalPapelera = ({ pedidosCancelados, onClose, onRestaurar }) => {
+// --- COMPONENTE MODAL PAPELERA (ACTUALIZADO CON ESTILO UNIFICADO) ---
+const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
     const [busqueda, setBusqueda] = useState('');
-    const filtrados = pedidosCancelados.filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)));
+    const [pedidoParaRestaurar, setPedidoParaRestaurar] = useState(null);
+
+    // Limpiar búsqueda al abrir
+    useEffect(() => { if (isOpen) setBusqueda(''); }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    const pedidosFiltrados = pedidos.filter(p => 
+        p.estado === 'Cancelado' && 
+        (p.cliente.toLowerCase().includes(busqueda.toLowerCase()) || 
+         p.folio.toLowerCase().includes(busqueda.toLowerCase()))
+    );
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-red-500 flex flex-col max-h-[90vh]">
-                <div className="bg-red-50 p-4 flex justify-between items-center border-b border-red-100 shrink-0">
-                    <div>
-                        <h3 className="font-bold text-xl text-red-900 flex items-center gap-2">
-                            <ArchiveRestore size={24} className="text-red-600"/> Papelera
-                        </h3>
-                        <p className="text-xs text-red-700 mt-1">Los pedidos se eliminan en 48h.</p>
+        <>
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up">
+                    
+                    {/* Header Rojo con Ícono de Papelera Correcto */}
+                    <div className="p-6 bg-red-50 text-red-800 flex justify-between items-start border-b border-red-100">
+                        <div>
+                            <h3 className="font-bold text-2xl flex items-center mb-1">
+                                <ArchiveRestore size={24} className="mr-2"/> Papelera
+                            </h3>
+                            <p className="text-sm opacity-80">Los pedidos se eliminan automáticamente en 48h.</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 transition shadow-sm text-gray-500">
+                            <X size={20}/>
+                        </button>
                     </div>
-                    <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
-                </div>
-                
-                <div className="p-4 bg-white border-b border-gray-100 shrink-0">
-                    <div className="relative">
-                        <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
-                        <input 
-                            type="text" 
-                            placeholder="BUSCAR..." 
-                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-red-500 focus:outline-none" 
-                            value={busqueda} 
-                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
-                        />
-                    </div>
-                </div>
 
-                <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
-                    {filtrados.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                            <Trash2 size={48} className="mx-auto mb-3 opacity-20"/>
-                            <p>{busqueda ? "No se encontraron coincidencias." : "La papelera está vacía."}</p>
+                    {/* Buscador */}
+                    <div className="p-4 border-b border-gray-100 bg-white">
+                        <div className="relative">
+                            <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
+                            <input 
+                                type="text" 
+                                placeholder="BUSCAR..." 
+                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-500 focus:outline-none bg-gray-50 focus:bg-white transition-all uppercase"
+                                value={busqueda}
+                                onChange={(e) => setBusqueda(e.target.value)}
+                            />
                         </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {filtrados.map((p, i) => {
-                                const fechaCancelacion = new Date(p.fechaCancelacion);
-                                const ahora = new Date();
-                                const horasRestantes = Math.max(0, 48 - ((ahora - fechaCancelacion) / (1000 * 60 * 60)));
-                                return (
-                                    <div key={i} className="bg-white p-4 rounded-xl border border-red-100 shadow-sm flex justify-between items-center group hover:shadow-md transition">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 uppercase">Cancelado</span>
-                                                <span className="text-[10px] font-bold text-gray-400">{p.folio}</span>
-                                            </div>
-                                            <p className="font-bold text-gray-800">{p.cliente}</p>
-                                            <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
-                                            <p className="text-[10px] text-red-400 mt-1 font-medium"><Clock size={10} className="inline mr-1"/>Eliminación en {Math.floor(horasRestantes)}h</p>
+                    </div>
+
+                    {/* Lista de Pedidos Cancelados */}
+                    <div className="max-h-[50vh] overflow-y-auto p-4 space-y-3 bg-gray-50">
+                        {pedidosFiltrados.length === 0 ? (
+                            <div className="text-center py-12 opacity-50">
+                                <Trash2 size={48} className="mx-auto mb-2 text-gray-300"/>
+                                <p className="text-gray-500 font-medium">La papelera está vacía.</p>
+                            </div>
+                        ) : (
+                            pedidosFiltrados.map((pedido) => (
+                                <div key={pedido.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-red-100 text-red-700">
+                                                CANCELADO
+                                            </span>
+                                            <span className="text-xs font-mono text-gray-400 font-bold">{pedido.folio}</span>
                                         </div>
-                                        <button onClick={() => onRestaurar(p.folio)} className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-blue-200">
-                                            <RotateCcw size={16}/>
-                                        </button>
+                                        <h4 className="font-bold text-gray-800 text-lg uppercase">{pedido.cliente}</h4>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            {pedido.tipo} • {new Date(pedido.fechaEntrega).toLocaleDateString()}
+                                        </div>
+                                        {/* Cálculo de tiempo restante (Simulado o Real según tu lógica) */}
+                                        <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1 font-bold">
+                                            <Clock size={10}/> Eliminación en 47h
+                                        </p>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+
+                                    {/* --- BOTÓN RESTAURAR (ESTILO AMARILLO UNIFICADO) --- */}
+                                    <button 
+                                        onClick={() => setPedidoParaRestaurar(pedido)}
+                                        className="shrink-0 px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center gap-2 transition w-full sm:w-auto justify-center"
+                                    >
+                                        <RotateCcw size={16}/> Restaurar
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Modal de Confirmación para Restaurar */}
+            <ModalConfirmacion 
+                isOpen={!!pedidoParaRestaurar}
+                onClose={() => setPedidoParaRestaurar(null)}
+                onConfirm={() => {
+                    if(pedidoParaRestaurar) {
+                        onRestaurar(pedidoParaRestaurar.folio);
+                        setPedidoParaRestaurar(null);
+                    }
+                }}
+                titulo="¿Restaurar Pedido?"
+                mensaje={`El pedido de ${pedidoParaRestaurar?.cliente} volverá a la lista de Pendientes.`}
+            />
+        </>
     );
 };
 

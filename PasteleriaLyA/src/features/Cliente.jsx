@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, LogOut, UserCheck } from 'lucide-react';
+import { 
+    ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
+    Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
+    LogOut, UserCheck, Info 
+} from 'lucide-react';
 import { ORDEN_CATEGORIAS } from '../utils/config';
 
 // COMPONENTE: PANTALLA INICIAL (LOGIN)
-// CORRECCIÓN: Me aseguro de recibir 'onVerCuentaDirecta' aquí
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
@@ -44,7 +47,6 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
             setError("El teléfono debe ser de 10 dígitos para avisarte.");
             return;
         }
-        // Ejecutamos la función que nos pasaron (ya sea ingresar o ver cuenta)
         if (accion) accion(nombre, telefono);
     };
 
@@ -96,7 +98,6 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                     </div>
                 )}
 
-                {/* BOTÓN PRINCIPAL */}
                 <button 
                     type="button"
                     onClick={() => validarYEjecutar(onIngresar)}
@@ -109,7 +110,6 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                     {mensajeBienvenida ? 'Continuar con mi pedido' : 'Comenzar a Pedir'}
                 </button>
 
-                {/* BOTÓN SECUNDARIO (Dinámico) */}
                 {mensajeBienvenida ? (
                     <button 
                         type="button"
@@ -204,7 +204,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// COMPONENTE: RESUMEN DE CUENTA TOTAL (MEJORADO CON PRECIO UNITARIO)
+// COMPONENTE: RESUMEN DE CUENTA TOTAL
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
@@ -247,7 +247,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                                         <span className="bg-orange-100 text-orange-700 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">{cantidad}</span>
                                         <div className="flex flex-col">
                                             <span className="text-gray-700 font-medium">{item.nombre}</span>
-                                            {/* AQUÍ ESTÁ EL CAMBIO: Mostrar precio unitario si son varios */}
                                             {cantidad > 1 && (
                                                 <span className="text-[12px] text-gray-500">
                                                     (${item.precio} c/u)
@@ -262,7 +261,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                     )}
                 </div>
                 
-                {/* MENSAJE DE PAGO DESTACADO */}
                 <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center shadow-sm animate-fade-in-up">
                     <p className="text-yellow-800 font-bold text-sm flex flex-col items-center gap-1">
                         <span>💁‍♂️</span>
@@ -329,7 +327,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         return <PantallaLogin 
             mesaNombre={mesa.nombre} 
             onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} 
-            onVerCuentaDirecta={handleVerCuentaDirecta} // Pasamos la función aquí
+            onVerCuentaDirecta={handleVerCuentaDirecta}
             onSalir={onSalir}
             cuentasActivas={mesa.cuentas}
         />;
@@ -349,21 +347,43 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 <p className="text-gray-600 mb-6">Gracias <strong>{nombreCliente}</strong>.</p>
                 
                 {esParaLlevar ? (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
-                        <div className="flex items-start gap-3 mb-4">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left space-y-4">
+                        
+                        {/* 1. Preparando */}
+                        <div className="flex items-start gap-3">
                             <ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/>
                             <p className="text-sm text-gray-600">Estamos preparando tus alimentos para llevar.</p>
                         </div>
-                        <div className="flex items-start gap-3 mb-4">
+
+                        {/* 2. Pagar en caja */}
+                        <div className="flex items-start gap-3">
                             <DollarSign className="text-green-600 mt-1 shrink-0" size={20}/>
                             <p className="text-sm text-gray-600 font-bold">Por favor, acércate a caja para realizar tu pago y esperar tu entrega.</p>
                         </div>
+
+                        {/* 3. Teléfono (Con nota de disponibilidad) */}
                         {telefonoCliente && (
                             <div className="flex items-start gap-3">
                                 <Phone className="text-green-600 mt-1 shrink-0" size={20}/>
-                                <p className="text-sm text-gray-600">Te llamaremos al <strong>{telefonoCliente}</strong> cuando esté listo.</p>
+                                <div>
+                                    <p className="text-sm text-gray-600">
+                                        Te llamaremos al <strong>{telefonoCliente}</strong> cuando esté listo.
+                                    </p>
+                                    <p className="text-xs text-gray-400 italic mt-1">
+                                        (Solo si el personal se encuentra disponible para llamar).
+                                    </p>
+                                </div>
                             </div>
                         )}
+
+                        {/* 4. NUEVO MENSAJE: Recomendación de acercarse */}
+                        <div className="flex gap-3 items-start bg-green-50 p-3 rounded-lg border border-green-100">
+                            <Info className="text-green-700 shrink-0 mt-0.5" size={18} />
+                            <p className="text-xs text-green-800 font-medium leading-relaxed">
+                                Por preferencia, te recomendamos <strong>esperar cerca o acercarte a caja</strong> a preguntar por tu pedido para evitar demoras.
+                            </p>
+                        </div>
+
                     </div>
                 ) : (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
