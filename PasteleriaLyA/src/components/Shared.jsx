@@ -35,39 +35,49 @@ export const CardStat = ({ titulo, valor, color, icon }) => (
     </div>
 );
 
-// --- TARJETA DE PRODUCTO (RESPONSIVE) ---
+// --- TARJETA DE PRODUCTO (RESPONSIVE MEJORADO) ---
+// --- TARJETA DE PRODUCTO (RESPONSIVE MEJORADO Y COMPACTO) ---
 export const CardProducto = ({ producto, onClick }) => {
     const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
 
     return (
         <div 
             onClick={onClick} 
-            className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group border border-orange-100 flex flex-col cursor-pointer h-full w-full min-w-[140px] sm:min-w-[160px] md:w-60 flex-shrink-0 md:flex-shrink relative"
+            className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group border border-orange-100 flex flex-col cursor-pointer w-full min-w-[130px] sm:min-w-[150px] md:w-48 flex-shrink-0 md:flex-shrink relative"
         >
-            {/* Contenedor de imagen adaptable */}
-            <div className="h-28 sm:h-32 md:h-40 bg-orange-50 flex items-center justify-center overflow-hidden relative">
+            {/* Contenedor de imagen MÁS COMPACTO */}
+            <div className="h-24 sm:h-28 bg-orange-50/50 flex items-center justify-center overflow-hidden relative p-3">
                 <div 
                     style={{ transform: `scale(${producto.zoom ? producto.zoom / 100 : 1})` }} 
-                    className="text-4xl sm:text-5xl md:text-6xl transition-transform duration-300 w-full h-full flex items-center justify-center"
+                    className="w-full h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
                 >
                     {esImagen(producto.imagen) ? (
                         <img 
                             src={producto.imagen} 
                             alt={producto.nombre} 
-                            className="w-full h-full object-contain p-2"
+                            className="w-full h-full object-contain drop-shadow-sm"
                         />
                     ) : (
-                        producto.imagen || '☕'
+                        <span className="text-4xl sm:text-5xl overflow-hidden text-ellipsis whitespace-nowrap max-w-full text-center select-none">
+                            {producto.imagen || '☕'}
+                        </span>
                     )}
                 </div>
             </div>
             
-            {/* Contenido de texto adaptable */}
-            <div className="p-3 md:p-4 flex-1 flex flex-col">
-                <h4 className="font-bold text-gray-800 text-sm md:text-lg mb-1 leading-tight line-clamp-2">{producto.nombre}</h4>
-                <p className="text-xs text-gray-500 mb-2 md:mb-3 line-clamp-2 flex-1">{producto.descripcion || 'Sin descripción'}</p>
-                <div className="flex justify-between items-center mt-auto pt-2 md:pt-3 border-t border-gray-100">
-                    <span className="text-base md:text-xl font-bold text-orange-700">${producto.precio}</span>
+            {/* Contenido de texto MÁS LIMPIO */}
+            <div className="p-3 flex-1 flex flex-col justify-between">
+                <div>
+                    <h4 className="font-bold text-gray-800 text-sm leading-tight mb-1 line-clamp-2 min-h-[2.5em]">{producto.nombre}</h4>
+                    {/* Descripción opcional: solo se muestra si hay espacio suficiente */}
+                    <p className="text-[10px] text-gray-400 mb-2 line-clamp-2 hidden sm:block">{producto.descripcion}</p>
+                </div>
+                
+                <div className="flex justify-between items-end border-t border-gray-100 pt-2 mt-1">
+                    <span className="text-sm sm:text-base font-bold text-orange-600">${producto.precio}</span>
+                    <div className="bg-orange-100 text-orange-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                        <PlusCircle size={16} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,7 +131,7 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
             <aside className={`
                 ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0'} 
                 md:translate-x-0 md:w-64 lg:w-72
-                ${colorBg} text-white h-screen flex flex-col shadow-2xl 
+                ${colorBg} text-white h-full flex flex-col shadow-2xl 
                 transition-all duration-300 overflow-hidden
                 fixed md:relative z-50 md:z-auto
             `}>
@@ -294,7 +304,7 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
     }, []);
 
     return (
-        <div className="flex min-h-screen bg-gray-50">
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
             {/* Sidebar */}
             <Sidebar
                 modo={modo}
@@ -307,9 +317,9 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
             />
             
             {/* Contenido principal */}
-            <div className="flex-1 flex flex-col w-full">
+            <div className="flex-1 flex flex-col w-full h-full relative">
                 {/* Header móvil */}
-                <header className="md:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+                <header className="md:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between z-40 shrink-0">
                     <button 
                         onClick={() => setSidebarOpen(true)}
                         className="p-2 rounded-lg hover:bg-gray-100"
@@ -324,7 +334,7 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
                 </header>
                 
                 {/* Contenido */}
-                <main className="flex-1 p-4 md:p-6 overflow-auto">
+                <main className="flex-1 p-4 md:p-6 overflow-y-auto">
                     {children}
                 </main>
             </div>

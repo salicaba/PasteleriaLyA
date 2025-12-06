@@ -4,17 +4,12 @@ import {
     Coffee, ChevronRight, DollarSign, Hash, AlignLeft, Tag, RotateCw, RotateCcw, 
     GripVertical, Settings, PlusCircle, Save, AlertTriangle, Smartphone, ShoppingBag, 
     Grid, QrCode, ArrowLeft, Receipt, Users, Printer, Merge, CheckSquare, Square, 
-    Cake, Sparkles, AlertCircle 
+    Cake, Sparkles, AlertCircle, Calculator, MinusCircle
 } from 'lucide-react';
 import { Notificacion, CardStat, CardProducto, ModalConfirmacion } from '../components/Shared';
 import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
 
-// Estado inicial de categorías para asegurar un orden predeterminado
 const CATEGORIAS_INICIALES = ['Bebidas Calientes', 'Bebidas Frías', 'Pastelería', 'Bocadillos', 'Otros'];
-
-// ==========================================
-// 1. MODALES UTILITARIOS (QR, CUENTAS, ETC)
-// ==========================================
 
 export const ModalQR = ({ isOpen, onClose, titulo, subtitulo, valorQR }) => {
     if (!isOpen) return null;
@@ -137,10 +132,6 @@ export const ModalNuevoLlevar = ({ isOpen, onClose, onConfirm }) => {
         </div>
     );
 };
-
-// ==========================================
-// 2. GESTIÓN DE MENÚ Y PRODUCTOS
-// ==========================================
 
 const ModalGestionarCategorias = ({ isOpen, onClose, categorias, setCategorias, productos, setProductos, mostrarNotificacion }) => {
     const [listaCategorias, setListaCategorias] = useState(categorias);
@@ -359,10 +350,6 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     );
 };
 
-// ==========================================
-// 3. VISTAS PRINCIPALES
-// ==========================================
-
 export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => {
     const [modalUnirOpen, setModalUnirOpen] = useState(false);
     const [modalCrearOpen, setModalCrearOpen] = useState(false);
@@ -387,23 +374,137 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
     );
 };
 
-export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProducto, onPagarCuenta }) => {
+export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProducto, onPagarCuenta, onActualizarProducto, onCancelarCuenta }) => {
     if (!sesion) return null;
     const nombreCliente = sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente;
     const identificador = sesion.tipo === 'llevar' ? 'Para Llevar' : sesion.nombreMesa;
+    
+    // ESTADOS LOCALES
+    const [montoRecibido, setMontoRecibido] = useState('');
+    const [confirmacionPagoOpen, setConfirmacionPagoOpen] = useState(false);
+    const [confirmacionCancelarOpen, setConfirmacionCancelarOpen] = useState(false);
+    
     const handleImprimir = () => { const datosTicket = { id: sesion.id, cliente: nombreCliente, items: sesion.cuenta, total: sesion.total || 0 }; imprimirTicket(datosTicket, 'ticket'); };
+
+    // Cálculos
+    const total = sesion.total || 0;
+    const cambio = montoRecibido ? parseFloat(montoRecibido) - total : 0;
 
     return (
         <div className="fixed inset-0 bg-gray-100 z-[60] flex animate-fade-in-up">
             <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-gray-300">
                 <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-800">Menú Digital</h2><p className="text-sm text-gray-500">{identificador} • <span className="font-bold text-orange-600">{nombreCliente}</span></p></div><button onClick={onCerrar} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-bold"><ArrowLeft size={20} /> Volver</button></div>
-                <div className="flex-1 overflow-y-auto p-6 bg-orange-50/30">{ORDEN_CATEGORIAS.map(cat => { const prods = productos.filter(p => p.categoria === cat); if (prods.length === 0) return null; return (<div key={cat} className="mb-8"><h3 className="font-bold text-orange-800 text-lg border-b border-orange-200 mb-3 pb-1">{cat}</h3><div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{prods.map(prod => (<div key={prod.id} onClick={() => onAgregarProducto(sesion.id, prod)} className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md cursor-pointer border border-transparent hover:border-orange-300 transition active:scale-95 flex flex-col items-center text-center"><div className="text-4xl mb-2">{prod.imagen}</div><h4 className="font-bold text-gray-800 text-sm leading-tight mb-1">{prod.nombre}</h4><span className="text-orange-600 font-bold">${prod.precio}</span></div>))}</div></div>) })}</div>
+                <div className="flex-1 overflow-y-auto p-6 bg-orange-50/30">{ORDEN_CATEGORIAS.map(cat => { const prods = productos.filter(p => p.categoria === cat); if (prods.length === 0) return null; return (<div key={cat} className="mb-8"><h3 className="font-bold text-orange-800 text-lg border-b border-orange-200 mb-3 pb-1">{cat}</h3><div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{prods.map(prod => (<div key={prod.id} onClick={() => onAgregarProducto(sesion.id, prod)} className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md cursor-pointer border border-transparent hover:border-orange-300 transition active:scale-95 flex flex-col items-center text-center"><div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center text-3xl mb-2 overflow-hidden">{prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? <img src={prod.imagen} className="w-full h-full object-contain" alt={prod.nombre}/> : <span className="truncate w-full text-center">{prod.imagen}</span>}</div><h4 className="font-bold text-gray-800 text-sm leading-tight mb-1">{prod.nombre}</h4><span className="text-orange-600 font-bold">${prod.precio}</span></div>))}</div></div>) })}</div>
             </div>
-            <div className="w-96 bg-white shadow-2xl flex flex-col h-full">
+            <div className="w-96 bg-white shadow-2xl flex flex-col h-full border-l border-gray-200">
                 <div className="p-6 bg-gray-900 text-white"><div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold">Comanda</h3><p className="text-gray-400 text-xs font-mono">{sesion.id}</p></div><Receipt className="text-orange-400" /></div><div className="bg-gray-800 p-2 rounded text-xs mb-2"><p className="text-gray-300">Cliente: <span className="text-white font-bold">{nombreCliente}</span></p>{sesion.telefono && <p className="text-gray-300">Tel: <span className="text-white">{sesion.telefono}</span></p>}</div></div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">{(!sesion.cuenta || sesion.cuenta.length === 0) ? <div className="text-center text-gray-400 py-10 italic">Cuenta vacía.<br />Selecciona productos.</div> : (sesion.cuenta.map((item, idx) => (<div key={idx} className="flex justify-between items-center border-b border-gray-100 pb-2"><div><p className="font-bold text-gray-800 text-sm">{item.nombre}</p><p className="text-xs text-gray-500">{item.categoria}</p></div><div className="text-right"><p className="font-bold text-gray-700">${item.precio}</p>{item.cantidad > 1 && <p className="text-xs text-orange-600 font-bold">x{item.cantidad}</p>}</div></div>)))}</div>
-                <div className="p-6 bg-gray-50 border-t border-gray-200"><div className="flex justify-between items-center mb-4"><span className="text-lg font-bold text-gray-600">Total</span><span className="text-3xl font-bold text-gray-900">${sesion.total || 0}</span></div><div className="flex flex-col gap-2"><button onClick={handleImprimir} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold flex justify-center items-center gap-2 transition"><Printer size={20} /> Imprimir Cuenta</button><button onClick={() => onPagarCuenta(sesion)} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 ${!sesion.cuenta || sesion.cuenta.length === 0 ? 'bg-gray-300 text-gray-500' : 'bg-green-600 hover:bg-green-700 text-white'}`}><DollarSign size={20} /> Cerrar Cuenta y Pagar</button></div></div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {(!sesion.cuenta || sesion.cuenta.length === 0) ? (
+                        <div className="text-center text-gray-400 py-10 italic">Cuenta vacía.<br />Selecciona productos del menú.</div>
+                    ) : (
+                        sesion.cuenta.map((item, idx) => {
+                            const cantidad = item.cantidad || 1;
+                            const subtotalItem = item.precio * cantidad;
+                            return (
+                                <div key={idx} className="flex justify-between items-start border-b border-gray-100 pb-3 last:border-0">
+                                    <div className="flex-1 pr-2">
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-gray-800 text-sm">{item.nombre}</p>
+                                            
+                                            {/* BOTÓN DE RESTAR / ELIMINAR ITEM */}
+                                            <button 
+                                                onClick={() => onActualizarProducto(sesion.id, item.id, -1)}
+                                                className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-full transition"
+                                                title="Restar cantidad"
+                                            >
+                                                <MinusCircle size={16}/>
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-500">{item.categoria}</p>
+                                    </div>
+                                    <div className="text-right whitespace-nowrap">
+                                        {cantidad > 1 ? (
+                                            <>
+                                                <p className="font-bold text-gray-900 text-base">${subtotalItem.toFixed(2)}</p>
+                                                <p className="text-xs text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                                    ${item.precio} x {cantidad}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <p className="font-bold text-gray-700">${item.precio}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+                
+                <div className="p-6 bg-gray-50 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-4"><span className="text-lg font-bold text-gray-600">Total</span><span className="text-3xl font-bold text-gray-900">${sesion.total || 0}</span></div>
+                    
+                    {/* --- CALCULADORA DE CAMBIO INTEGRADA --- */}
+                    <div className="bg-white p-3 rounded-xl border border-gray-200 mb-4 shadow-sm">
+                        <label className="text-xs font-bold text-gray-400 uppercase mb-2 block flex items-center gap-1"><Calculator size={12}/> Calculadora de Cambio</label>
+                        <div className="flex gap-3 items-center">
+                            <div className="flex-1">
+                                <input 
+                                    type="number" 
+                                    placeholder="Recibido..." 
+                                    className="w-full p-2 border rounded-lg font-bold text-gray-700 text-sm focus:border-orange-500 focus:outline-none"
+                                    value={montoRecibido}
+                                    onChange={e => setMontoRecibido(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex-1 text-right">
+                                <p className="text-[10px] text-gray-400 uppercase font-bold">Cambio a dar</p>
+                                <p className={`text-xl font-bold ${cambio < 0 ? 'text-red-400' : 'text-green-600'}`}>
+                                    ${montoRecibido ? cambio.toFixed(2) : '0.00'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <button onClick={handleImprimir} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold flex justify-center items-center gap-2 transition"><Printer size={20} /> Imprimir Cuenta</button>
+                        
+                        {/* BOTÓN CON CONFIRMACIÓN DE PAGO */}
+                        <button 
+                            onClick={() => setConfirmacionPagoOpen(true)} 
+                            disabled={!sesion.cuenta || sesion.cuenta.length === 0} 
+                            className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 ${!sesion.cuenta || sesion.cuenta.length === 0 ? 'bg-gray-300 text-gray-500' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+                        >
+                            <DollarSign size={20} /> Cerrar Cuenta y Pagar
+                        </button>
+
+                        {/* BOTÓN DE CANCELAR CUENTA (SIN PAGAR) */}
+                        <button 
+                            onClick={() => setConfirmacionCancelarOpen(true)}
+                            className="mt-2 text-xs font-bold text-red-400 hover:text-red-600 hover:underline flex justify-center items-center gap-1"
+                        >
+                            <Trash2 size={12}/> Cancelar pedido y borrar cuenta
+                        </button>
+                    </div>
+                </div>
             </div>
+
+            {/* MODAL DE CONFIRMACIÓN DE PAGO */}
+            <ModalConfirmacion 
+                isOpen={confirmacionPagoOpen}
+                onClose={() => setConfirmacionPagoOpen(false)}
+                onConfirm={() => { onPagarCuenta(sesion); setConfirmacionPagoOpen(false); }}
+                titulo="¿Confirmar Pago?"
+                mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total}. Esta acción no se puede deshacer.`}
+            />
+
+            {/* MODAL DE CONFIRMACIÓN DE CANCELACIÓN (BORRADO) */}
+            <ModalConfirmacion 
+                isOpen={confirmacionCancelarOpen}
+                onClose={() => setConfirmacionCancelarOpen(false)}
+                onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }}
+                titulo="¿Borrar Cuenta Sin Cobrar?"
+                mensaje="⚠️ CUIDADO: Esto eliminará todo el pedido y la cuenta desaparecerá sin registrar venta. ¿Seguro?"
+            />
         </div>
     );
 };
@@ -413,18 +514,73 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa }) => {
     const [mesaAEliminar, setMesaAEliminar] = useState(null);
 
     return (
-        <div className="p-8 h-screen overflow-y-auto">
+        <div className="p-8 h-screen overflow-y-auto relative">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Configuración de Mesas</h2>
-            <div className="mb-10"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas</h3><button onClick={onAgregarMesa} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-200 flex items-center gap-2"><PlusCircle size={18} /> Agregar Mesa</button></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">{mesas.map(mesa => (
-                <div key={mesa.id} className="relative p-6 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[160px] bg-white border-gray-200 hover:border-orange-300 transition group">
-                    <QrCode size={40} className="text-gray-300 mb-2 group-hover:text-orange-500 transition-colors" /><h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3>
-                    <div className="flex gap-2 mt-3 w-full"><button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver/Imprimir QR</button></div>
-                    <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button>
-                </div>
-            ))}</div></div>
-            <div className="mt-8 border-t pt-8"><h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3><div className="bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between"><div><h4 className="font-bold text-orange-900">QR General para Mostrador</h4><p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p></div><button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: "https://app.lya.com/llevar" })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><QrCode size={20} /> Ver/Imprimir QR</button></div></div>
             
+            {/* SECCIÓN 1: GRID DE MESAS */}
+            <div className="mb-10">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas</h3>
+                    <button onClick={onAgregarMesa} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-200 flex items-center gap-2"><PlusCircle size={18} /> Agregar Mesa</button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {mesas.map(mesa => (
+                        <div key={mesa.id} className="relative p-6 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[160px] bg-white border-gray-200 hover:border-orange-300 transition group">
+                            <QrCode size={40} className="text-gray-300 mb-2 group-hover:text-orange-500 transition-colors" />
+                            <h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3>
+                            <div className="flex gap-2 mt-3 w-full">
+                                <button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver QR</button>
+                            </div>
+                            <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* SECCIÓN 2: QR PARA LLEVAR */}
+            <div className="mt-8 border-t pt-8">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3>
+                <div className="bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between">
+                    <div>
+                        <h4 className="font-bold text-orange-900">QR General para Mostrador</h4>
+                        <p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p>
+                    </div>
+                    <button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: "https://app.lya.com/llevar" })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><QrCode size={20} /> Ver/Imprimir QR</button>
+                </div>
+            </div>
+            
+            {/* PANEL DE SIMULACIÓN FLOTANTE */}
+            <div className="fixed bottom-6 right-6 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 z-50 w-72 animate-fade-in-up">
+                <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
+                    <p className="text-xs font-bold uppercase text-orange-600 flex items-center gap-2">
+                        <Smartphone size={16}/> Simulador QR
+                    </p>
+                    <span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">MODO DEV</span>
+                </div>
+                <p className="text-[11px] text-gray-400 mb-3">
+                    Haz clic abajo para abrir la vista del cliente en una nueva pestaña (como si escanearan el QR).
+                </p>
+                
+                <div className="space-y-2 mb-3 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                    {mesas.map(m => (
+                        <button 
+                            key={m.id} 
+                            onClick={() => window.open(`/mesa/${m.id}`, '_blank')}
+                            className="w-full bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 text-xs font-bold py-2 px-3 rounded-lg border border-gray-200 hover:border-blue-200 transition text-left flex items-center gap-2"
+                        >
+                            <QrCode size={14} className="opacity-50"/> Simular {m.nombre}
+                        </button>
+                    ))}
+                </div>
+                
+                <button 
+                    onClick={() => window.open('/llevar', '_blank')}
+                    className="w-full bg-gray-900 text-white text-xs font-bold py-3 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition shadow-lg border border-gray-900"
+                >
+                    <ShoppingBag size={14}/> Simular "Para Llevar"
+                </button>
+            </div>
+
             <ModalQR isOpen={!!qrData} onClose={() => setQrData(null)} titulo={qrData?.titulo} subtitulo={qrData?.sub} valorQR={qrData?.val} />
             <ModalConfirmacion isOpen={!!mesaAEliminar} onClose={() => setMesaAEliminar(null)} onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" />
         </div>
@@ -462,7 +618,27 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
     return (
         <div className="p-8 min-h-screen bg-gray-50">
             <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4"><div><h2 className="text-4xl font-bold text-gray-800 flex items-center gap-3"><Coffee size={40} className="text-orange-600"/> Menú de Cafetería</h2><p className="text-gray-500 mt-2">Gestiona tus productos, precios y categorías.</p></div><div className="flex gap-3 w-full md:w-auto relative z-10"><button onClick={() => setModalCategoriasOpen(true)} className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all active:scale-95"><Settings size={20}/> Gestionar Categorías</button><button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all active:scale-95"><PlusCircle size={20}/> Nuevo Producto</button></div></div>
+            
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                <div>
+                    <h2 className="text-4xl font-bold text-gray-800 flex items-center gap-3"><Coffee size={40} className="text-orange-600"/> Menú de Cafetería</h2>
+                    <p className="text-gray-500 mt-2">Gestiona tus productos, precios y categorías.</p>
+                </div>
+                
+                {/* --- AQUÍ ESTÁ EL CAMBIO --- */}
+                {/* Usamos grid-cols-1 para móvil (vertical) y md:flex para escritorio (horizontal) */}
+                <div className="grid grid-cols-1 md:flex gap-3 w-full md:w-auto relative z-10">
+                    <button onClick={() => setModalCategoriasOpen(true)} className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95">
+                        <Settings size={20}/> Gestionar Categorías
+                    </button>
+                    <button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95">
+                        <PlusCircle size={20}/> Nuevo Producto
+                    </button>
+                </div>
+                {/* --------------------------- */}
+
+            </div>
+
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-8 flex flex-col md:flex-row gap-4 relative z-0"><div className="relative flex-1"><Search size={20} className="absolute left-3 top-3.5 text-gray-400" /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:border-orange-500 focus:ring-0 transition-all" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></div><div className="relative md:w-64"><Filter size={20} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" /><select className="w-full pl-10 pr-10 py-3 border-2 border-gray-100 rounded-xl focus:border-orange-500 focus:ring-0 transition-all appearance-none bg-white font-medium text-gray-700 cursor-pointer" value={categoriaFiltro} onChange={e => setCategoriaFiltro(e.target.value)}><option value="Todas">Todas las Categorías</option>{categoriasOrdenadas.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select><ChevronRight size={20} className="absolute right-3 top-3.5 text-gray-400 rotate-90 pointer-events-none" /></div></div>
             
             {/* CARRUSEL HORIZONTAL DE PRODUCTOS */}

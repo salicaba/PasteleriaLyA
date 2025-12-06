@@ -1,19 +1,30 @@
-import React, { useState, useMemo } from 'react';
-import { ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, LogOut, UserCheck } from 'lucide-react';
 import { ORDEN_CATEGORIAS } from '../utils/config';
 
 // COMPONENTE: PANTALLA INICIAL (LOGIN)
-const PantallaLogin = ({ onIngresar, mesaNombre }) => {
+// CORRECCIÓN: Me aseguro de recibir 'onVerCuentaDirecta' aquí
+const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
     const [error, setError] = useState('');
+    const [mensajeBienvenida, setMensajeBienvenida] = useState('');
 
-    // Detectamos si es "Para Llevar" buscando la palabra clave en el nombre de la mesa/zona
     const esParaLlevar = mesaNombre.toLowerCase().includes('llevar');
 
     const handleChangeNombre = (e) => {
-        setNombre(e.target.value.toUpperCase());
-        if (error) setError('');
+        const valor = e.target.value.toUpperCase();
+        if (/^[A-ZÑÁÉÍÓÚ\s]*$/.test(valor)) {
+            setNombre(valor);
+            if (error) setError('');
+            
+            const cuentaExistente = cuentasActivas.find(c => c.cliente === valor);
+            if (cuentaExistente) {
+                setMensajeBienvenida(`¡Hola de nuevo! Tienes una cuenta abierta de $${cuentaExistente.total}.`);
+            } else {
+                setMensajeBienvenida('');
+            }
+        }
     };
 
     const handleChangeTelefono = (e) => {
@@ -24,24 +35,22 @@ const PantallaLogin = ({ onIngresar, mesaNombre }) => {
         }
     };
 
-    const handleContinuar = () => {
+    const validarYEjecutar = (accion) => {
         if (nombre.trim().length < 3) {
             setError("Por favor, ingresa un nombre válido (mínimo 3 letras).");
             return;
         }
-        
-        // Validación de teléfono SOLO si es para llevar
         if (esParaLlevar && telefono.length !== 10) {
             setError("El teléfono debe ser de 10 dígitos para avisarte.");
             return;
         }
-
-        onIngresar(nombre, telefono);
+        // Ejecutamos la función que nos pasaron (ya sea ingresar o ver cuenta)
+        if (accion) accion(nombre, telefono);
     };
 
     return (
         <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6">
-            <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center">
+            <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center animate-fade-in-up">
                 <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Coffee size={32} className="text-orange-600" />
                 </div>
@@ -57,14 +66,18 @@ const PantallaLogin = ({ onIngresar, mesaNombre }) => {
                             value={nombre}
                             onChange={handleChangeNombre}
                             placeholder="Ej. JUAN PÉREZ"
-                            className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors uppercase"
+                            className={`w-full p-4 border-2 rounded-xl font-bold text-gray-700 focus:outline-none transition-colors uppercase ${mensajeBienvenida ? 'border-green-500 bg-green-50' : 'border-orange-100 focus:border-orange-500'}`}
                         />
+                        {mensajeBienvenida && (
+                            <p className="text-xs text-green-600 font-bold mt-2 flex items-center animate-bounce-in">
+                                <UserCheck size={12} className="mr-1"/> {mensajeBienvenida}
+                            </p>
+                        )}
                     </div>
                     
-                    {/* CAMPO DE TELÉFONO (SOLO VISIBLE SI ES PARA LLEVAR) */}
                     {esParaLlevar && (
                         <div className="animate-fade-in">
-                            <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono (Para avisarte)</label>
+                            <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono</label>
                             <input 
                                 value={telefono}
                                 onChange={handleChangeTelefono}
@@ -83,22 +96,43 @@ const PantallaLogin = ({ onIngresar, mesaNombre }) => {
                     </div>
                 )}
 
+                {/* BOTÓN PRINCIPAL */}
                 <button 
-                    onClick={handleContinuar}
+                    type="button"
+                    onClick={() => validarYEjecutar(onIngresar)}
                     className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${
                         nombre.length >= 3 && (!esParaLlevar || telefono.length === 10) 
                         ? 'bg-orange-600 hover:bg-orange-700' 
                         : 'bg-gray-300 cursor-not-allowed'
                     }`}
                 >
-                    Comenzar a Pedir
+                    {mensajeBienvenida ? 'Continuar con mi pedido' : 'Comenzar a Pedir'}
                 </button>
+
+                {/* BOTÓN SECUNDARIO (Dinámico) */}
+                {mensajeBienvenida ? (
+                    <button 
+                        type="button"
+                        onClick={() => validarYEjecutar(onVerCuentaDirecta)}
+                        className="mt-4 w-full py-3 rounded-xl font-bold text-blue-500 hover:text-white hover:bg-blue-500 bg-blue-50 transition-all flex items-center justify-center gap-2"
+                    >
+                        <Receipt size={18} /> Ver Cuenta
+                    </button>
+                ) : (
+                    <button 
+                        type="button"
+                        onClick={onSalir}
+                        className="mt-4 w-full py-3 rounded-xl font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-red-100"
+                    >
+                        <LogOut size={18} /> Ya no quiero pedir
+                    </button>
+                )}
             </div>
         </div>
     );
 };
 
-// COMPONENTE: CARRITO FLOTANTE Y CONFIRMACIÓN
+// COMPONENTE: CARRITO FLOTANTE
 const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) => {
     const [confirmando, setConfirmando] = useState(false);
     const total = cuenta.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
@@ -110,7 +144,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
             <div className="fixed inset-0 bg-black bg-opacity-60 z-[100] flex items-end sm:items-center justify-center p-4">
                 <div className="bg-white w-full max-w-md rounded-2xl p-6 animate-bounce-in">
                     <h3 className="text-xl font-bold text-gray-800 mb-2">¿Confirmar Pedido?</h3>
-                    <p className="text-gray-600 mb-4 text-sm">Se enviará a cocina inmediatamente. Revisa que todo esté correcto.</p>
+                    <p className="text-gray-600 mb-4 text-sm">Se enviará a cocina inmediatamente.</p>
                     <div className="max-h-60 overflow-y-auto mb-4 bg-gray-50 p-4 rounded-xl">
                         {cuenta.map((item, i) => (
                             <div key={i} className="flex justify-between text-sm mb-2 border-b border-gray-100 pb-2 last:border-0">
@@ -170,7 +204,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// COMPONENTE: RESUMEN DE CUENTA TOTAL
+// COMPONENTE: RESUMEN DE CUENTA TOTAL (MEJORADO CON PRECIO UNITARIO)
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
@@ -185,7 +219,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                 <div className="flex justify-between items-center mb-6">
                     <button onClick={onVolver} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><ArrowLeft size={20}/></button>
                     <h2 className="text-xl font-bold">Mi Cuenta</h2>
-                    <div className="w-10"></div> {/* Espaciador */}
+                    <div className="w-10"></div>
                 </div>
                 <div className="text-center">
                     <p className="text-gray-400 text-sm mb-1">Total a Pagar</p>
@@ -199,23 +233,42 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                     <h3 className="text-gray-800 font-bold border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
                         <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
                     </h3>
+                    
                     {cuentaAcumulada.cuenta.length === 0 ? (
                         <p className="text-gray-400 text-center text-sm py-4">Aún no has pedido nada.</p>
                     ) : (
-                        cuentaAcumulada.cuenta.map((item, i) => (
-                            <div key={i} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-3">
-                                    <span className="bg-orange-100 text-orange-700 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold">{item.cantidad || 1}</span>
-                                    <span className="text-gray-700 font-medium">{item.nombre}</span>
+                        cuentaAcumulada.cuenta.map((item, i) => {
+                            const cantidad = item.cantidad || 1;
+                            const totalItem = item.precio * cantidad;
+                            
+                            return (
+                                <div key={i} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                                    <div className="flex items-center gap-3">
+                                        <span className="bg-orange-100 text-orange-700 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">{cantidad}</span>
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-700 font-medium">{item.nombre}</span>
+                                            {/* AQUÍ ESTÁ EL CAMBIO: Mostrar precio unitario si son varios */}
+                                            {cantidad > 1 && (
+                                                <span className="text-[12px] text-gray-500">
+                                                    (${item.precio} c/u)
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="font-bold text-gray-900">${totalItem}</span>
                                 </div>
-                                <span className="font-bold text-gray-900">${item.precio * (item.cantidad || 1)}</span>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
-                <p className="text-center text-xs text-gray-400 mt-6">
-                    * Si deseas pagar, solicita la cuenta al mesero o acércate a caja.
-                </p>
+                
+                {/* MENSAJE DE PAGO DESTACADO */}
+                <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center shadow-sm animate-fade-in-up">
+                    <p className="text-yellow-800 font-bold text-sm flex flex-col items-center gap-1">
+                        <span>💁‍♂️</span>
+                        * Si deseas pagar, solicita la cuenta al mesero o acércate a caja.
+                    </p>
+                </div>
             </div>
 
             <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
@@ -235,10 +288,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
 
-    // Detectar si es para llevar
     const esParaLlevar = useMemo(() => mesa?.nombre.toLowerCase().includes('llevar'), [mesa]);
-
-    // Obtener la cuenta real acumulada del cliente en esta mesa
     const miCuentaAcumulada = useMemo(() => {
         if (!mesa || !nombreCliente) return null;
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
@@ -247,18 +297,14 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const agregarAlCarrito = (producto) => {
         setCarrito(prev => {
             const existe = prev.find(item => item.id === producto.id);
-            if (existe) {
-                return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item);
-            }
+            if (existe) return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item);
             return [...prev, { ...producto, cantidad: 1, tempId: Date.now() }];
         });
     };
 
     const actualizarCantidad = (tempId, delta) => {
         setCarrito(prev => prev.map(item => {
-            if (item.tempId === tempId) {
-                return { ...item, cantidad: Math.max(1, item.cantidad + delta) };
-            }
+            if (item.tempId === tempId) return { ...item, cantidad: Math.max(1, item.cantidad + delta) };
             return item;
         }));
     };
@@ -273,17 +319,26 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         setCarrito([]);
     };
 
-    // 1. Pantalla Login
+    const handleVerCuentaDirecta = (n, t) => {
+        setNombreCliente(n);
+        setTelefonoCliente(t);
+        setViendoCuentaTotal(true);
+    };
+
     if (!nombreCliente) {
-        return <PantallaLogin mesaNombre={mesa.nombre} onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} />;
+        return <PantallaLogin 
+            mesaNombre={mesa.nombre} 
+            onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} 
+            onVerCuentaDirecta={handleVerCuentaDirecta} // Pasamos la función aquí
+            onSalir={onSalir}
+            cuentasActivas={mesa.cuentas}
+        />;
     }
 
-    // 2. Pantalla Ver Cuenta Total
     if (viendoCuentaTotal) {
         return <VistaMiCuentaTotal cuentaAcumulada={miCuentaAcumulada} onVolver={() => { setViendoCuentaTotal(false); setPedidoEnviado(false); }} />;
     }
 
-    // 3. Pantalla Pedido Enviado (Éxito)
     if (pedidoEnviado) {
         return (
             <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up">
@@ -293,9 +348,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Recibido!</h2>
                 <p className="text-gray-600 mb-6">Gracias <strong>{nombreCliente}</strong>.</p>
                 
-                {/* --- MENSAJE CONDICIONAL SEGÚN TIPO DE PEDIDO --- */}
                 {esParaLlevar ? (
-                    // MENSAJE PARA LLEVAR
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
                         <div className="flex items-start gap-3 mb-4">
                             <ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/>
@@ -313,7 +366,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                         )}
                     </div>
                 ) : (
-                    // MENSAJE PARA MESA (CON NOTA EDUCADA SOBRE LLEVAR)
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
                         <div className="flex items-start gap-3 mb-4">
                             <Coffee className="text-green-600 mt-1 shrink-0" size={20}/>
@@ -340,17 +392,14 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         );
     }
 
-    // 4. Pantalla Menú Principal
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
-            {/* Header Cliente */}
             <div className="bg-white p-4 sticky top-0 z-10 shadow-sm flex justify-between items-center">
                 <div>
                     <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
                     <p className="text-xs text-gray-500">Hola, <span className="font-bold text-orange-600">{nombreCliente}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Botón para ver cuenta desde el menú también */}
                     {miCuentaAcumulada && (
                         <button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100">
                             <DollarSign size={14}/> {miCuentaAcumulada.total}
@@ -360,7 +409,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 </div>
             </div>
 
-            {/* Menú */}
             <div className="p-4">
                 {ORDEN_CATEGORIAS.map(cat => {
                     const prods = productos.filter(p => p.categoria === cat);

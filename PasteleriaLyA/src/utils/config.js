@@ -1,3 +1,5 @@
+// src/utils/config.js
+
 // --- HELPER DE FECHAS (ROBUSTO) ---
 export const getFechaHoy = () => {
     const d = new Date();
@@ -13,37 +15,19 @@ export const formatearFechaLocal = (fechaString) => {
     return fecha.toLocaleDateString('es-MX', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
   
-// --- DATA INICIAL ---
+// --- DATA INICIAL (LIMPIA) ---
 export const ORDEN_CATEGORIAS = [
     'Bebidas Calientes', 'Bebidas Frías', 'Pasteles', 'Cheesecakes', 'Rosca', 'Cupcakes', 'Brownies', 'Postres', 'Otros'
 ];
   
-export const PRODUCTOS_CAFETERIA_INIT = [
-    { id: 6, nombre: 'Cappuccino Vainilla', descripcion: 'Espresso con leche espumada y vainilla.', precio: 55, categoria: 'Bebidas Calientes', imagen: '☕', zoom: 100 },
-    { id: 7, nombre: 'Frappé Moka', descripcion: 'Bebida helada de café con chocolate.', precio: 70, categoria: 'Bebidas Frías', imagen: '🥤', zoom: 100 },
-    { id: 1, nombre: 'Pastel de Zanahoria', descripcion: 'Delicioso pastel con nueces y betún de queso crema.', precio: 450, categoria: 'Pasteles', imagen: '🥕', zoom: 100 },
-    { id: 2, nombre: 'Cheesecake de Fresa', descripcion: 'Clásico cheesecake estilo NY con salsa de fresa.', precio: 65, categoria: 'Cheesecakes', imagen: '🍰', zoom: 100 },
-    { id: 4, nombre: 'Cupcake Red Velvet', descripcion: 'Suave pan rojo con frosting de vainilla.', precio: 35, categoria: 'Cupcakes', imagen: '🧁', zoom: 100 },
-    { id: 5, nombre: 'Brownie Doble Choco', descripcion: 'Con trozos de chocolate amargo.', precio: 40, categoria: 'Brownies', imagen: '🍫', zoom: 100 },
-    { id: 3, nombre: 'Fresas con Crema', descripcion: 'Fresas frescas con nuestra crema especial.', precio: 80, categoria: 'Postres', imagen: '🍓', zoom: 100 },
-];
-  
-export const MESAS_FISICAS_INIT = [
-    { id: 'M1', nombre: 'Mesa 1', tipo: 'mesa', estado: 'Libre', cuentas: [] },
-    { id: 'M2', nombre: 'Mesa 2', tipo: 'mesa', estado: 'Libre', cuentas: [] },
-    { id: 'M3', nombre: 'Mesa 3', tipo: 'mesa', estado: 'Libre', cuentas: [] },
-    { id: 'M4', nombre: 'Mesa 4', tipo: 'mesa', estado: 'Libre', cuentas: [] },
-];
-  
+// DEJAMOS ESTOS ARRAYS VACÍOS PARA EMPEZAR DE CERO
+export const PRODUCTOS_CAFETERIA_INIT = [];
+export const MESAS_FISICAS_INIT = [];
 export const SESIONES_LLEVAR_INIT = [];
-  
-export const VENTAS_CAFETERIA_INIT = [
-    { id: 'V-101', fecha: '2025-12-05', total: 150, items: 3, hora: '08:30', cliente: 'Mesa 1 - Principal', origen: 'Cafetería' },
-];
-  
+export const VENTAS_CAFETERIA_INIT = [];
 export const PEDIDOS_PASTELERIA_INIT = [];
 
-// --- FUNCIÓN DE IMPRESIÓN (ACTUALIZADA NOMBRE LyA) ---
+// --- FUNCIÓN DE IMPRESIÓN (SIN CAMBIOS) ---
 export const imprimirTicket = (datos, tipo = 'ticket') => {
     const ventana = window.open('', 'PRINT', 'height=600,width=400');
     if (!ventana) { alert("Por favor, permite las ventanas emergentes para imprimir."); return; }
@@ -52,7 +36,6 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
         <style>
             body { font-family: 'Courier New', monospace; padding: 20px; max-width: 80mm; margin: 0 auto; color: #000; }
             .header { text-align: center; margin-bottom: 20px; }
-            /* CAMBIO: Fuente italic para el título */
             .title { font-size: 22px; font-weight: bold; display: block; margin-bottom: 5px; font-style: italic; }
             .subtitle { font-size: 12px; display: block; }
             .divider { border-top: 1px dashed #000; margin: 10px 0; }

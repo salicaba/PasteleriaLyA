@@ -1,25 +1,109 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle } from 'lucide-react';
 import { CardStat } from '../components/Shared';
-import { formatearFechaLocal } from '../utils/config';
+import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT } from '../utils/config';
 
-export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => (
-    <div className="p-4 md:p-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Panel General (Dueño)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm">
-                <h3 className="text-xl font-bold text-pink-800 mb-2">Área Pastelería</h3>
-                <p className="text-gray-600 mb-4">{pedidos.filter(p => p.estado !== 'Cancelado').length} pedidos activos</p>
-                <p className="text-3xl font-bold text-pink-600">${pedidos.filter(p => p.estado !== 'Cancelado').reduce((s, p) => s + p.total, 0)}</p>
+// --- IMPORTACIONES DE FIREBASE ---
+import { db } from '../firebase';
+import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
+
+export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
+    const [cargando, setCargando] = useState(false);
+
+    // --- FUNCIÓN PARA SUBIR DATOS INICIALES ---
+    const subirDatosIniciales = async () => {
+        if (!confirm("¿Subir productos y mesas iniciales a la base de datos?")) return;
+        setCargando(true);
+        try {
+            const batch = writeBatch(db);
+            // 1. Subir Productos
+            if (PRODUCTOS_CAFETERIA_INIT.length > 0) {
+                PRODUCTOS_CAFETERIA_INIT.forEach(prod => {
+                    const ref = doc(collection(db, "productos")); 
+                    batch.set(ref, prod);
+                });
+            }
+            // 2. Subir Mesas
+            if (MESAS_FISICAS_INIT.length > 0) {
+                MESAS_FISICAS_INIT.forEach(mesa => {
+                    const ref = doc(db, "mesas", mesa.id);
+                    batch.set(ref, mesa);
+                });
+            }
+            await batch.commit();
+            alert("¡Éxito! Datos subidos.");
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Error: " + error.message);
+        }
+        setCargando(false);
+    };
+
+    // --- FUNCIÓN PARA BORRAR TODO DE LA BD (RESET) ---
+    const borrarBaseDatos = async () => {
+        if (!confirm("⚠️ ¡PELIGRO! ⚠️\n\nEsto borrará TODOS los productos y mesas de la Base de Datos en la nube.\n¿Estás seguro?")) return;
+        setCargando(true);
+        try {
+            const batch = writeBatch(db);
+            
+            // 1. Obtener y borrar productos
+            const prodSnapshot = await getDocs(collection(db, "productos"));
+            prodSnapshot.forEach((doc) => batch.delete(doc.ref));
+
+            // 2. Obtener y borrar mesas
+            const mesasSnapshot = await getDocs(collection(db, "mesas"));
+            mesasSnapshot.forEach((doc) => batch.delete(doc.ref));
+
+            await batch.commit();
+            alert("✅ Base de datos limpiada correctamente.");
+        } catch (error) {
+            console.error("Error borrando:", error);
+            alert("Error al borrar: " + error.message);
+        }
+        setCargando(false);
+    };
+
+    return (
+        <div className="p-4 md:p-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General (Dueño)</h2>
+                
+                <div className="flex gap-2">
+                    {/* Botón para subir (útil si llenas config.js después) */}
+                    <button 
+                        onClick={subirDatosIniciales}
+                        disabled={cargando}
+                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-300 transition"
+                    >
+                        {cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}
+                    </button>
+
+                    {/* BOTÓN PARA BORRAR TODO (RESET) */}
+                    <button 
+                        onClick={borrarBaseDatos}
+                        disabled={cargando}
+                        className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"
+                    >
+                        <Trash2 size={16}/> Limpiar BD
+                    </button>
+                </div>
             </div>
-            <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm">
-                <h3 className="text-xl font-bold text-orange-800 mb-2">Área Cafetería</h3>
-                <p className="text-gray-600 mb-4">{ventasCafeteria.length} tickets registrados</p>
-                <p className="text-3xl font-bold text-orange-600">${ventasCafeteria.reduce((s, v) => s + v.total, 0)}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm">
+                    <h3 className="text-xl font-bold text-pink-800 mb-2">Área Pastelería</h3>
+                    <p className="text-gray-600 mb-4">{pedidos.filter(p => p.estado !== 'Cancelado').length} pedidos activos</p>
+                    <p className="text-3xl font-bold text-pink-600">${pedidos.filter(p => p.estado !== 'Cancelado').reduce((s, p) => s + p.total, 0)}</p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm">
+                    <h3 className="text-xl font-bold text-orange-800 mb-2">Área Cafetería</h3>
+                    <p className="text-gray-600 mb-4">{ventasCafeteria.length} tickets registrados</p>
+                    <p className="text-3xl font-bold text-orange-600">${ventasCafeteria.reduce((s, v) => s + v.total, 0)}</p>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo, onAbrirModalDia }) => {
     const [mesSeleccionado, setMesSeleccionado] = useState('2025-12');
@@ -95,10 +179,21 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                         <input type="month" value={mesSeleccionado} min="2025-12" onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition" />
                     </div>
                     <div className="h-10 w-px bg-gray-300 mx-2 hidden md:block"></div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <div className="flex-1 md:flex-none"><label className="text-xs font-bold text-gray-500 block mb-1">Desde</label><input type="date" value={rangoInicio} min="2025-12-01" onChange={(e) => setRangoInicio(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" /></div>
-                        <div className="flex-1 md:flex-none"><label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label><input type="date" value={rangoFin} min="2025-12-01" onChange={(e) => setRangoFin(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" /></div>
+                    
+                    {/* --- AQUÍ ESTÁ EL CAMBIO --- */}
+                    {/* Cambiamos 'flex' por 'grid' con 'grid-cols-1' (móvil) y 'sm:grid-cols-2' (tablet/PC) */}
+                    <div className="grid grid-cols-1 gap-2 w-full sm:grid-cols-2 md:w-auto">
+                        <div className="w-full">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Desde</label>
+                            <input type="date" value={rangoInicio} min="2025-12-01" onChange={(e) => setRangoInicio(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
+                        </div>
+                        <div className="w-full">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label>
+                            <input type="date" value={rangoFin} min="2025-12-01" onChange={(e) => setRangoFin(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
+                        </div>
                     </div>
+                    {/* --------------------------- */}
+
                     {(rangoInicio || rangoFin) && (<button onClick={limpiarRango} className="text-xs text-red-500 font-bold hover:underline mb-3 md:mb-1 self-end flex items-center gap-1"><X size={12} /> Limpiar</button>)}
                 </div>
             </div>
