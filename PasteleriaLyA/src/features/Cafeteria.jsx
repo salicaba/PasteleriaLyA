@@ -19,7 +19,7 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[260] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up flex flex-col">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up flex flex-col border-t-8 border-orange-500">
                 <div className="p-5 bg-orange-50 flex justify-between items-center border-b border-orange-100">
                     <div>
                         <h3 className="font-bold text-xl text-orange-900 flex items-center gap-2">
@@ -97,7 +97,7 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar }) => {
     return (
         <>
             <div className="fixed inset-0 bg-black bg-opacity-50 z-[250] flex items-center justify-center p-4 backdrop-blur-sm">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up">
+                <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 ${esVenta ? 'border-green-500' : 'border-red-500'}`}>
                     <div className={`p-6 ${colorHeader} flex justify-between items-start border-b border-gray-100`}>
                         <div>
                             <h3 className="font-bold text-2xl flex items-center mb-1">{iconoHeader} {titulo}</h3>
@@ -657,13 +657,14 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 </div>
             </div>
 
-            {/* MODAL DE CONFIRMACIÓN DE PAGO */}
+            {/* MODAL DE CONFIRMACIÓN DE PAGO (CORREGIDO) */}
             <ModalConfirmacion 
                 isOpen={confirmacionPagoOpen}
                 onClose={() => setConfirmacionPagoOpen(false)}
                 onConfirm={() => { onPagarCuenta(sesion); setConfirmacionPagoOpen(false); }}
-                titulo="¿Confirmar Pago?"
-                mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total}. Esta acción no se puede deshacer.`}
+                titulo="¿Confirmar Cobro?"
+                mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`}
+                tipo="pago" // <--- ESTO ACTIVA EL ESTILO VERDE Y EL ÍCONO DE DINERO
             />
 
             {/* MODAL DE CONFIRMACIÓN DE CANCELACIÓN (MODIFICADO) */}
@@ -883,65 +884,53 @@ export const VistaInicioCafeteria = ({
         <div className="p-4 md:p-8 h-screen overflow-y-auto bg-gray-50">
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Cafetería - Operaciones en Vivo</h2>
             
-            {/* --- GRID DE 5 TARJETAS (ORDENADO) --- */}
+            {/* --- GRID DE 5 TARJETAS (ESTILO PASTELERÍA - BORDE FUERTE) --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
                 
-                {/* 1. MESAS OCUPADAS */}
-                <CardStat 
-                    titulo="Mesas Ocupadas" 
-                    valor={`${mesasOcupadas} / ${mesas.length}`} 
-                    color="bg-orange-100 text-orange-800" 
-                    icon={<Grid size={24} />} 
-                />
+                {/* 1. MESAS OCUPADAS (Naranja) - Informativo */}
+                <div className="p-6 rounded-xl shadow-sm border-l-4 border-orange-500 bg-white flex justify-between items-center transition-colors hover:bg-orange-50">
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Mesas Ocupadas</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{mesasOcupadas} / {mesas.length}</p>
+                    </div>
+                    <div className="text-orange-300 opacity-50"><Grid size={30} /></div>
+                </div>
                 
-                {/* 2. PARA LLEVAR (Activos) */}
-                <CardStat 
-                    titulo="Para Llevar" 
-                    valor={pedidosActivos} 
-                    color="bg-blue-100 text-blue-800" 
-                    icon={<ShoppingBag size={24} />} 
-                />
-
-                {/* 3. VENDIDOS HOY (Cantidad / Historial con Buscador) */}
-                <div 
-                    onClick={() => setModalHistorial({ open: true, tipo: 'vendidos' })}
-                    className="cursor-pointer transition-transform active:scale-95"
-                >
-                    <CardStat 
-                        titulo="Vendidos Hoy" 
-                        valor={cantidadVentas} 
-                        subtext="Tickets cerrados"
-                        color="bg-green-100 text-green-800 border border-green-200 hover:border-green-400" 
-                        icon={<CheckCircle size={24} />} 
-                    />
+                {/* 2. PARA LLEVAR (Azul) - CORREGIDO: SOLO INFORMATIVO */}
+                {/* Se quitó el onClick y el cursor-pointer para que no abra el modal */}
+                <div className="p-6 rounded-xl shadow-sm border-l-4 border-blue-500 bg-white flex justify-between items-center transition-colors hover:bg-blue-50">
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Para Llevar</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{pedidosActivos}</p>
+                    </div>
+                    <div className="text-blue-300 opacity-50"><ShoppingBag size={30} /></div>
                 </div>
 
-                {/* 4. CANCELADOS (Papelera temporal) */}
-                <div 
-                    onClick={() => setModalHistorial({ open: true, tipo: 'cancelados' })}
-                    className="cursor-pointer transition-transform active:scale-95"
-                >
-                    <CardStat 
-                        titulo="Cancelados (5m)" 
-                        valor={cancelados.length} 
-                        subtext="Recuperables"
-                        color="bg-red-100 text-red-800 border border-red-200 hover:border-red-400" 
-                        icon={<XCircle size={24} />} 
-                    />
+                {/* 3. VENDIDOS HOY (Verde) - Interactivo */}
+                <div onClick={() => setModalHistorial({ open: true, tipo: 'vendidos' })} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group">
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Vendidos Hoy</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{cantidadVentas}</p>
+                    </div>
+                    <div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><CheckCircle size={30} /></div>
                 </div>
 
-                {/* 5. TOTAL CAJA (HOY) (Corte de Caja - Dinero) */}
-                <div 
-                    onClick={() => setModalCorteOpen(true)}
-                    className="cursor-pointer transition-transform active:scale-95"
-                >
-                    <CardStat 
-                        titulo="Total Caja (Hoy)" 
-                        valor={`$${totalIngresos}`} 
-                        subtext="Ingreso del día"
-                        color="bg-emerald-100 text-emerald-800 border border-emerald-200 hover:border-emerald-400" 
-                        icon={<DollarSign size={24} />} 
-                    />
+                {/* 4. CANCELADOS (Rojo) - Interactivo */}
+                <div onClick={() => setModalHistorial({ open: true, tipo: 'cancelados' })} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados (5m)</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{cancelados.length}</p>
+                    </div>
+                    <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30} /></div>
+                </div>
+
+                {/* 5. TOTAL CAJA (Emerald/Dinero) - Interactivo */}
+                <div onClick={() => setModalCorteOpen(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-emerald-500 bg-white flex justify-between items-center cursor-pointer hover:bg-emerald-50 transition-colors group">
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja (Hoy)</p>
+                        <p className="text-3xl font-bold text-gray-800 mt-2">${totalIngresos.toFixed(0)}</p>
+                    </div>
+                    <div className="text-emerald-300 opacity-50 group-hover:text-emerald-500 group-hover:opacity-100 transition"><DollarSign size={30} /></div>
                 </div>
             </div>
 
@@ -976,10 +965,11 @@ export const VistaInicioCafeteria = ({
                     </div>
                 </div>
 
-                {/* LADO DERECHO: PARA LLEVAR */}
+                {/* LADO DERECHO: PARA LLEVAR (AQUÍ ESTÁ EL BOTÓN + QUE SÍ ABRE EL MODAL) */}
                 <div className="w-full xl:w-96 bg-white p-6 rounded-2xl shadow-sm border border-gray-200 h-fit">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-gray-700 flex items-center"><ShoppingBag className="mr-2"/> Para Llevar</h3>
+                        {/* ESTE ES EL BOTÓN QUE DEBE SEGUIR FUNCIONANDO */}
                         <button onClick={() => setModalLlevarOpen(true)} className="bg-gray-900 text-white p-2 rounded-lg hover:bg-gray-700 shadow-md transition-transform active:scale-95"><PlusCircle size={20}/></button>
                     </div>
                     {pedidosLlevar.length === 0 ? (

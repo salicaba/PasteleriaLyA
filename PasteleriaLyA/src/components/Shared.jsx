@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange, Menu, LogOut
+    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign // <--- AQUÍ AGREGUÉ EL ÍCONO QUE FALTABA
 } from 'lucide-react';
 import { imprimirTicket } from '../utils/config';
 import { formatearFechaLocal } from '../utils/config';
@@ -35,7 +35,6 @@ export const CardStat = ({ titulo, valor, color, icon }) => (
     </div>
 );
 
-// --- TARJETA DE PRODUCTO (RESPONSIVE MEJORADO) ---
 // --- TARJETA DE PRODUCTO (RESPONSIVE MEJORADO Y COMPACTO) ---
 export const CardProducto = ({ producto, onClick }) => {
     const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
@@ -344,18 +343,33 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
 
 // --- MODALES RESPONSIVE (Ajustados) ---
 
-export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Estás seguro?", mensaje = "Esta acción no se puede deshacer." }) => {
+// --- MODAL CONFIRMACIÓN (Flexible: Rojo o Verde) ---
+export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Estás seguro?", mensaje = "Esta acción no se puede deshacer.", tipo = "eliminar" }) => {
     if (!isOpen) return null;
+
+    // Configuración de estilos según el tipo
+    const esPago = tipo === 'pago';
+
+    const estilos = esPago ? {
+        borde: "border-green-500",
+        icono: <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-4 animate-bounce-in"><DollarSign size={32} className="text-green-600" /></div>,
+        boton: "bg-green-600 hover:bg-green-700 text-white"
+    } : {
+        borde: "border-red-500",
+        icono: <Trash2 size={40} className="text-red-500 mx-auto mb-4" />,
+        boton: "bg-red-600 hover:bg-red-700 text-white"
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[250] p-4 backdrop-blur-sm transition-all">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md overflow-hidden animate-bounce-in transform border-t-8 border-red-500">
-                <div className="p-4 sm:p-6 text-center">
-                    <Trash2 size={32} className="text-red-600 mx-auto mb-4" />
+            <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md overflow-hidden animate-bounce-in transform border-t-8 ${estilos.borde}`}>
+                <div className="p-6 text-center">
+                    {estilos.icono}
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{titulo}</h3>
                     <p className="text-gray-500 mb-6 text-sm">{mensaje}</p>
                     <div className="flex space-x-3 justify-center">
                         <button onClick={onClose} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">Cancelar</button>
-                        <button onClick={onConfirm} className="px-5 py-2.5 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 shadow-lg hover:shadow-xl transition transform active:scale-95">Confirmar</button>
+                        <button onClick={onConfirm} className={`px-5 py-2.5 rounded-lg font-bold shadow-lg hover:shadow-xl transition transform active:scale-95 ${estilos.boton}`}>Confirmar</button>
                     </div>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt } from 'lucide-react';
-import { CardStat } from '../components/Shared';
+import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
 // --- MODAL PAPELERA (PEDIDOS CANCELADOS) ---
@@ -23,7 +23,7 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
     return (
         <>
             <div className="fixed inset-0 bg-black bg-opacity-50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-red-500">
                     
                     {/* Header Rojo con Ícono de Papelera Correcto */}
                     <div className="p-6 bg-red-50 text-red-800 flex justify-between items-start border-b border-red-100">
@@ -93,18 +93,14 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                 </div>
             </div>
 
-            {/* Modal de Confirmación para Restaurar */}
+            {/* MODAL DE CONFIRMACIÓN DE PAGO (MODIFICADO) */}
             <ModalConfirmacion 
-                isOpen={!!pedidoParaRestaurar}
-                onClose={() => setPedidoParaRestaurar(null)}
-                onConfirm={() => {
-                    if(pedidoParaRestaurar) {
-                        onRestaurar(pedidoParaRestaurar.folio);
-                        setPedidoParaRestaurar(null);
-                    }
-                }}
-                titulo="¿Restaurar Pedido?"
-                mensaje={`El pedido de ${pedidoParaRestaurar?.cliente} volverá a la lista de Pendientes.`}
+                isOpen={confirmacionPagoOpen}
+                onClose={() => setConfirmacionPagoOpen(false)}
+                onConfirm={() => { onPagarCuenta(sesion); setConfirmacionPagoOpen(false); }}
+                titulo="¿Confirmar Cobro?"
+                mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`}
+                tipo="pago" // <--- ESTO ACTIVA EL MODO VERDE
             />
         </>
     );
@@ -336,7 +332,17 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {mostrarPapelera && <ModalPapelera pedidosCancelados={pedidosCancelados} onClose={() => setMostrarPapelera(false)} onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} />}
+            {mostrarPapelera && (
+    <ModalPapelera 
+        isOpen={mostrarPapelera}        // <--- AGREGADO: Necesario para que el modal sepa que debe mostrarse
+        pedidos={pedidosCancelados}     // <--- CORREGIDO: Se debe llamar 'pedidos', no 'pedidosCancelados'
+        onClose={() => setMostrarPapelera(false)} 
+        onRestaurar={(folio) => { 
+            onRestaurar(folio); 
+            setMostrarPapelera(false); 
+        }} 
+    />
+)}
             {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregados} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
             {mostrarCajaHoy && <ModalCorteCaja pedidosDelDia={pedidosCajaHoy} totalCaja={totalCajaHoy} onClose={() => setMostrarCajaHoy(false)} />}
         </div>

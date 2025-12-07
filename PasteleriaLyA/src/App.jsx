@@ -461,7 +461,17 @@ export default function PasteleriaApp() {
   const iniciarRestauracion = (f) => setPedidoARestaurar(f);
   const confirmarRestauracion = () => { 
       setPedidosPasteleria(pedidosPasteleria.map(p => { if(p.folio===pedidoARestaurar) { const {fechaCancelacion,...r}=p; return {...r,estado:'Pendiente'}; } return p; })); 
-      setPedidoARestaurar(null); 
+      setPedidoARestaurar(null);
+      const restaurarPedidoDirectamente = (folio) => {
+      setPedidosPasteleria(prev => prev.map(p => { 
+          if(p.folio === folio) { 
+              const {fechaCancelacion, ...rest} = p; 
+              return {...rest, estado: 'Pendiente'}; 
+          } 
+          return p; 
+      }));
+      mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
+  }; 
   };
   const iniciarEntrega = (f) => setPedidoAEntregar(f);
   const confirmarEntrega = () => { 
@@ -470,11 +480,37 @@ export default function PasteleriaApp() {
   };
   const restaurarDeEntregados = (f) => { setPedidosPasteleria(pedidosPasteleria.map(p => p.folio === f ? { ...p, estado: 'Pendiente' } : p)); };
 
+  // --- PEGA ESTO AQUÍ (ANTES de renderContenidoProtegido) ---
+  const restaurarPedidoDirectamente = (folio) => {
+      setPedidosPasteleria(prev => prev.map(p => { 
+          if(p.folio === folio) { 
+              const {fechaCancelacion, ...rest} = p; 
+              return {...rest, estado: 'Pendiente'}; 
+          } 
+          return p; 
+      }));
+      mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
+  };
+  
   const renderContenidoProtegido = () => (
     <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
       {modo === 'admin' && ( <> {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
-      {modo === 'pasteleria' && ( <> {vistaActual === 'inicio' && <VistaInicioPasteleria pedidos={pedidosPasteleria} onEditar={(p) => { setPedidoAEditar(p); setVistaActual('pedidos'); }} onVerDetalles={(p) => setPedidoVerDetalles(p)} onIniciarEntrega={iniciarEntrega} onCancelar={iniciarCancelacion} onRestaurar={iniciarRestauracion} onDeshacerEntrega={restaurarDeEntregados} />} {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
+      {modo === 'pasteleria' && ( 
+    <> 
+        {vistaActual === 'inicio' && 
+            <VistaInicioPasteleria 
+                pedidos={pedidosPasteleria} 
+                onEditar={(p) => { setPedidoAEditar(p); setVistaActual('pedidos'); }} 
+                onVerDetalles={(p) => setPedidoVerDetalles(p)} 
+                onIniciarEntrega={iniciarEntrega} 
+                onCancelar={iniciarCancelacion} 
+                
+                // CAMBIO AQUÍ: Usamos la función directa
+                onRestaurar={restaurarPedidoDirectamente} 
+                
+                onDeshacerEntrega={restaurarDeEntregados} 
+            />} {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
       
       {/* --- SECCIÓN CAFETERÍA ACTUALIZADA CON LOS NUEVOS PROPS --- */}
       {modo === 'cafeteria' && ( 
