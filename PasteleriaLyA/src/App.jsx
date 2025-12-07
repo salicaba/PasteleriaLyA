@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Smartphone, ShoppingBag } from 'lucide-react';
 
-import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, PEDIDOS_PASTELERIA_INIT, getFechaHoy } from './utils/config';
+import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy } from './utils/config';
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
 import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } from './features/Pasteleria';
 import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa } from './features/Cafeteria';
@@ -10,6 +10,7 @@ import { VistaInicioAdmin, VistaReporteUniversal } from './features/Admin';
 import { VistaCliente } from './features/Cliente';
 import { VistaLogin } from './components/Login';
 
+// --- IMPORTACIONES DE FIREBASE ---
 import { db } from './firebase';
 import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 
@@ -54,13 +55,14 @@ export default function PasteleriaApp() {
       return 'admin';
   }, [location]);
 
+  // --- ESTADOS CONECTADOS A FIREBASE ---
   const [productosCafeteria, setProductosCafeteria] = useState([]);
   const [mesas, setMesas] = useState([]);
+  const [pedidosPasteleria, setPedidosPasteleria] = useState([]); 
+  const [ventasCafeteria, setVentasCafeteria] = useState([]); 
+
+  // ESTADOS LOCALES
   const [sesionesLlevar, setSesionesLlevar] = useState(SESIONES_LLEVAR_INIT);
-  const [pedidosPasteleria, setPedidosPasteleria] = useState(PEDIDOS_PASTELERIA_INIT);
-  const [ventasCafeteria, setVentasCafeteria] = useState(VENTAS_CAFETERIA_INIT);
-  
-  // --- NUEVOS ESTADOS PARA HISTORIAL ---
   const [cancelados, setCancelados] = useState([]); 
 
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
@@ -85,26 +87,35 @@ export default function PasteleriaApp() {
   useEffect(() => {
     const intervalo = setInterval(() => {
         const ahora = Date.now();
-        // Filtramos: Solo dejamos los que tengan menos de 5 mins (300,000 ms)
         setCancelados(prev => prev.filter(item => (ahora - item.timestamp) < 300000));
-    }, 30000); // Revisa cada 30 segundos
+    }, 30000); 
     return () => clearInterval(intervalo);
   }, []);
 
+  // --- CONEXIÓN A FIREBASE (TIEMPO REAL) ---
   useEffect(() => {
       const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
           const prodData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setProductosCafeteria(prodData);
       });
-
       const unsubscribeMesas = onSnapshot(collection(db, "mesas"), (snapshot) => {
           const mesaData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setMesas(mesaData.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      });
+      const unsubscribePedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
+          const pedidosData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setPedidosPasteleria(pedidosData);
+      });
+      const unsubscribeVentas = onSnapshot(collection(db, "ventas"), (snapshot) => {
+          const ventasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setVentasCafeteria(ventasData);
       });
 
       return () => {
           unsubscribeProductos();
           unsubscribeMesas();
+          unsubscribePedidos();
+          unsubscribeVentas();
       };
   }, []);
 
@@ -121,6 +132,7 @@ export default function PasteleriaApp() {
 
   const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
 
+  // --- FUNCIONES DE CAFETERÍA ---
   const guardarProductoCafeteria = async (prod) => { 
     try {
         if (prod.id) {
@@ -166,15 +178,8 @@ export default function PasteleriaApp() {
   const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { 
     const mesa = mesas.find(m => m.id === idMesa);
     if (!mesa) return;
-    
     const totalInicial = itemsIniciales.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0); 
-    const nuevaCuenta = { 
-      id: `C-${Date.now().toString().slice(-4)}`, 
-      cliente: nombreCliente, 
-      cuenta: itemsIniciales, 
-      total: totalInicial 
-    }; 
-    
+    const nuevaCuenta = { id: `C-${Date.now().toString().slice(-4)}`, cliente: nombreCliente, cuenta: itemsIniciales, total: totalInicial }; 
     const mesaActualizada = { ...mesa, cuentas: [...mesa.cuentas, nuevaCuenta] };
     actualizarMesaEnBD(mesaActualizada);
     return nuevaCuenta; 
@@ -200,7 +205,6 @@ export default function PasteleriaApp() {
     } else {
         const mesa = mesas.find(m => m.id === idMesa);
         if(!mesa) return;
-
         const cuentaExistente = mesa.cuentas.find(c => c.cliente === nombre);
         if (cuentaExistente) { 
             const cuentasActualizadas = mesa.cuentas.map(c => {
@@ -227,11 +231,8 @@ export default function PasteleriaApp() {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
                     const itemIndex = items.findIndex(i => i.id === producto.id);
-                    if (itemIndex > -1) {
-                        items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-                    } else {
-                        items.push({ ...producto, cantidad: 1 });
-                    }
+                    if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+                    else items.push({ ...producto, cantidad: 1 });
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -245,11 +246,8 @@ export default function PasteleriaApp() {
             if (s.id === idSesion) { 
                 let items = [...s.cuenta];
                 const itemIndex = items.findIndex(i => i.id === producto.id);
-                if (itemIndex > -1) {
-                    items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-                } else {
-                    items.push({ ...producto, cantidad: 1 });
-                }
+                if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+                else items.push({ ...producto, cantidad: 1 });
                 const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                 setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                 return { ...s, cuenta: items, total }; 
@@ -300,20 +298,16 @@ export default function PasteleriaApp() {
     }
   };
 
-  // --- LÓGICA DE PAGO (GUARDA DATOS PARA RESTAURAR) ---
-  const pagarCuenta = (sesion) => { 
+  const pagarCuenta = async (sesion) => { 
     const total = sesion.cuenta.reduce((acc, p) => acc + (p.precio * (p.cantidad || 1)), 0); 
-    
-    // Guardamos la venta con todos los detalles para poder RESTAURARLA si es necesario
     const nuevaVenta = { 
-        id: `T-${Date.now().toString().slice(-6)}`, 
+        folioLocal: `T-${Date.now().toString().slice(-6)}`, 
         fecha: getFechaHoy(), 
         hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
         total, 
         items: sesion.cuenta.length, 
         cliente: sesion.tipo === 'mesa' ? `${sesion.nombreMesa} - ${sesion.cliente}` : `${sesion.nombreCliente} (Llevar)`, 
         origen: 'Cafetería',
-        // DATOS PARA RESTAURACIÓN:
         origenMesaId: sesion.tipo === 'mesa' ? sesion.idMesa : null,
         nombreMesa: sesion.tipo === 'mesa' ? sesion.nombreMesa : null,
         nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente,
@@ -322,37 +316,34 @@ export default function PasteleriaApp() {
         tipo: sesion.tipo
     }; 
 
-    setVentasCafeteria([...ventasCafeteria, nuevaVenta]); 
-    
-    // Limpieza de mesa/llevar
-    if (sesion.tipo === 'mesa') { 
-        const mesa = mesas.find(m => m.id === sesion.idMesa);
-        if(mesa) {
-            const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
-            actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
-        }
-    } else { 
-        setSesionesLlevar(sesionesLlevar.filter(s => s.id !== sesion.id)); 
-    } 
-    setCuentaActiva(null); 
-    mostrarNotificacion(`Cuenta pagada. Ticket: ${nuevaVenta.id}`, "exito"); 
+    try {
+        await addDoc(collection(db, "ventas"), nuevaVenta);
+        if (sesion.tipo === 'mesa') { 
+            const mesa = mesas.find(m => m.id === sesion.idMesa);
+            if(mesa) {
+                const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
+                await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
+            }
+        } else { 
+            setSesionesLlevar(sesionesLlevar.filter(s => s.id !== sesion.id)); 
+        } 
+        setCuentaActiva(null); 
+        mostrarNotificacion("Cuenta pagada y guardada.", "exito");
+    } catch (e) {
+        mostrarNotificacion("Error al guardar venta: " + e.message, "error");
+    }
   };
 
-  // --- LÓGICA MODIFICADA: CANCELAR A PAPELERA TEMPORAL ---
   const cancelarCuentaSinPagar = (sesion) => {
-      // 1. Guardar en la lista temporal de Cancelados
       const canceladoItem = {
           ...sesion,
-          timestamp: Date.now(), // Importante para el timer de 5 min
+          timestamp: Date.now(),
           origenMesaId: sesion.tipo === 'llevar' ? null : sesion.idMesa,
           nombreMesa: sesion.nombreMesa,
-          // Aseguramos que tenga estos datos para restaurar
           cuentaOriginal: sesion.cuenta,
           nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente
       };
       setCancelados([...cancelados, canceladoItem]);
-
-      // 2. Borrar de la mesa o de llevar (Lógica existente)
       if (sesion.tipo === 'mesa') {
           const mesa = mesas.find(m => m.id === sesion.idMesa);
           if (mesa) {
@@ -366,13 +357,12 @@ export default function PasteleriaApp() {
       mostrarNotificacion("Pedido enviado a Cancelados (5 min para deshacer)", "info");
   };
 
-  // --- NUEVA FUNCIÓN: RESTAURAR (Sirve para Vendidos y Cancelados) ---
-  const restaurarDeHistorial = (item) => {
+  const restaurarDeHistorial = async (item) => {
       const cuentaRestaurada = {
-          id: `R-${Date.now().toString().slice(-4)}`, // Nuevo ID para evitar conflictos
+          id: `R-${Date.now().toString().slice(-4)}`,
           cliente: item.nombreCliente || item.cliente,
-          nombreCliente: item.nombreCliente || item.cliente, // Por si acaso es 'llevar'
-          cuenta: item.cuentaOriginal || item.cuenta, // Usamos la cuenta guardada
+          nombreCliente: item.nombreCliente || item.cliente,
+          cuenta: item.cuentaOriginal || item.cuenta,
           total: item.total,
           telefono: item.telefono || '',
           tipo: item.origenMesaId ? 'mesa' : 'llevar',
@@ -382,7 +372,6 @@ export default function PasteleriaApp() {
       };
 
       if (item.origenMesaId) {
-          // Lógica para devolver a MESA
           const existeMesa = mesas.find(m => m.id === item.origenMesaId);
           if (!existeMesa) {
               alert("La mesa original ya no existe. Se restaurará como 'Para Llevar'.");
@@ -392,33 +381,49 @@ export default function PasteleriaApp() {
               actualizarMesaEnBD({ ...existeMesa, cuentas: cuentasActualizadas });
           }
       } else {
-          // Lógica para devolver a LLEVAR
           setSesionesLlevar([...sesionesLlevar, { ...cuentaRestaurada, tipo: 'llevar' }]);
       }
 
-      // Borrar de la lista donde estaba (Ventas o Cancelados)
-      setVentasCafeteria(prev => prev.filter(v => v.id !== item.id));
-      setCancelados(prev => prev.filter(c => c.id !== item.id));
-      
-      mostrarNotificacion("Pedido restaurado correctamente", "exito");
+      const ventaEnBD = ventasCafeteria.find(v => v.id === item.id);
+      if (ventaEnBD) {
+          try {
+              await deleteDoc(doc(db, "ventas", item.id));
+              mostrarNotificacion("Venta anulada y pedido restaurado", "exito");
+          } catch (e) { mostrarNotificacion("Error al anular venta", "error"); }
+      } else {
+          setCancelados(prev => prev.filter(c => c.id !== item.id));
+          mostrarNotificacion("Pedido recuperado de papelera", "exito");
+      }
   };
 
   const generarFolio = () => `FOL-${Date.now().toString().slice(-6)}`;
   
-  const guardarPedido = (datos) => { 
-    if (pedidoAEditar) setPedidosPasteleria(pedidosPasteleria.map(p => p.folio === datos.folio ? datos : p));
-    else setPedidosPasteleria([...pedidosPasteleria, datos]);
-    setVistaActual('inicio'); setPedidoAEditar(null);
+  // --- FUNCIONES DE PASTELERÍA ---
+  const guardarPedido = async (datos) => { 
+    try {
+        if (pedidoAEditar) {
+            await updateDoc(doc(db, "pedidos", pedidoAEditar.id), datos);
+            mostrarNotificacion("Pedido actualizado", "exito");
+        } else {
+            await addDoc(collection(db, "pedidos"), datos);
+            mostrarNotificacion(`Pedido ${datos.folio} registrado`, "exito");
+        }
+        setVistaActual('inicio'); 
+        setPedidoAEditar(null);
+    } catch (error) { mostrarNotificacion("Error al guardar pedido", "error"); }
   };
   
-  const registrarPago = (folio, esLiquidacion) => { 
-    const nuevos = pedidosPasteleria.map(p => { 
-      if(p.folio === folio) return { ...p, pagosRealizados: esLiquidacion ? p.numPagos : (p.pagosRealizados || 0) + 1 }; 
-      return p; 
-    }); 
-    setPedidosPasteleria(nuevos);
-    if(pedidoVerDetalles && pedidoVerDetalles.folio === folio) setPedidoVerDetalles(nuevos.find(p=>p.folio===folio));
-    mostrarNotificacion("Pago registrado", "exito"); 
+  const registrarPago = async (folio, esLiquidacion) => { 
+    const pedido = pedidosPasteleria.find(p => p.folio === folio);
+    if (!pedido) return;
+    const nuevosPagos = esLiquidacion ? parseInt(pedido.numPagos) : (parseInt(pedido.pagosRealizados || 0) + 1);
+    try {
+        await updateDoc(doc(db, "pedidos", pedido.id), { pagosRealizados: nuevosPagos });
+        if (pedidoVerDetalles && pedidoVerDetalles.folio === folio) {
+            setPedidoVerDetalles({ ...pedidoVerDetalles, pagosRealizados: nuevosPagos });
+        }
+        mostrarNotificacion("Pago registrado correctamente", "exito");
+    } catch (e) { mostrarNotificacion("Error al registrar pago", "error"); }
   };
   
   const abrirHubMesa = (idMesa) => setMesaSeleccionadaId(idMesa);
@@ -431,11 +436,7 @@ export default function PasteleriaApp() {
       let nuevosItems = [...destino.cuenta];
       origenes.forEach(o => { nuevosItems = [...nuevosItems, ...o.cuenta]; });
       const nuevoTotal = nuevosItems.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-      
-      const cuentasActualizadas = mesa.cuentas
-        .filter(c => !idsCuentasOrigen.includes(c.id))
-        .map(c => c.id === idCuentaDestino ? { ...c, cuenta: nuevosItems, total: nuevoTotal } : c);
-      
+      const cuentasActualizadas = mesa.cuentas.filter(c => !idsCuentasOrigen.includes(c.id)).map(c => c.id === idCuentaDestino ? { ...c, cuenta: nuevosItems, total: nuevoTotal } : c);
       actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
       mostrarNotificacion("Cuentas unificadas"); 
   };
@@ -453,79 +454,109 @@ export default function PasteleriaApp() {
   
   const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
   
+  // --- AQUÍ ESTABA EL PROBLEMA DE ORDEN, AHORA ESTÁ CORREGIDO ---
+  
   const iniciarCancelacion = (f) => setPedidoACancelar(f);
-  const confirmarCancelacion = () => { 
-      setPedidosPasteleria(pedidosPasteleria.map(p => p.folio === pedidoACancelar ? { ...p, estado: 'Cancelado', fechaCancelacion: new Date().toISOString() } : p)); 
+  
+  const confirmarCancelacion = async () => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoACancelar);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { 
+                  estado: 'Cancelado', 
+                  fechaCancelacion: new Date().toISOString() 
+              });
+              mostrarNotificacion("Pedido enviado a la papelera");
+          } catch (e) { mostrarNotificacion("Error al cancelar", "error"); }
+      }
       setPedidoACancelar(null); 
   };
+
   const iniciarRestauracion = (f) => setPedidoARestaurar(f);
-  const confirmarRestauracion = () => { 
-      setPedidosPasteleria(pedidosPasteleria.map(p => { if(p.folio===pedidoARestaurar) { const {fechaCancelacion,...r}=p; return {...r,estado:'Pendiente'}; } return p; })); 
-      setPedidoARestaurar(null);
-      const restaurarPedidoDirectamente = (folio) => {
-      setPedidosPasteleria(prev => prev.map(p => { 
-          if(p.folio === folio) { 
-              const {fechaCancelacion, ...rest} = p; 
-              return {...rest, estado: 'Pendiente'}; 
-          } 
-          return p; 
-      }));
-      mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
-  }; 
+  
+  const confirmarRestauracion = async () => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoARestaurar);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
+              mostrarNotificacion("Pedido restaurado");
+          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
+      }
+      setPedidoARestaurar(null); 
   };
+
+  // --- ESTA ES LA FUNCIÓN QUE FALTABA O ESTABA EN MAL LUGAR ---
+  const restaurarPedidoDirectamente = async (folio) => {
+      const pedido = pedidosPasteleria.find(p => p.folio === folio);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
+              mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
+          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
+      }
+  };
+  // -------------------------------------------------------------
+
   const iniciarEntrega = (f) => setPedidoAEntregar(f);
-  const confirmarEntrega = () => { 
-      setPedidosPasteleria(pedidosPasteleria.map(p => p.folio === pedidoAEntregar ? { ...p, estado: 'Entregado' } : p)); 
+  
+  const confirmarEntrega = async () => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoAEntregar);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Entregado' });
+              mostrarNotificacion("Pedido entregado con éxito", "exito");
+          } catch (e) { mostrarNotificacion("Error al entregar", "error"); }
+      }
       setPedidoAEntregar(null); 
   };
-  const restaurarDeEntregados = (f) => { setPedidosPasteleria(pedidosPasteleria.map(p => p.folio === f ? { ...p, estado: 'Pendiente' } : p)); };
 
-  // --- PEGA ESTO AQUÍ (ANTES de renderContenidoProtegido) ---
-  const restaurarPedidoDirectamente = (folio) => {
-      setPedidosPasteleria(prev => prev.map(p => { 
-          if(p.folio === folio) { 
-              const {fechaCancelacion, ...rest} = p; 
-              return {...rest, estado: 'Pendiente'}; 
-          } 
-          return p; 
-      }));
-      mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
+  const restaurarDeEntregados = async (folio) => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === folio);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
+              mostrarNotificacion("Entrega deshecha", "info");
+          } catch (e) { mostrarNotificacion("Error al deshacer", "error"); }
+      }
   };
-  
+
+  // --- AHORA SÍ, RENDERIZAMOS ---
   const renderContenidoProtegido = () => (
     <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
+      
       {modo === 'admin' && ( <> {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
+      
       {modo === 'pasteleria' && ( 
-    <> 
-        {vistaActual === 'inicio' && 
-            <VistaInicioPasteleria 
+        <> 
+            {vistaActual === 'inicio' && <VistaInicioPasteleria 
                 pedidos={pedidosPasteleria} 
                 onEditar={(p) => { setPedidoAEditar(p); setVistaActual('pedidos'); }} 
                 onVerDetalles={(p) => setPedidoVerDetalles(p)} 
                 onIniciarEntrega={iniciarEntrega} 
                 onCancelar={iniciarCancelacion} 
-                
-                // CAMBIO AQUÍ: Usamos la función directa
-                onRestaurar={restaurarPedidoDirectamente} 
-                
+                onRestaurar={restaurarPedidoDirectamente} // AHORA SÍ LA ENCUENTRA
                 onDeshacerEntrega={restaurarDeEntregados} 
-            />} {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
+            />} 
+            {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} 
+            {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} 
+            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+        </> 
+      )}
       
-      {/* --- SECCIÓN CAFETERÍA ACTUALIZADA CON LOS NUEVOS PROPS --- */}
       {modo === 'cafeteria' && ( 
         <> 
             {vistaActual === 'inicio' && (
                 <VistaInicioCafeteria 
                     mesas={mesas} 
                     pedidosLlevar={sesionesLlevar} 
-                    ventasHoy={ventasCafeteria}      // Pasamos las ventas para el cuadro verde
-                    cancelados={cancelados}          // Pasamos los cancelados para el cuadro rojo
+                    ventasHoy={ventasCafeteria}
+                    cancelados={cancelados}
                     onSeleccionarMesa={abrirHubMesa} 
                     onCrearLlevar={crearSesionLlevar} 
                     onAbrirLlevar={abrirPOSLlevar}
-                    onRestaurarVenta={restaurarDeHistorial}      // Función para restaurar vendidos
-                    onDeshacerCancelacion={restaurarDeHistorial} // Función para restaurar cancelados
+                    onRestaurarVenta={restaurarDeHistorial}
+                    onDeshacerCancelacion={restaurarDeHistorial}
                 />
             )} 
             {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
@@ -533,7 +564,6 @@ export default function PasteleriaApp() {
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
         </> 
       )}
-      {/* ---------------------------------------------------------- */}
       
       {mesaSeleccionadaId && !cuentaActiva && <VistaHubMesa mesa={mesaSeleccionadaObj} onVolver={() => setMesaSeleccionadaId(null)} onAbrirCuenta={abrirPOSCuentaMesa} onCrearCuenta={(id, nombre) => crearCuentaEnMesa(id, nombre.toUpperCase())} onUnirCuentas={unirCuentas} />}
       
@@ -544,7 +574,7 @@ export default function PasteleriaApp() {
           onAgregarProducto={agregarProductoASesion} 
           onPagarCuenta={pagarCuenta}
           onActualizarProducto={actualizarProductoEnSesion}
-          onCancelarCuenta={cancelarCuentaSinPagar} // Esta función ahora mueve a cancelados
+          onCancelarCuenta={cancelarCuentaSinPagar}
       />}
       
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
