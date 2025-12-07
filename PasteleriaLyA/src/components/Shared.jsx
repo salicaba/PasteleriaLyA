@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign // <--- AQUÍ AGREGUÉ EL ÍCONO QUE FALTABA
+    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign 
 } from 'lucide-react';
 import { imprimirTicket } from '../utils/config';
 import { formatearFechaLocal } from '../utils/config';
@@ -126,16 +126,15 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 />
             )}
             
-            {/* Sidebar */}
+            {/* Sidebar con lógica de colapso */}
             <aside className={`
-                ${isOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0'} 
-                md:translate-x-0 md:w-64 lg:w-72
+                ${isOpen ? 'translate-x-0 w-64 md:w-64 lg:w-72' : '-translate-x-full w-0 md:w-0'} 
                 ${colorBg} text-white h-full flex flex-col shadow-2xl 
                 transition-all duration-300 overflow-hidden
                 fixed md:relative z-50 md:z-auto
             `}>
                 {/* Encabezado */}
-                <div className="p-4 md:p-6 text-center flex-shrink-0">
+                <div className="p-4 md:p-6 text-center flex-shrink-0 relative group">
                     <h1 className="text-4xl md:text-5xl font-bold text-white mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>
                         LyA
                     </h1>
@@ -143,6 +142,15 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                         {modo === 'admin' ? 'Administración' : 
                          modo === 'pasteleria' ? 'Modo Pastelería' : 'Modo Cafetería'}
                     </p>
+
+                    {/* BOTÓN COLAPSAR (SOLO DESKTOP) */}
+                    <button 
+                        onClick={toggleSidebar}
+                        className="absolute top-4 right-2 p-2 hover:bg-white/10 rounded-full hidden md:block text-white/50 hover:text-white transition"
+                        title="Ocultar menú lateral"
+                    >
+                        <PanelLeftClose size={20} />
+                    </button>
                 </div>
                 
                 {/* Botón cerrar para móvil */}
@@ -288,13 +296,17 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
 
 // --- COMPONENTE PRINCIPAL QUE USA EL SIDEBAR (WRAPPER) ---
 export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, setModo, onLogout }) => {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+    // Inicializar abierto solo si es pantalla grande
+    const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
     
-    // Cerrar sidebar en móvil al cambiar tamaño de pantalla
     useEffect(() => {
         const handleResize = () => {
-            if (window.innerWidth >= 768) { // md breakpoint
+            // Si baja a móvil, cerrar automáticamente
+            if (window.innerWidth < 768) { 
                 setSidebarOpen(false);
+            } else {
+                // Opcional: Si sube a desktop, abrir automáticamente
+                setSidebarOpen(true);
             }
         };
         
@@ -316,7 +328,7 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
             />
             
             {/* Contenido principal */}
-            <div className="flex-1 flex flex-col w-full h-full relative">
+            <div className="flex-1 flex flex-col w-full h-full relative transition-all duration-300">
                 {/* Header móvil */}
                 <header className="md:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between z-40 shrink-0">
                     <button 
@@ -331,6 +343,17 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
                     </h1>
                     <div className="w-10"></div> {/* Espacio para centrar */}
                 </header>
+
+                {/* BOTÓN FLOTANTE PARA ABRIR MENÚ (SOLO VISIBLE SI ESTÁ CERRADO EN DESKTOP) */}
+                {!sidebarOpen && (
+                    <button 
+                        onClick={() => setSidebarOpen(true)}
+                        className="hidden md:flex absolute top-4 left-4 z-40 bg-white p-2 rounded-full shadow-md text-gray-600 hover:text-gray-900 border border-gray-200 transition-all hover:scale-110 animate-fade-in"
+                        title="Mostrar menú"
+                    >
+                        <Menu size={24} />
+                    </button>
+                )}
                 
                 {/* Contenido */}
                 <main className="flex-1 p-4 md:p-6 overflow-y-auto">
