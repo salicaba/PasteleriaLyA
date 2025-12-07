@@ -301,14 +301,14 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                             <button 
                                 onClick={() => setEscala('mediano')}
                                 className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'mediano' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}
-                                title="Vista Mediana (90%)"
+                                title="Vista Mediana (88%)"
                             >
                                 M
                             </button>
                             <button 
                                 onClick={() => setEscala('pequeno')}
                                 className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}
-                                title="Vista Pequeña (80%)"
+                                title="Vista Pequeña (78%)"
                             >
                                 P
                             </button>
@@ -335,12 +335,12 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
     const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
     const [escala, setEscala] = useState('grande'); 
     
-    // Calcula el zoom numérico
+    // Calcula el zoom numérico con useMemo
     const zoom = useMemo(() => {
         switch(escala) {
-            case 'mediano': return 0.9;
-            case 'pequeno': return 0.8;
-            default: return 1;
+            case 'mediano': return 0.88; // 88% (Ajuste solicitado)
+            case 'pequeno': return 0.78; // 78% (Ajuste solicitado)
+            default: return 1;           // 100% (Normal)
         }
     }, [escala]);
 
@@ -358,13 +358,12 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
     }, []);
 
     return (
-        // CONTENEDOR PRINCIPAL: Aquí aplicamos el truco de altura inversa
-        // Si el zoom es 0.8, la altura debe ser 100/0.8 = 125vh para cubrir el 100% real
+        // CONTENEDOR PRINCIPAL: Aplicamos altura inversa para compensar el zoom
         <div 
             className="flex bg-gray-50 overflow-hidden transition-all duration-300"
             style={{ 
                 zoom: zoom,
-                height: `${100 / zoom}vh`, // <--- ESTA LÍNEA SOLUCIONA EL ESPACIO BLANCO
+                height: `${100 / zoom}vh`, 
                 width: '100%',
             }}
         >
