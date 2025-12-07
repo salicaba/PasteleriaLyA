@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor 
+    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users
 } from 'lucide-react';
 import { imprimirTicket } from '../utils/config';
 import { formatearFechaLocal } from '../utils/config';
@@ -167,19 +167,28 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 {/* Navegación */}
                 <nav className="flex-1 overflow-y-auto px-3 md:px-4 py-2 space-y-1 custom-scrollbar no-scrollbar">
                     {modo === 'admin' && (
-                        <>
-                            <BotonNav 
-                                icon={<LayoutDashboard size={18} className="flex-shrink-0" />} 
-                                label="Inicio Admin" 
-                                active={vistaActual === 'inicio'} 
-                                onClick={() => handleNavClick(() => setVistaActual('inicio'))} 
-                            />
-                            <BotonNav 
-                                icon={<BarChart3 size={18} className="flex-shrink-0" />} 
-                                label="Reporte Comparativo" 
-                                active={vistaActual === 'ventas'} 
-                                onClick={() => handleNavClick(() => setVistaActual('ventas'))} 
-                            />
+    <>
+        <BotonNav 
+            icon={<LayoutDashboard size={18} className="flex-shrink-0" />} 
+            label="Inicio Admin" 
+            active={vistaActual === 'inicio'} 
+            onClick={() => handleNavClick(() => setVistaActual('inicio'))} 
+        />
+        <BotonNav 
+            icon={<BarChart3 size={18} className="flex-shrink-0" />} 
+            label="Reporte Comparativo" 
+            active={vistaActual === 'ventas'} 
+            onClick={() => handleNavClick(() => setVistaActual('ventas'))} 
+        />
+        
+        {/* --- NUEVO BOTÓN AGREGADO --- */}
+        <BotonNav 
+            icon={<Users size={18} className="flex-shrink-0" />} 
+            label="Gestión Usuarios" 
+            active={vistaActual === 'usuarios'} 
+            onClick={() => handleNavClick(() => setVistaActual('usuarios'))} 
+        />
+        
                             <div className="my-4 border-t border-white/20"></div>
                             <p className="text-xs text-white/60 uppercase font-bold mb-2 px-2">Accesos Rápidos</p>
                             <button 

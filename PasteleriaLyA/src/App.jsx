@@ -6,7 +6,7 @@ import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, 
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
 import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } from './features/Pasteleria';
 import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa } from './features/Cafeteria';
-import { VistaInicioAdmin, VistaReporteUniversal } from './features/Admin';
+import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios } from './features/Admin';
 import { VistaCliente } from './features/Cliente';
 import { VistaLogin } from './components/Login';
 
@@ -45,7 +45,12 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 export default function PasteleriaApp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // --- PERSISTENCIA: Leemos localStorage al iniciar el estado ---
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+      return localStorage.getItem('lya_session_active') === 'true';
+  });
+  
   const [vistaActual, setVistaActual] = useState('inicio');
 
   const modo = useMemo(() => {
@@ -60,6 +65,7 @@ export default function PasteleriaApp() {
   const [mesas, setMesas] = useState([]);
   const [pedidosPasteleria, setPedidosPasteleria] = useState([]); 
   const [ventasCafeteria, setVentasCafeteria] = useState([]); 
+  const [usuariosSistema, setUsuariosSistema] = useState([]); // <--- NUEVO ESTADO USUARIOS
 
   // ESTADOS LOCALES
   const [sesionesLlevar, setSesionesLlevar] = useState(SESIONES_LLEVAR_INIT);
@@ -83,7 +89,6 @@ export default function PasteleriaApp() {
   
   const ID_QR_LLEVAR = 'QR_LLEVAR';
 
-  // --- EFECTO: LIMPIEZA DE CANCELADOS (5 MINUTOS) ---
   useEffect(() => {
     const intervalo = setInterval(() => {
         const ahora = Date.now();
@@ -92,7 +97,6 @@ export default function PasteleriaApp() {
     return () => clearInterval(intervalo);
   }, []);
 
-  // --- CONEXIÓN A FIREBASE (TIEMPO REAL) ---
   useEffect(() => {
       const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
           const prodData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
@@ -110,12 +114,18 @@ export default function PasteleriaApp() {
           const ventasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setVentasCafeteria(ventasData);
       });
+      // --- NUEVA SUSCRIPCIÓN A USUARIOS ---
+      const unsubscribeUsuarios = onSnapshot(collection(db, "usuarios"), (snapshot) => {
+          const uData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setUsuariosSistema(uData);
+      });
 
       return () => {
           unsubscribeProductos();
           unsubscribeMesas();
           unsubscribePedidos();
           unsubscribeVentas();
+          unsubscribeUsuarios(); // Limpiar suscripción
       };
   }, []);
 
@@ -124,7 +134,21 @@ export default function PasteleriaApp() {
     setTimeout(() => setNotificacion(prev => ({ ...prev, visible: false })), 3000); 
   };
 
+  // --- LOGIN ACTUALIZADO CON MENSAJE PERSONALIZADO ---
+  const handleLogin = (usuario) => {
+      localStorage.setItem('lya_session_active', 'true'); 
+      setIsAuthenticated(true);
+      navigate('/admin');
+      
+      const nombreMostrar = usuario.nombre || "ADMINISTRADOR";
+      const rolMostrar = usuario.rol ? usuario.rol.toUpperCase() : "ADMIN";
+      
+      mostrarNotificacion(`Bienvenido ${nombreMostrar}, tienes el Rol de ${rolMostrar}`, "exito");
+  };
+
+  // --- LOGOUT: Borramos de localStorage ---
   const handleLogout = () => {
+      localStorage.removeItem('lya_session_active'); 
       setIsAuthenticated(false);
       navigate('/login');
       mostrarNotificacion("Sesión cerrada correctamente", "info");
@@ -132,7 +156,30 @@ export default function PasteleriaApp() {
 
   const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
 
-  // --- FUNCIONES DE CAFETERÍA ---
+  // --- FUNCIONES GESTIÓN USUARIOS ---
+  const guardarUsuario = async (usuario) => {
+      try {
+          if (usuario.id) {
+              await updateDoc(doc(db, "usuarios", usuario.id), usuario);
+              mostrarNotificacion(`Usuario ${usuario.nombre} actualizado`, "exito");
+          } else {
+              // Validar duplicados de username
+              const existe = usuariosSistema.find(u => u.usuario === usuario.usuario);
+              if (existe) { mostrarNotificacion("El nombre de usuario ya existe.", "error"); return; }
+              
+              await addDoc(collection(db, "usuarios"), usuario);
+              mostrarNotificacion(`Usuario ${usuario.nombre} creado`, "exito");
+          }
+      } catch (e) { mostrarNotificacion("Error al guardar usuario", "error"); }
+  };
+
+  const eliminarUsuario = async (id) => {
+      try {
+          await deleteDoc(doc(db, "usuarios", id));
+          mostrarNotificacion("Usuario eliminado", "info");
+      } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
+  };
+
   const guardarProductoCafeteria = async (prod) => { 
     try {
         if (prod.id) {
@@ -398,7 +445,6 @@ export default function PasteleriaApp() {
 
   const generarFolio = () => `FOL-${Date.now().toString().slice(-6)}`;
   
-  // --- FUNCIONES DE PASTELERÍA ---
   const guardarPedido = async (datos) => { 
     try {
         if (pedidoAEditar) {
@@ -454,8 +500,6 @@ export default function PasteleriaApp() {
   
   const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
   
-  // --- AQUÍ ESTABA EL PROBLEMA DE ORDEN, AHORA ESTÁ CORREGIDO ---
-  
   const iniciarCancelacion = (f) => setPedidoACancelar(f);
   
   const confirmarCancelacion = async () => { 
@@ -485,7 +529,6 @@ export default function PasteleriaApp() {
       setPedidoARestaurar(null); 
   };
 
-  // --- ESTA ES LA FUNCIÓN QUE FALTABA O ESTABA EN MAL LUGAR ---
   const restaurarPedidoDirectamente = async (folio) => {
       const pedido = pedidosPasteleria.find(p => p.folio === folio);
       if (pedido) {
@@ -495,7 +538,6 @@ export default function PasteleriaApp() {
           } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
       }
   };
-  // -------------------------------------------------------------
 
   const iniciarEntrega = (f) => setPedidoAEntregar(f);
   
@@ -520,12 +562,25 @@ export default function PasteleriaApp() {
       }
   };
 
-  // --- AHORA SÍ, RENDERIZAMOS ---
   const renderContenidoProtegido = () => (
     <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
       
-      {modo === 'admin' && ( <> {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} </> )}
+      {modo === 'admin' && ( 
+        <> 
+            {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} 
+            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+            
+            {/* --- NUEVA VISTA RENDERIZADA --- */}
+            {vistaActual === 'usuarios' && (
+                <VistaGestionUsuarios 
+                    usuarios={usuariosSistema}
+                    onGuardar={guardarUsuario}
+                    onEliminar={eliminarUsuario}
+                />
+            )}
+        </> 
+      )}
       
       {modo === 'pasteleria' && ( 
         <> 
@@ -535,7 +590,7 @@ export default function PasteleriaApp() {
                 onVerDetalles={(p) => setPedidoVerDetalles(p)} 
                 onIniciarEntrega={iniciarEntrega} 
                 onCancelar={iniciarCancelacion} 
-                onRestaurar={restaurarPedidoDirectamente} // AHORA SÍ LA ENCUENTRA
+                onRestaurar={restaurarPedidoDirectamente} 
                 onDeshacerEntrega={restaurarDeEntregados} 
             />} 
             {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} 
@@ -588,7 +643,7 @@ export default function PasteleriaApp() {
 
   return (
     <Routes>
-        <Route path="/login" element={<VistaLogin onLogin={() => { setIsAuthenticated(true); navigate('/admin'); mostrarNotificacion("¡Bienvenido Admin!", "exito"); }} />} />
+        <Route path="/login" element={<VistaLogin onLogin={handleLogin} usuariosDB={usuariosSistema} />} />
         <Route path="/admin" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
         <Route path="/pasteleria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
         <Route path="/cafeteria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />

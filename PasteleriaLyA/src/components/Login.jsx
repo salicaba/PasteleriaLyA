@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { User, Lock, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { User, Lock, ArrowRight, Eye, EyeOff, AlertCircle, Loader, ShieldCheck, ArrowLeft, Phone } from 'lucide-react';
 
-export const VistaLogin = ({ onLogin }) => {
+export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
     const [usuario, setUsuario] = useState('');
     const [password, setPassword] = useState('');
     const [mostrarPassword, setMostrarPassword] = useState(false);
     const [error, setError] = useState('');
     const [cargando, setCargando] = useState(false);
+    
+    // Nuevo estado para mostrar la vista de recuperación
+    const [mostrarRecuperacion, setMostrarRecuperacion] = useState(false);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -14,8 +17,21 @@ export const VistaLogin = ({ onLogin }) => {
         setError('');
 
         setTimeout(() => {
-            if (usuario === 'admin' && password === '1234') {
-                onLogin();
+            // --- LÓGICA DE VALIDACIÓN ---
+            
+            // 1. Buscar si el usuario existe en la base de datos (pasada como prop)
+            const userFound = usuariosDB.find(u => u.usuario === usuario);
+            
+            // 2. Definir credenciales de respaldo (Super Admin Fijo)
+            const esSuperAdmin = usuario === 'admin' && password === '1234';
+
+            // 3. Validar
+            if (esSuperAdmin) {
+                // Si entra como admin fijo, simulamos un objeto de usuario
+                onLogin({ nombre: 'ADMINISTRADOR', rol: 'admin' }); 
+            } else if (userFound && userFound.password === password) {
+                // Si es un usuario real, pasamos sus datos a onLogin
+                onLogin(userFound); 
             } else {
                 setError('Usuario o contraseña incorrectos.');
                 setCargando(false);
@@ -25,11 +41,42 @@ export const VistaLogin = ({ onLogin }) => {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-pink-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4 md:p-6">
-            <div className="bg-white w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl overflow-hidden animate-bounce-in relative">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 to-orange-500"></div>
+            <div className="bg-white w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl overflow-hidden animate-bounce-in relative min-h-[500px] flex flex-col">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 to-orange-500 z-10"></div>
                 
-                <div className="p-6 md:p-8 pt-10 md:pt-12">
-                    <div className="text-center mb-8 md:mb-10">
+                {/* --- VISTA DE RECUPERACIÓN (BONITA Y VISUAL) --- */}
+                {mostrarRecuperacion && (
+                    <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up">
+                        <div className="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                            <ShieldCheck size={40} className="text-pink-600" />
+                        </div>
+                        
+                        <h3 className="text-2xl font-bold text-gray-800 mb-2">Recuperar Acceso</h3>
+                        
+                        <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                            Por motivos de seguridad, el restablecimiento de contraseñas se realiza únicamente a través del administrador del sistema.
+                        </p>
+                        
+                        <div className="bg-gradient-to-r from-pink-50 to-purple-50 p-4 rounded-xl border border-pink-100 w-full mb-8">
+                            <p className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-2">Soporte Técnico</p>
+                            <div className="flex items-center justify-center gap-2 text-gray-800">
+                                <Phone size={18} className="text-pink-600" />
+                                <span className="font-bold text-lg tracking-wide">55-8123-9045</span>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setMostrarRecuperacion(false)}
+                            className="text-gray-500 hover:text-gray-800 font-bold flex items-center gap-2 transition-colors text-sm"
+                        >
+                            <ArrowLeft size={16} /> Volver al Inicio de Sesión
+                        </button>
+                    </div>
+                )}
+
+                {/* --- VISTA NORMAL DE LOGIN --- */}
+                <div className="p-6 md:p-8 pt-10 md:pt-12 flex-1 flex flex-col justify-center">
+                    <div className="text-center mb-8">
                         <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-800 mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>
                             LyA
                         </h1>
@@ -58,7 +105,6 @@ export const VistaLogin = ({ onLogin }) => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase ml-1">Contraseña</label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <Lock size={20} className="text-gray-400" />
@@ -81,6 +127,17 @@ export const VistaLogin = ({ onLogin }) => {
                                     {mostrarPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
                                 </button>
                             </div>
+                            
+                            {/* Botón de Olvidé Contraseña */}
+                            <div className="flex justify-end pt-1">
+                                <button 
+                                    type="button"
+                                    onClick={() => setMostrarRecuperacion(true)}
+                                    className="text-xs text-pink-500 hover:text-pink-700 font-bold transition-colors"
+                                >
+                                    ¿Olvidaste tu contraseña?
+                                </button>
+                            </div>
                         </div>
 
                         {error && (
@@ -92,17 +149,21 @@ export const VistaLogin = ({ onLogin }) => {
                         <button 
                             type="submit" 
                             disabled={!usuario || !password || cargando}
-                            className={`w-full py-3 md:py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 text-sm md:text-base ${!usuario || !password ? 'bg-gray-300 cursor-not-allowed' : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 hover:shadow-xl'}`}
+                            className={`w-full py-3 md:py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 text-sm md:text-base ${!usuario || !password || cargando ? 'bg-gray-300 cursor-not-allowed' : 'bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 hover:shadow-xl'}`}
                         >
                             {cargando ? (
-                                <span className="animate-pulse">Validando...</span>
+                                <>
+                                    <Loader size={20} className="animate-spin" /> 
+                                    <span>Validando...</span>
+                                </>
                             ) : (
                                 <>Entrar al Sistema <ArrowRight size={20} /></>
                             )}
                         </button>
                     </form>
                 </div>
-                <div className="bg-gray-50 p-4 text-center text-[10px] md:text-xs text-gray-400 border-t border-gray-100">
+                
+                <div className="bg-gray-50 p-4 text-center text-[10px] md:text-xs text-gray-400 border-t border-gray-100 mt-auto">
                     © 2025 Pastelería y Cafetería LyA
                 </div>
             </div>
