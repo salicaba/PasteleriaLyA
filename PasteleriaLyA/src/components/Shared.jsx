@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign 
+    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor 
 } from 'lucide-react';
 import { imprimirTicket } from '../utils/config';
 import { formatearFechaLocal } from '../utils/config';
@@ -103,7 +103,8 @@ const BotonNav = ({ icon, label, active, onClick, colorTheme = "pink" }) => {
     );
 };
 
-export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, toggleSidebar, onLogout }) => {
+// --- SIDEBAR MODIFICADO CON CONTROL DE VISTA ---
+export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, toggleSidebar, onLogout, escala, setEscala }) => {
     const esCafeteria = modo === 'cafeteria';
     const colorBg = esCafeteria ? "bg-orange-900" : "bg-pink-900";
     const colorText = esCafeteria ? "text-orange-200" : "text-pink-200";
@@ -269,18 +270,52 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 
                 {/* Pie de sidebar */}
                 <div className="mt-auto px-3 md:px-4 py-4 space-y-2 border-t border-white/10">
+                    
+                    {/* 1. Botón Volver al Admin (ARRIBA) */}
                     {modo !== 'admin' && (
                         <button 
                             onClick={() => handleNavClick(() => {
                                 setModo('admin');
                                 setVistaActual('inicio');
                             })}
-                            className="w-full flex items-center justify-center space-x-2 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm"
+                            className="w-full flex items-center justify-center space-x-2 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm mb-2"
                         >
                             <ArrowLeft size={14} className="flex-shrink-0" />
                             <span className="truncate">Volver al Admin</span>
                         </button>
                     )}
+
+                    {/* 2. SECCIÓN DE CONTROL DE TAMAÑO (VISTA) */}
+                    <div className="bg-black/20 rounded-xl p-3 mb-2">
+                        <p className="text-[10px] uppercase font-bold text-white/60 mb-2 flex items-center gap-1">
+                            <Monitor size={10} /> Tamaño de Vista
+                        </p>
+                        <div className="flex gap-1">
+                            <button 
+                                onClick={() => setEscala('grande')}
+                                className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'grande' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}
+                                title="Vista Grande (Normal)"
+                            >
+                                G
+                            </button>
+                            <button 
+                                onClick={() => setEscala('mediano')}
+                                className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'mediano' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}
+                                title="Vista Mediana (90%)"
+                            >
+                                M
+                            </button>
+                            <button 
+                                onClick={() => setEscala('pequeno')}
+                                className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}
+                                title="Vista Pequeña (80%)"
+                            >
+                                P
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 3. Botón Cerrar Sesión */}
                     <button 
                         onClick={onLogout}
                         className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-red-200 hover:text-red-100"
@@ -294,18 +329,26 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
     );
 };
 
-// --- COMPONENTE PRINCIPAL QUE USA EL SIDEBAR (WRAPPER) ---
+// --- COMPONENTE PRINCIPAL QUE USA EL SIDEBAR (WRAPPER CON ZOOM GLOBAL) ---
 export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, setModo, onLogout }) => {
     // Inicializar abierto solo si es pantalla grande
     const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
+    const [escala, setEscala] = useState('grande'); 
     
+    // Calcula el zoom numérico
+    const zoom = useMemo(() => {
+        switch(escala) {
+            case 'mediano': return 0.9;
+            case 'pequeno': return 0.8;
+            default: return 1;
+        }
+    }, [escala]);
+
     useEffect(() => {
         const handleResize = () => {
-            // Si baja a móvil, cerrar automáticamente
             if (window.innerWidth < 768) { 
                 setSidebarOpen(false);
             } else {
-                // Opcional: Si sube a desktop, abrir automáticamente
                 setSidebarOpen(true);
             }
         };
@@ -315,7 +358,16 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
     }, []);
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
+        // CONTENEDOR PRINCIPAL: Aquí aplicamos el truco de altura inversa
+        // Si el zoom es 0.8, la altura debe ser 100/0.8 = 125vh para cubrir el 100% real
+        <div 
+            className="flex bg-gray-50 overflow-hidden transition-all duration-300"
+            style={{ 
+                zoom: zoom,
+                height: `${100 / zoom}vh`, // <--- ESTA LÍNEA SOLUCIONA EL ESPACIO BLANCO
+                width: '100%',
+            }}
+        >
             {/* Sidebar */}
             <Sidebar
                 modo={modo}
@@ -325,6 +377,8 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
                 isOpen={sidebarOpen}
                 toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
                 onLogout={onLogout}
+                escala={escala}       
+                setEscala={setEscala} 
             />
             
             {/* Contenido principal */}
