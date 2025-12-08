@@ -487,7 +487,11 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg overflow-hidden animate-fade-in-up max-h-[90vh] flex flex-col">
                 <div className="bg-pink-900 p-4 md:p-6 text-white flex justify-between shrink-0">
-                    <div><h3 className="text-xl md:text-2xl font-bold">{pedido.cliente}</h3><p className="text-pink-200 font-mono text-sm">{pedido.folio || pedido.id}</p></div>
+                    <div>
+                        <h3 className="text-xl md:text-2xl font-bold">{pedido.cliente}</h3>
+                        {/* --- CORREGIDO: Muestra folioLocal si existe, sino folio, sino ID --- */}
+                        <p className="text-pink-200 font-mono text-sm">{pedido.folioLocal || pedido.folio || pedido.id}</p>
+                    </div>
                     <button onClick={cerrar}><X /></button>
                 </div>
                 
@@ -504,16 +508,14 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
                         <div><p className="text-xs text-gray-400">Fecha Registro</p><p className="font-medium text-gray-700 flex items-center gap-1"><CalendarDays size={14} />{formatearFechaLocal(pedido.fecha)}</p></div>
                     </div>
                     
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <button onClick={() => imprimirTicket({ ...pedido, saldoPendiente }, 'ticket')} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs font-bold flex items-center justify-center gap-2 text-gray-700">
-                            <Printer size={16}/> Imprimir Ticket
-                        </button>
-                        {!esCafeteria && (
+                    {/* --- CORREGIDO: Se eliminó el botón de Imprimir Ticket y se ocultó el contenedor si está vacío --- */}
+                    {!esCafeteria && (
+                        <div className="flex flex-col sm:flex-row gap-2">
                             <button onClick={() => imprimirTicket(pedido, 'comanda')} className="flex-1 py-2 bg-pink-50 hover:bg-pink-100 rounded-lg text-xs font-bold flex items-center justify-center gap-2 text-pink-700">
                                 <FileText size={16}/> Comanda Cocina
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     <hr className="border-gray-100" />
                     
@@ -584,7 +586,8 @@ export const ModalVentasDia = ({ dia, mes, anio, ventas, cerrar, onVerDetalle })
                                     </div>
                                     <div className="text-right">
                                         <span className="block font-bold text-green-600 text-lg">${v.total}</span>
-                                        <span className="text-[10px] text-gray-400 font-mono">{v.folio || v.id}</span>
+                                        {/* --- CAMBIO DE ID: Prioridad a folioLocal, luego folio, luego id --- */}
+                                        <span className="text-[10px] text-gray-400 font-mono">{v.folioLocal || v.folio || v.id}</span>
                                     </div>
                                 </div>
                             ))}

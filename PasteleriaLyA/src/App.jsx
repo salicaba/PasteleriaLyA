@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
-import { Smartphone, ShoppingBag } from 'lucide-react';
+import { Smartphone, ShoppingBag, Loader, Coffee, AlertCircle, Info, WifiOff } from 'lucide-react'; 
 
 import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy } from './utils/config';
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
@@ -14,26 +14,128 @@ import { VistaLogin } from './components/Login';
 import { db } from './firebase';
 import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 
-const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir }) => {
+// --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
+const TextoCargandoAnimado = () => {
+    const [puntos, setPuntos] = useState('');
+    useEffect(() => {
+        const intervalo = setInterval(() => {
+            setPuntos(prev => prev.length >= 3 ? '' : prev + '.');
+        }, 500); 
+        return () => clearInterval(intervalo);
+    }, []);
+    
+    return (
+        <div className="flex items-center justify-center gap-0.5" style={{ transform: 'translateX(6px)' }}>
+            <span>Cargando</span>
+            <span className="w-4 text-left">{puntos}</span> 
+        </div>
+    );
+};
+
+// --- COMPONENTE RUTA CLIENTE MODIFICADO ---
+const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading }) => {
     const { id } = useParams(); 
     const location = useLocation();
     const esLlevar = id === 'llevar' || location.pathname === '/llevar';
     
+    const [tiempoExcedido, setTiempoExcedido] = useState(false);
+    const [online, setOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleOnline = () => setOnline(true);
+        const handleOffline = () => setOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    useEffect(() => {
+        let timer;
+        if (loading || !online) {
+            timer = setTimeout(() => {
+                setTiempoExcedido(true);
+            }, 10000); // 10 segundos
+        }
+        return () => clearTimeout(timer);
+    }, [loading, online]);
+    
     const mesaObj = useMemo(() => {
+        if (loading || !online) return null; 
+        
         if (esLlevar) {
+            if (mesas.length === 0 && sesionesLlevar.length === 0) return null;
+
             const cuentasAdaptadas = sesionesLlevar.map(s => ({ ...s, cliente: s.nombreCliente }));
             return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
         }
         return mesas.find(m => m.id === id);
-    }, [id, mesas, sesionesLlevar, esLlevar]);
+    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    if (!mesaObj) {
+    // 1. PANTALLA DE CARGA
+    if ((loading || !online) && !tiempoExcedido) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 text-center">
-                <div>
-                    <h1 className="text-4xl font-bold text-gray-300 mb-4">404</h1>
-                    <p className="text-gray-500">Mesa no encontrada o código QR inválido.</p>
-                    <button onClick={onSalir} className="mt-6 bg-orange-600 text-white px-6 py-3 rounded-xl">Volver al Inicio</button>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 transition-opacity duration-500 text-center">
+                <div className="relative mb-6">
+                    <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Coffee size={24} className="text-orange-600 opacity-80" />
+                    </div>
+                </div>
+                
+                <div className="text-orange-800 font-bold text-lg animate-pulse">
+                    <TextoCargandoAnimado />
+                </div>
+                <p className="text-xs text-orange-400 mt-2 text-center">Conectando con el sistema...</p>
+            </div>
+        );
+    }
+
+    // 2. PANTALLA DE ERROR
+    if (!mesaObj || tiempoExcedido || !online) {
+        const titulo = esLlevar ? "Sin Conexión" : "Mesa no encontrada";
+        const mensaje = esLlevar 
+            ? "No se pudo conectar con el servidor. Verifica tu internet para realizar pedidos desde el mostrador."
+            : "El código QR parece ser inválido o la mesa no existe.";
+        
+        const Icono = !online ? WifiOff : AlertCircle;
+
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center animate-fade-in-up">
+                <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+                    <div className="mx-auto bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
+                        <Icono size={48} className="text-red-400"/>
+                    </div>
+                    
+                    <h1 className="text-3xl font-bold text-gray-800 mb-3 leading-tight">
+                        {titulo}
+                    </h1>
+                    
+                    <p className="text-gray-600 font-medium mb-2 px-2">
+                        {mensaje}
+                    </p>
+                    
+                    <p className="text-sm text-gray-400 mb-6">
+                        Verifica tu conexión e intenta de nuevo.
+                    </p>
+
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 text-left flex gap-3">
+                        <div className="bg-orange-100 p-2 rounded-full h-fit text-orange-600 shrink-0">
+                            <Info size={20} />
+                        </div>
+                        <p className="text-xs text-orange-800 leading-relaxed font-medium">
+                            Si el problema persiste, por favor <strong>acérquese a caja</strong> o solicite ayuda a nuestro personal para atenderle.
+                        </p>
+                    </div>
+
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95"
+                    >
+                        Intentar de nuevo
+                    </button>
                 </div>
             </div>
         );
@@ -46,7 +148,6 @@ export default function PasteleriaApp() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // --- PERSISTENCIA: Leemos localStorage al iniciar el estado ---
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
       return localStorage.getItem('lya_session_active') === 'true';
   });
@@ -60,15 +161,18 @@ export default function PasteleriaApp() {
       return 'admin';
   }, [location]);
 
-  // --- ESTADOS CONECTADOS A FIREBASE ---
   const [productosCafeteria, setProductosCafeteria] = useState([]);
   const [mesas, setMesas] = useState([]);
   const [pedidosPasteleria, setPedidosPasteleria] = useState([]); 
   const [ventasCafeteria, setVentasCafeteria] = useState([]); 
-  const [usuariosSistema, setUsuariosSistema] = useState([]); // <--- NUEVO ESTADO USUARIOS
+  const [usuariosSistema, setUsuariosSistema] = useState([]);
+  const [sesionesLlevar, setSesionesLlevar] = useState([]); 
 
-  // ESTADOS LOCALES
-  const [sesionesLlevar, setSesionesLlevar] = useState(SESIONES_LLEVAR_INIT);
+  const [firebaseCargando, setFirebaseCargando] = useState(true);
+  const [tiempoMinimoCarga, setTiempoMinimoCarga] = useState(true);
+
+  const cargandoDatos = firebaseCargando || tiempoMinimoCarga;
+
   const [cancelados, setCancelados] = useState([]); 
 
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
@@ -90,22 +194,45 @@ export default function PasteleriaApp() {
   const ID_QR_LLEVAR = 'QR_LLEVAR';
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+        setTiempoMinimoCarga(false); 
+    }, 2500); 
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     const intervalo = setInterval(() => {
-        const ahora = Date.now();
-        setCancelados(prev => prev.filter(item => (ahora - item.timestamp) < 300000));
-    }, 30000); 
+        const hoy = new Date().toLocaleDateString();
+        setCancelados(prev => prev.filter(item => {
+            const fechaItem = new Date(item.timestamp).toLocaleDateString();
+            return fechaItem === hoy;
+        }));
+    }, 60000); 
     return () => clearInterval(intervalo);
   }, []);
+
+  const vaciarPapelera = () => {
+      setCancelados([]);
+      mostrarNotificacion("Papelera vaciada correctamente", "info");
+  };
+
+  const eliminarDePapelera = (id) => {
+      setCancelados(prev => prev.filter(c => c.id !== id));
+      mostrarNotificacion("Elemento eliminado definitivamente", "info");
+  };
 
   useEffect(() => {
       const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
           const prodData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setProductosCafeteria(prodData);
       });
+      
       const unsubscribeMesas = onSnapshot(collection(db, "mesas"), (snapshot) => {
           const mesaData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setMesas(mesaData.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+          setFirebaseCargando(false); 
       });
+
       const unsubscribePedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
           const pedidosData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setPedidosPasteleria(pedidosData);
@@ -114,10 +241,20 @@ export default function PasteleriaApp() {
           const ventasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setVentasCafeteria(ventasData);
       });
-      // --- NUEVA SUSCRIPCIÓN A USUARIOS ---
       const unsubscribeUsuarios = onSnapshot(collection(db, "usuarios"), (snapshot) => {
           const uData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
           setUsuariosSistema(uData);
+      });
+      const unsubscribeLlevar = onSnapshot(collection(db, "sesiones_llevar"), (snapshot) => {
+          const llevarData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setSesionesLlevar(llevarData);
+          setCuentaActiva(prev => {
+              if (prev && prev.tipo === 'llevar') {
+                  const actualizada = llevarData.find(s => s.id === prev.id);
+                  return actualizada ? { ...actualizada } : null; 
+              }
+              return prev;
+          });
       });
 
       return () => {
@@ -125,7 +262,8 @@ export default function PasteleriaApp() {
           unsubscribeMesas();
           unsubscribePedidos();
           unsubscribeVentas();
-          unsubscribeUsuarios(); // Limpiar suscripción
+          unsubscribeUsuarios();
+          unsubscribeLlevar();
       };
   }, []);
 
@@ -134,19 +272,15 @@ export default function PasteleriaApp() {
     setTimeout(() => setNotificacion(prev => ({ ...prev, visible: false })), 3000); 
   };
 
-  // --- LOGIN ACTUALIZADO CON MENSAJE PERSONALIZADO ---
   const handleLogin = (usuario) => {
       localStorage.setItem('lya_session_active', 'true'); 
       setIsAuthenticated(true);
       navigate('/admin');
-      
       const nombreMostrar = usuario.nombre || "ADMINISTRADOR";
       const rolMostrar = usuario.rol ? usuario.rol.toUpperCase() : "ADMIN";
-      
       mostrarNotificacion(`Bienvenido ${nombreMostrar}, tienes el Rol de ${rolMostrar}`, "exito");
   };
 
-  // --- LOGOUT: Borramos de localStorage ---
   const handleLogout = () => {
       localStorage.removeItem('lya_session_active'); 
       setIsAuthenticated(false);
@@ -156,17 +290,14 @@ export default function PasteleriaApp() {
 
   const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
 
-  // --- FUNCIONES GESTIÓN USUARIOS ---
   const guardarUsuario = async (usuario) => {
       try {
           if (usuario.id) {
               await updateDoc(doc(db, "usuarios", usuario.id), usuario);
               mostrarNotificacion(`Usuario ${usuario.nombre} actualizado`, "exito");
           } else {
-              // Validar duplicados de username
               const existe = usuariosSistema.find(u => u.usuario === usuario.usuario);
               if (existe) { mostrarNotificacion("El nombre de usuario ya existe.", "error"); return; }
-              
               await addDoc(collection(db, "usuarios"), usuario);
               mostrarNotificacion(`Usuario ${usuario.nombre} creado`, "exito");
           }
@@ -174,52 +305,33 @@ export default function PasteleriaApp() {
   };
 
   const eliminarUsuario = async (id) => {
-      try {
-          await deleteDoc(doc(db, "usuarios", id));
-          mostrarNotificacion("Usuario eliminado", "info");
-      } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
+      try { await deleteDoc(doc(db, "usuarios", id)); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
   };
 
   const guardarProductoCafeteria = async (prod) => { 
     try {
-        if (prod.id) {
-            await updateDoc(doc(db, "productos", prod.id), prod);
-            mostrarNotificacion("Producto actualizado", "exito");
-        } else {
-            await addDoc(collection(db, "productos"), prod);
-            mostrarNotificacion("Producto creado", "exito");
-        }
+        if (prod.id) { await updateDoc(doc(db, "productos", prod.id), prod); mostrarNotificacion("Producto actualizado", "exito"); } 
+        else { await addDoc(collection(db, "productos"), prod); mostrarNotificacion("Producto creado", "exito"); }
     } catch (error) { mostrarNotificacion("Error al guardar: " + error.message, "error"); }
   };
   
   const eliminarProductoCafeteria = async (id) => { 
     if(!window.confirm("¿Eliminar producto?")) return;
-    try {
-        await deleteDoc(doc(db, "productos", id));
-        mostrarNotificacion("Producto eliminado", "info"); 
-    } catch (error) { mostrarNotificacion("Error al eliminar", "error"); }
+    try { await deleteDoc(doc(db, "productos", id)); mostrarNotificacion("Producto eliminado", "info"); } catch (error) { mostrarNotificacion("Error al eliminar", "error"); }
   };
   
   const agregarMesa = async () => { 
     const nuevaId = `M-${Date.now().toString().slice(-5)}`;
     const nuevaMesa = { id: nuevaId, nombre: `Mesa ${mesas.length + 1}`, tipo: 'mesa', estado: 'Libre', cuentas: [] };
-    try {
-        await setDoc(doc(db, "mesas", nuevaId), nuevaMesa);
-        mostrarNotificacion("Mesa agregada", "exito");
-    } catch (e) { mostrarNotificacion("Error al crear mesa", "error"); }
+    try { await setDoc(doc(db, "mesas", nuevaId), nuevaMesa); mostrarNotificacion("Mesa agregada", "exito"); } catch (e) { mostrarNotificacion("Error al crear mesa", "error"); }
   };
   
   const eliminarMesa = async (id) => { 
-    try {
-        await deleteDoc(doc(db, "mesas", id));
-        mostrarNotificacion("Mesa eliminada", "info"); 
-    } catch(e) { mostrarNotificacion("Error al eliminar mesa", "error"); }
+    try { await deleteDoc(doc(db, "mesas", id)); mostrarNotificacion("Mesa eliminada", "info"); } catch(e) { mostrarNotificacion("Error al eliminar mesa", "error"); }
   };
   
   const actualizarMesaEnBD = async (mesaObj) => {
-      try {
-          await updateDoc(doc(db, "mesas", mesaObj.id), { cuentas: mesaObj.cuentas });
-      } catch (e) { console.error("Error actualizando mesa:", e); }
+      try { await updateDoc(doc(db, "mesas", mesaObj.id), { cuentas: mesaObj.cuentas }); } catch (e) { console.error("Error actualizando mesa:", e); }
   };
 
   const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { 
@@ -232,23 +344,25 @@ export default function PasteleriaApp() {
     return nuevaCuenta; 
   };
   
-  const recibirPedidoCliente = (idMesa, nombre, carrito, telefono = '') => { 
+  const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
     if (idMesa === ID_QR_LLEVAR) {
         const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
         if (sesionExistente) {
-            setSesionesLlevar(prev => prev.map(s => {
-                if (s.id === sesionExistente.id) {
-                    const nuevosItems = [...s.cuenta, ...carrito];
-                    return { ...s, cuenta: nuevosItems, total: nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0) };
-                }
-                return s;
-            }));
+            const nuevosItems = [...sesionExistente.cuenta, ...carrito];
+            const nuevoTotal = nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesionExistente.id), { cuenta: nuevosItems, total: nuevoTotal });
+                mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
+            } catch (e) { mostrarNotificacion("Error al actualizar pedido", "error"); }
         } else {
             const totalInicial = carrito.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-            const nuevaSesion = { id: `L-${Date.now().toString().slice(-4)}`, tipo: 'llevar', nombreCliente: nombre, telefono, cuenta: carrito, total: totalInicial, estado: 'Activa' };
-            setSesionesLlevar([...sesionesLlevar, nuevaSesion]);
+            const nuevaId = `L-${Date.now().toString().slice(-4)}`;
+            const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, cuenta: carrito, total: totalInicial, estado: 'Activa' };
+            try {
+                await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
+                mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
+            } catch (e) { mostrarNotificacion("Error al crear pedido", "error"); }
         }
-        mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
     } else {
         const mesa = mesas.find(m => m.id === idMesa);
         if(!mesa) return;
@@ -270,7 +384,7 @@ export default function PasteleriaApp() {
     }
   };
 
-  const agregarProductoASesion = (idSesion, producto) => { 
+  const agregarProductoASesion = async (idSesion, producto) => { 
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
@@ -289,23 +403,22 @@ export default function PasteleriaApp() {
             actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
         }
     } else { 
-        setSesionesLlevar(sesionesLlevar.map(s => { 
-            if (s.id === idSesion) { 
-                let items = [...s.cuenta];
-                const itemIndex = items.findIndex(i => i.id === producto.id);
-                if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-                else items.push({ ...producto, cantidad: 1 });
-                const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-                setCuentaActiva(prev => ({...prev, cuenta: items, total}));
-                return { ...s, cuenta: items, total }; 
-            } 
-            return s; 
-        })); 
+        const sesion = sesionesLlevar.find(s => s.id === idSesion);
+        if (sesion) {
+            let items = [...sesion.cuenta];
+            const itemIndex = items.findIndex(i => i.id === producto.id);
+            if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+            else items.push({ ...producto, cantidad: 1 });
+            const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
+            } catch (e) { mostrarNotificacion("Error al agregar producto", "error"); }
+        }
     } 
     mostrarNotificacion("Producto agregado", "info"); 
   };
 
-  const actualizarProductoEnSesion = (idSesion, idProducto, delta) => {
+  const actualizarProductoEnSesion = async (idSesion, idProducto, delta) => {
     if (cuentaActiva.tipo === 'mesa') {
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
@@ -327,21 +440,20 @@ export default function PasteleriaApp() {
             actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
         }
     } else {
-        setSesionesLlevar(prev => prev.map(s => {
-            if (s.id === idSesion) {
-                let items = [...s.cuenta];
-                const itemIndex = items.findIndex(i => i.id === idProducto);
-                if(itemIndex > -1) {
-                    const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
-                    if(nuevaCant <= 0) items.splice(itemIndex, 1);
-                    else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
-                }
-                const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-                setCuentaActiva(act => ({...act, cuenta: items, total}));
-                return { ...s, cuenta: items, total };
+        const sesion = sesionesLlevar.find(s => s.id === idSesion);
+        if (sesion) {
+            let items = [...sesion.cuenta];
+            const itemIndex = items.findIndex(i => i.id === idProducto);
+            if(itemIndex > -1) {
+                const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
+                if(nuevaCant <= 0) items.splice(itemIndex, 1);
+                else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
             }
-            return s;
-        }));
+            const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
+            } catch (e) { mostrarNotificacion("Error al actualizar producto", "error"); }
+        }
     }
   };
 
@@ -372,7 +484,7 @@ export default function PasteleriaApp() {
                 await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
             }
         } else { 
-            setSesionesLlevar(sesionesLlevar.filter(s => s.id !== sesion.id)); 
+            await deleteDoc(doc(db, "sesiones_llevar", sesion.id));
         } 
         setCuentaActiva(null); 
         mostrarNotificacion("Cuenta pagada y guardada.", "exito");
@@ -381,16 +493,17 @@ export default function PasteleriaApp() {
     }
   };
 
-  const cancelarCuentaSinPagar = (sesion) => {
+  const cancelarCuentaSinPagar = async (sesion) => {
       const canceladoItem = {
           ...sesion,
           timestamp: Date.now(),
           origenMesaId: sesion.tipo === 'llevar' ? null : sesion.idMesa,
-          nombreMesa: sesion.nombreMesa,
+          nombreMesa: sesion.nombreMesa || null, // <--- FIX AQUÍ TAMBIÉN
           cuentaOriginal: sesion.cuenta,
           nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente
       };
       setCancelados([...cancelados, canceladoItem]);
+      
       if (sesion.tipo === 'mesa') {
           const mesa = mesas.find(m => m.id === sesion.idMesa);
           if (mesa) {
@@ -398,23 +511,23 @@ export default function PasteleriaApp() {
               actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
           }
       } else {
-          setSesionesLlevar(prev => prev.filter(s => s.id !== sesion.id));
+          try { await deleteDoc(doc(db, "sesiones_llevar", sesion.id)); } catch(e) { console.error(e); }
       }
       setCuentaActiva(null);
-      mostrarNotificacion("Pedido enviado a Cancelados (5 min para deshacer)", "info");
+      mostrarNotificacion("Pedido enviado a Papelera", "info");
   };
 
   const restaurarDeHistorial = async (item) => {
       const cuentaRestaurada = {
           id: `R-${Date.now().toString().slice(-4)}`,
-          cliente: item.nombreCliente || item.cliente,
-          nombreCliente: item.nombreCliente || item.cliente,
-          cuenta: item.cuentaOriginal || item.cuenta,
-          total: item.total,
+          cliente: item.nombreCliente || item.cliente || 'Cliente',
+          nombreCliente: item.nombreCliente || item.cliente || 'Cliente',
+          cuenta: item.cuentaOriginal || item.cuenta || [],
+          total: item.total || 0,
           telefono: item.telefono || '',
           tipo: item.origenMesaId ? 'mesa' : 'llevar',
-          idMesa: item.origenMesaId,
-          nombreMesa: item.nombreMesa,
+          idMesa: item.origenMesaId || null,
+          nombreMesa: item.nombreMesa || null, // <--- FIX CRÍTICO AQUÍ
           estado: 'Activa'
       };
 
@@ -422,13 +535,15 @@ export default function PasteleriaApp() {
           const existeMesa = mesas.find(m => m.id === item.origenMesaId);
           if (!existeMesa) {
               alert("La mesa original ya no existe. Se restaurará como 'Para Llevar'.");
-              setSesionesLlevar([...sesionesLlevar, { ...cuentaRestaurada, tipo: 'llevar', id: `L-R-${Date.now()}` }]);
+              const nuevaId = `L-R-${Date.now()}`;
+              await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
           } else {
               const cuentasActualizadas = [...existeMesa.cuentas, cuentaRestaurada];
               actualizarMesaEnBD({ ...existeMesa, cuentas: cuentasActualizadas });
           }
       } else {
-          setSesionesLlevar([...sesionesLlevar, { ...cuentaRestaurada, tipo: 'llevar' }]);
+          const nuevaId = `L-R-${Date.now()}`;
+          await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
       }
 
       const ventaEnBD = ventasCafeteria.find(v => v.id === item.id);
@@ -493,9 +608,13 @@ export default function PasteleriaApp() {
     if(cuenta) setCuentaActiva({ tipo: 'mesa', id: idCuenta, idMesa, nombreMesa: mesa.nombre, ...cuenta }); 
   };
 
-  const crearSesionLlevar = (datos) => { 
-    const nueva = { id: `L-${Date.now().toString().slice(-4)}`, tipo: 'llevar', nombreCliente: datos.nombre, telefono: datos.telefono, cuenta: [], estado: 'Activa' }; 
-    setSesionesLlevar([...sesionesLlevar, nueva]); setCuentaActiva(nueva); 
+  const crearSesionLlevar = async (datos) => { 
+    const nuevaId = `L-${Date.now().toString().slice(-4)}`;
+    const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: datos.nombre, telefono: datos.telefono, cuenta: [], estado: 'Activa' };
+    try {
+        await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
+        setCuentaActiva(nuevaSesion);
+    } catch (e) { mostrarNotificacion("Error al crear sesión", "error"); }
   };
   
   const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
@@ -570,15 +689,7 @@ export default function PasteleriaApp() {
         <> 
             {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} 
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
-            
-            {/* --- NUEVA VISTA RENDERIZADA --- */}
-            {vistaActual === 'usuarios' && (
-                <VistaGestionUsuarios 
-                    usuarios={usuariosSistema}
-                    onGuardar={guardarUsuario}
-                    onEliminar={eliminarUsuario}
-                />
-            )}
+            {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
         </> 
       )}
       
@@ -612,6 +723,8 @@ export default function PasteleriaApp() {
                     onAbrirLlevar={abrirPOSLlevar}
                     onRestaurarVenta={restaurarDeHistorial}
                     onDeshacerCancelacion={restaurarDeHistorial}
+                    onVaciarPapelera={vaciarPapelera}
+                    onEliminarDePapelera={eliminarDePapelera}
                 />
             )} 
             {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
@@ -648,8 +761,10 @@ export default function PasteleriaApp() {
         <Route path="/pasteleria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
         <Route path="/cafeteria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to="/admin" />} />
-        <Route path="/mesa/:id" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} />} />
-        <Route path="/llevar" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} />} />
+        <Route path="/mesa/:id" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
+            loading={cargandoDatos} />} />
+        <Route path="/llevar" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
+            loading={cargandoDatos} />} />
         <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );

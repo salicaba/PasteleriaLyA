@@ -5,14 +5,14 @@ import {
     GripVertical, Settings, PlusCircle, Save, AlertTriangle, Smartphone, ShoppingBag, 
     Grid, QrCode, ArrowLeft, Receipt, Users, Printer, Merge, CheckSquare, Square, 
     Cake, Sparkles, AlertCircle, Calculator, MinusCircle,
-    CheckCircle, XCircle, Clock, Info, ArchiveRestore // <--- ÍCONO NUEVO AGREGADO
+    CheckCircle, XCircle, Clock, Info, ArchiveRestore 
 } from 'lucide-react';
 import { Notificacion, CardStat, CardProducto, ModalConfirmacion } from '../components/Shared';
 import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
 
 const CATEGORIAS_INICIALES = ['Bebidas Calientes', 'Bebidas Frías', 'Pastelería', 'Bocadillos', 'Otros'];
 
-// --- COMPONENTE 1: MODAL CORTE DE CAJA (ESTILO CAFETERÍA - NARANJA/CAFÉ) ---
+// --- COMPONENTE 1: MODAL CORTE DE CAJA ---
 const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
     if (!isOpen) return null;
     const total = ventas.reduce((acc, v) => acc + v.total, 0);
@@ -40,7 +40,7 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
                         ventas.map((venta) => (
                             <div key={venta.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                                 <div>
-                                    <p className="font-bold text-gray-800 text-sm mb-0.5">{venta.id}</p>
+                                    <p className="font-bold text-gray-800 text-sm mb-0.5">{venta.folioLocal || venta.id}</p>
                                     <p className="text-xs text-gray-500 mb-1.5">{venta.cliente}</p>
                                     <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded border border-orange-200 uppercase">
                                         VENTA
@@ -63,34 +63,37 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
     );
 };
 
-// --- COMPONENTE 2: MODAL HISTORIAL (ESTILO VENDIDOS / PAPELERA) ---
-const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar }) => {
+// --- COMPONENTE 2: MODAL HISTORIAL (CON NUEVAS FUNCIONES DE BORRADO) ---
+const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [itemParaRestaurar, setItemParaRestaurar] = useState(null);
+    const [itemParaEliminar, setItemParaEliminar] = useState(null);
+    const [confirmarVaciar, setConfirmarVaciar] = useState(false);
 
-    useEffect(() => { if (isOpen) setBusqueda(''); }, [isOpen]);
+    useEffect(() => { if (isOpen) { setBusqueda(''); setConfirmarVaciar(false); } }, [isOpen]);
 
     if (!isOpen) return null;
 
     const esVenta = tipo === 'vendidos';
     
-    // --- CAMBIOS PARA QUE SE VEA COMO LA PAPELERA DE PASTELERÍA ---
     const titulo = esVenta ? 'Vendidos' : 'Papelera';
-    const subtitulo = esVenta ? 'Historial de ventas del día.' : 'Las cuentas se eliminan automáticamente en 5 minutos.';
+    // Cambiamos el texto del subtítulo para reflejar el cambio de lógica
+    const subtitulo = esVenta 
+        ? 'Historial de ventas del día.' 
+        : 'Las cuentas se eliminarán automáticamente al final del día.';
+    
     const colorHeader = esVenta ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800';
     
-    // Icono del header (Check para vendidos, Cajita ArchiveRestore para Papelera)
     const iconoHeader = esVenta ? 
         <CheckCircle size={24} className="text-green-600 mr-2"/> : 
         <ArchiveRestore size={24} className="text-red-600 mr-2"/>;
     
-    // Icono cuando está vacío (Check para vendidos, Bote de basura Trash2 para Papelera)
     const iconoVacio = esVenta ? 
         <CheckCircle size={48} className="mx-auto mb-2 text-green-300"/> : 
         <Trash2 size={48} className="mx-auto mb-2 text-red-300"/>;
 
     const itemsFiltrados = items.filter(item => {
-        const texto = (item.cliente || item.nombreCliente || '') + (item.id || '');
+        const texto = (item.cliente || item.nombreCliente || '') + (item.folioLocal || item.id || '');
         return texto.toLowerCase().includes(busqueda.toLowerCase());
     });
 
@@ -106,8 +109,8 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar }) => {
                         <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 transition shadow-sm text-gray-500"><X size={20}/></button>
                     </div>
 
-                    <div className="p-4 border-b border-gray-100 bg-white">
-                        <div className="relative">
+                    <div className="p-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
                             <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
                             <input 
                                 type="text" 
@@ -117,6 +120,16 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar }) => {
                                 onChange={(e) => setBusqueda(e.target.value)}
                             />
                         </div>
+                        
+                        {/* BOTÓN DE VACIAR PAPELERA */}
+                        {!esVenta && items.length > 0 && (
+                            <button 
+                                onClick={() => setConfirmarVaciar(true)}
+                                className="px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition"
+                            >
+                                <Trash2 size={18} /> Vaciar Todo
+                            </button>
+                        )}
                     </div>
                     
                     <div className="max-h-[50vh] overflow-y-auto p-4 space-y-3 bg-gray-50">
@@ -128,41 +141,69 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar }) => {
                                 </p>
                             </div>
                         ) : (
-                            itemsFiltrados.map((item) => (
-                                <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition group">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${esVenta ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                {esVenta ? 'VENDIDO' : 'CANCELADO'}
-                                            </span>
-                                            <span className="text-xs font-mono text-gray-400 font-bold">{item.id}</span>
+                            itemsFiltrados.map((item) => {
+                                const horaCancelado = item.timestamp 
+                                    ? new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) 
+                                    : 'Reciente';
+
+                                return (
+                                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition group">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${esVenta ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {esVenta ? 'VENDIDO' : 'CANCELADO'}
+                                                </span>
+                                                <span className="text-xs font-mono text-gray-400 font-bold">
+                                                    {item.folioLocal || item.id}
+                                                </span>
+                                            </div>
+                                            <h4 className="font-bold text-gray-800 text-lg uppercase">{item.cliente || item.nombreCliente}</h4>
+                                            
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500 items-center">
+                                                <span><span className="font-bold text-gray-700">{item.items || item.cuenta.length}</span> productos</span>
+                                                <span>•</span>
+                                                <span>{item.origenMesaId ? `Mesa: ${item.nombreMesa}` : 'Para Llevar'}</span>
+                                            </div>
+
+                                            {esVenta ? (
+                                                <p className="text-[10px] text-green-700 mt-1.5 flex items-center gap-1.5 font-bold bg-green-50 w-fit px-2 py-0.5 rounded border border-green-100">
+                                                    <Clock size={11}/> Vendido a las {item.hora}
+                                                </p>
+                                            ) : (
+                                                <p className="text-[10px] text-red-600 mt-1.5 flex items-center gap-1.5 font-bold bg-red-50 w-fit px-2 py-0.5 rounded border border-red-100">
+                                                    <Clock size={11}/> Cancelado a las {horaCancelado}
+                                                </p>
+                                            )}
                                         </div>
-                                        <h4 className="font-bold text-gray-800 text-lg uppercase">{item.cliente || item.nombreCliente}</h4>
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-500">
-                                            <span><span className="font-bold text-gray-700">{item.items || item.cuenta.length}</span> productos</span>
-                                            <span>•</span>
-                                            <span>{item.origenMesaId ? `Mesa: ${item.nombreMesa}` : 'Para Llevar'}</span>
+                                        
+                                        <div className="flex gap-2 w-full sm:w-auto">
+                                            <button 
+                                                onClick={() => setItemParaRestaurar(item)}
+                                                className="flex-1 sm:flex-none px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition"
+                                            >
+                                                <RotateCcw size={16}/> {esVenta ? 'Deshacer' : 'Restaurar'}
+                                            </button>
+                                            
+                                            {/* BOTÓN ELIMINAR INDIVIDUAL (Solo en Papelera) */}
+                                            {!esVenta && (
+                                                <button 
+                                                    onClick={() => setItemParaEliminar(item)}
+                                                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition flex items-center justify-center"
+                                                    title="Eliminar definitivamente"
+                                                >
+                                                    <Trash2 size={18}/>
+                                                </button>
+                                            )}
                                         </div>
-                                        {!esVenta && (
-                                            <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1 font-bold">
-                                                <Clock size={10}/> Se borra en 5 min
-                                            </p>
-                                        )}
                                     </div>
-                                    
-                                    <button 
-                                        onClick={() => setItemParaRestaurar(item)}
-                                        className="shrink-0 px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center gap-2 transition w-full sm:w-auto justify-center"
-                                    >
-                                        <RotateCcw size={16}/> {esVenta ? 'Deshacer' : 'Restaurar'}
-                                    </button>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
             </div>
 
+            {/* CONFIRMACIÓN RESTAURAR */}
             <ModalConfirmacion 
                 isOpen={!!itemParaRestaurar}
                 onClose={() => setItemParaRestaurar(null)}
@@ -175,6 +216,32 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar }) => {
                 }}
                 titulo={esVenta ? "¿Deshacer Venta?" : "¿Recuperar Pedido?"}
                 mensaje={itemParaRestaurar ? `El pedido de "${itemParaRestaurar.cliente || itemParaRestaurar.nombreCliente}" volverá a estar activo en ${itemParaRestaurar.origenMesaId ? 'su mesa original' : 'Para Llevar'}.` : ''}
+            />
+
+            {/* CONFIRMACIÓN ELIMINAR UNO */}
+            <ModalConfirmacion 
+                isOpen={!!itemParaEliminar}
+                onClose={() => setItemParaEliminar(null)}
+                onConfirm={() => {
+                    if (itemParaEliminar) {
+                        onEliminarDePapelera(itemParaEliminar.id);
+                        setItemParaEliminar(null);
+                    }
+                }}
+                titulo="¿Eliminar definitivamente?"
+                mensaje="Esta acción no se puede deshacer. El pedido desaparecerá para siempre."
+            />
+
+            {/* CONFIRMACIÓN VACIAR TODO */}
+            <ModalConfirmacion 
+                isOpen={confirmarVaciar}
+                onClose={() => setConfirmarVaciar(false)}
+                onConfirm={() => {
+                    onVaciarPapelera();
+                    setConfirmarVaciar(false);
+                }}
+                titulo="¿Vaciar Papelera?"
+                mensaje="Se eliminarán TODOS los pedidos cancelados de hoy. Esta acción es irreversible."
             />
         </>
     );
@@ -673,7 +740,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 onClose={() => setConfirmacionCancelarOpen(false)}
                 onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }}
                 titulo="¿Cancelar Pedido?"
-                mensaje="El pedido se moverá a la lista de 'Cancelados' durante 5 minutos por si necesitas recuperarlo. Después se eliminará permanentemente."
+                mensaje="El pedido se moverá a la lista de 'Cancelados', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente."
             />
         </div>
     );
@@ -699,7 +766,7 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa }) => {
                             <QrCode size={40} className="text-gray-300 mb-2 group-hover:text-orange-500 transition-colors" />
                             <h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3>
                             <div className="flex gap-2 mt-3 w-full">
-                                <button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver QR</button>
+                                <button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver/Imprimir QR</button>
                             </div>
                             <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button>
                         </div>
@@ -864,7 +931,9 @@ export const VistaInicioCafeteria = ({
     onCrearLlevar, 
     onAbrirLlevar,
     onRestaurarVenta, 
-    onDeshacerCancelacion 
+    onDeshacerCancelacion,
+    onVaciarPapelera,
+    onEliminarDePapelera
 }) => {
     const [modalLlevarOpen, setModalLlevarOpen] = useState(false);
     const [modalHistorial, setModalHistorial] = useState({ open: false, tipo: 'vendidos' });
@@ -918,7 +987,7 @@ export const VistaInicioCafeteria = ({
                 {/* 4. CANCELADOS (Rojo) - Interactivo */}
                 <div onClick={() => setModalHistorial({ open: true, tipo: 'cancelados' })} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
                     <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados (5m)</p>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados Hoy</p>
                         <p className="text-3xl font-bold text-gray-800 mt-2">{cancelados.length}</p>
                     </div>
                     <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30} /></div>
@@ -927,7 +996,7 @@ export const VistaInicioCafeteria = ({
                 {/* 5. TOTAL CAJA (Emerald/Dinero) - Interactivo */}
                 <div onClick={() => setModalCorteOpen(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-emerald-500 bg-white flex justify-between items-center cursor-pointer hover:bg-emerald-50 transition-colors group">
                     <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja (Hoy)</p>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja Hoy</p>
                         <p className="text-3xl font-bold text-gray-800 mt-2">${totalIngresos.toFixed(0)}</p>
                     </div>
                     <div className="text-emerald-300 opacity-50 group-hover:text-emerald-500 group-hover:opacity-100 transition"><DollarSign size={30} /></div>
@@ -1008,6 +1077,8 @@ export const VistaInicioCafeteria = ({
                 tipo={modalHistorial.tipo}
                 items={modalHistorial.tipo === 'vendidos' ? ventasHoy : cancelados}
                 onRestaurar={modalHistorial.tipo === 'vendidos' ? onRestaurarVenta : onDeshacerCancelacion}
+                onVaciarPapelera={onVaciarPapelera}
+                onEliminarDePapelera={onEliminarDePapelera}
             />
 
             <ModalCorteCaja
