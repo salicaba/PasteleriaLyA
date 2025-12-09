@@ -446,7 +446,8 @@ export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Est�
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[250] p-4 backdrop-blur-sm transition-all">
+        // CAMBIO AQUÍ: z-[280] para estar encima de detalles (270)
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[280] p-4 backdrop-blur-sm transition-all">
             <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md overflow-hidden animate-bounce-in transform border-t-8 ${estilos.borde}`}>
                 <div className="p-6 text-center">
                     {estilos.icono}
@@ -484,7 +485,8 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
     const handleCobrar = () => { if (esMontoSuficiente) { onRegistrarPago(pedido.folio, esLiquidacion); setMontoRecibido(''); setEsLiquidacion(esPagoUnico); } };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+        // CAMBIO AQUÍ: z-[270] para estar encima de la lista de corte (260)
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[270] p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg overflow-hidden animate-fade-in-up max-h-[90vh] flex flex-col">
                 <div className="bg-pink-900 p-4 md:p-6 text-white flex justify-between shrink-0">
                     <div>

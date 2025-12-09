@@ -363,7 +363,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
                 {/* Total Caja */}
                 <div onClick={() => setMostrarCajaHoy(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-pink-500 bg-white flex justify-between items-center cursor-pointer hover:bg-pink-50 transition-colors group">
-                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja (Hoy)</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p></div>
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p></div>
                     <div className="text-pink-300 opacity-50 group-hover:text-pink-500 group-hover:opacity-100 transition"><DollarSign size={30}/></div>
                 </div>
             </div>

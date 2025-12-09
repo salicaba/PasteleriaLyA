@@ -1,14 +1,134 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
-import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT } from '../utils/config';
+import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getFechaHoy } from '../utils/config';
 
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from '../firebase';
 import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
 
-export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
+// --- NUEVO COMPONENTE: MODAL DE DETALLE DE CORTE (CON CLIC EN ITEM) ---
+const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick }) => {
+    if (!isOpen) return null;
+
+    // Configuración de colores dinámica
+    const theme = {
+        bgHeader: colorTheme === 'orange' ? 'bg-orange-50' : 'bg-pink-50',
+        textHeader: colorTheme === 'orange' ? 'text-orange-900' : 'text-pink-900',
+        borderHeader: colorTheme === 'orange' ? 'border-orange-100' : 'border-pink-100',
+        iconColor: colorTheme === 'orange' ? 'text-orange-600' : 'text-pink-600',
+        badgeBg: colorTheme === 'orange' ? 'bg-orange-100' : 'bg-pink-100',
+        badgeText: colorTheme === 'orange' ? 'text-orange-700' : 'text-pink-700',
+        footerBg: colorTheme === 'orange' ? 'bg-orange-900' : 'bg-pink-900',
+        borderTop: colorTheme === 'orange' ? 'border-orange-500' : 'border-pink-500'
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[260] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up flex flex-col border-t-8 ${theme.borderTop}`}>
+                <div className={`p-5 ${theme.bgHeader} flex justify-between items-center border-b ${theme.borderHeader}`}>
+                    <div>
+                        <h3 className={`font-bold text-xl ${theme.textHeader} flex items-center gap-2`}>
+                            <Receipt size={20} className={theme.iconColor}/> {titulo}
+                        </h3>
+                        <p className="text-xs opacity-70 font-medium">Desglose de movimientos de hoy.</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 transition shadow-sm">
+                        <X size={18}/>
+                    </button>
+                </div>
+
+                <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3 bg-gray-50/50">
+                    {items.length === 0 ? (
+                        <div className="text-center py-12 opacity-40">
+                            <DollarSign size={48} className="mx-auto mb-2 text-gray-400"/>
+                            <p className="text-gray-500 text-sm">No hay ingresos registrados hoy.</p>
+                        </div>
+                    ) : (
+                        items.map((item, index) => (
+                            <div 
+                                key={index} 
+                                onClick={() => onItemClick && onItemClick(item.original)} 
+                                className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-shadow group ${onItemClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                            >
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="font-bold text-gray-800 text-sm">{item.folio || item.id || 'S/N'}</p>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${theme.badgeBg} ${theme.badgeText} border-transparent uppercase`}>
+                                            {item.etiqueta || 'VENTA'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors">{item.descripcion}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className={`font-bold text-lg ${theme.iconColor}`}>+${item.monto.toFixed(2)}</p>
+                                    <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1">
+                                        <Eye size={10}/> Ver
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <div className={`${theme.footerBg} p-5 text-white flex justify-between items-center`}>
+                    <span className="font-bold text-white/80 text-sm uppercase tracking-wider">Total Recaudado</span>
+                    <span className="font-bold text-2xl text-white">${total.toFixed(2)}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) => {
     const [cargando, setCargando] = useState(false);
+    const [modalAbierto, setModalAbierto] = useState(null); 
+    const hoy = getFechaHoy();
+
+    // --- DATOS Y CÁLCULOS ---
+
+    // 1. Pastelería: Datos detallados
+    const datosPasteleria = useMemo(() => {
+        const filtrados = pedidos.filter(p => p.fecha === hoy && p.estado !== 'Cancelado');
+        const items = filtrados.map(p => {
+            const totalPedido = p.total || 0;
+            const numPagos = parseInt(p.numPagos) || 1;
+            const pagosRealizados = p.pagosRealizados || 0;
+            const montoCobrado = (totalPedido / numPagos) * pagosRealizados;
+            
+            let etiqueta = 'ABONO';
+            if (numPagos === 1) etiqueta = 'CONTADO';
+            else if (pagosRealizados === numPagos) etiqueta = 'LIQUIDACIÓN';
+
+            return {
+                id: p.id,
+                folio: p.folio,
+                descripcion: p.cliente,
+                monto: montoCobrado,
+                etiqueta: etiqueta,
+                original: p 
+            };
+        }).filter(item => item.monto > 0); 
+
+        const total = items.reduce((acc, item) => acc + item.monto, 0);
+        return { items, total };
+    }, [pedidos, hoy]);
+
+    // 2. Cafetería: Datos detallados
+    const datosCafeteria = useMemo(() => {
+        const filtrados = ventasCafeteria.filter(v => v.fecha === hoy);
+        const items = filtrados.map(v => ({
+            id: v.id,
+            folio: v.folioLocal,
+            descripcion: v.cliente,
+            monto: v.total || 0,
+            etiqueta: 'TICKET',
+            original: v
+        }));
+        const total = items.reduce((acc, item) => acc + item.monto, 0);
+        return { items, total };
+    }, [ventasCafeteria, hoy]);
+
 
     // --- FUNCIÓN PARA SUBIR DATOS INICIALES ---
     const subirDatosIniciales = async () => {
@@ -16,14 +136,12 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
         setCargando(true);
         try {
             const batch = writeBatch(db);
-            // 1. Subir Productos
             if (PRODUCTOS_CAFETERIA_INIT.length > 0) {
                 PRODUCTOS_CAFETERIA_INIT.forEach(prod => {
                     const ref = doc(collection(db, "productos")); 
                     batch.set(ref, prod);
                 });
             }
-            // 2. Subir Mesas
             if (MESAS_FISICAS_INIT.length > 0) {
                 MESAS_FISICAS_INIT.forEach(mesa => {
                     const ref = doc(db, "mesas", mesa.id);
@@ -45,15 +163,10 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
         setCargando(true);
         try {
             const batch = writeBatch(db);
-            
-            // 1. Obtener y borrar productos
             const prodSnapshot = await getDocs(collection(db, "productos"));
             prodSnapshot.forEach((doc) => batch.delete(doc.ref));
-
-            // 2. Obtener y borrar mesas
             const mesasSnapshot = await getDocs(collection(db, "mesas"));
             mesasSnapshot.forEach((doc) => batch.delete(doc.ref));
-
             await batch.commit();
             alert("✅ Base de datos limpiada correctamente.");
         } catch (error) {
@@ -66,10 +179,9 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
     return (
         <div className="p-4 md:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General (Dueño)</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General de Control de Caja de Hoy</h2>
                 
                 <div className="flex gap-2">
-                    {/* Botón para subir (útil si llenas config.js después) */}
                     <button 
                         onClick={subirDatosIniciales}
                         disabled={cargando}
@@ -78,7 +190,6 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
                         {cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}
                     </button>
 
-                    {/* BOTÓN PARA BORRAR TODO (RESET) */}
                     <button 
                         onClick={borrarBaseDatos}
                         disabled={cargando}
@@ -90,17 +201,99 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm">
-                    <h3 className="text-xl font-bold text-pink-800 mb-2">Área Pastelería</h3>
-                    <p className="text-gray-600 mb-4">{pedidos.filter(p => p.estado !== 'Cancelado').length} pedidos activos</p>
-                    <p className="text-3xl font-bold text-pink-600">${pedidos.filter(p => p.estado !== 'Cancelado').reduce((s, p) => s + p.total, 0)}</p>
+                {/* TARJETA PASTELERÍA (CLICABLE) */}
+                <div 
+                    onClick={() => setModalAbierto('pasteleria')}
+                    className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1"
+                >
+                    <div className="absolute top-0 right-0 bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                        VER DETALLES
+                    </div>
+                    
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-pink-800 flex items-center gap-2">
+                                Área Pastelería
+                            </h3>
+                            <p className="text-pink-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                                <Eye size={12}/> Ver Corte de Hoy
+                            </p>
+                        </div>
+                        <div className="bg-pink-100 p-2 rounded-lg text-pink-600 group-hover:scale-110 transition-transform">
+                            <Wallet size={24} />
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-4xl font-bold text-pink-700">${datosPasteleria.total.toFixed(2)}</span>
+                        <span className="text-sm text-pink-400 font-medium">recaudado hoy</span>
+                    </div>
+
+                    <div className="border-t border-pink-100 pt-3 mt-2 flex justify-between items-center text-sm">
+                        <span className="text-gray-500">Movimientos / Pagos:</span>
+                        <span className="font-bold text-gray-700 bg-pink-50 px-2 py-0.5 rounded">
+                            {datosPasteleria.items.length}
+                        </span>
+                    </div>
                 </div>
-                <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm">
-                    <h3 className="text-xl font-bold text-orange-800 mb-2">Área Cafetería</h3>
-                    <p className="text-gray-600 mb-4">{ventasCafeteria.length} tickets registrados</p>
-                    <p className="text-3xl font-bold text-orange-600">${ventasCafeteria.reduce((s, v) => s + v.total, 0)}</p>
+
+                {/* TARJETA CAFETERÍA (CLICABLE) */}
+                <div 
+                    onClick={() => setModalAbierto('cafeteria')}
+                    className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1"
+                >
+                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                        VER DETALLES
+                    </div>
+
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-orange-800 flex items-center gap-2">
+                                Área Cafetería
+                            </h3>
+                            <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                                <Eye size={12}/> Ver Corte de Hoy
+                            </p>
+                        </div>
+                        <div className="bg-orange-100 p-2 rounded-lg text-orange-600 group-hover:scale-110 transition-transform">
+                            <Coffee size={24} />
+                        </div>
+                    </div>
+
+                    <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-4xl font-bold text-orange-700">${datosCafeteria.total.toFixed(2)}</span>
+                        <span className="text-sm text-orange-400 font-medium">recaudado hoy</span>
+                    </div>
+
+                    <div className="border-t border-orange-100 pt-3 mt-2 flex justify-between items-center text-sm">
+                        <span className="text-gray-500">Tickets cobrados:</span>
+                        <span className="font-bold text-gray-700 bg-orange-50 px-2 py-0.5 rounded">
+                            {datosCafeteria.items.length}
+                        </span>
+                    </div>
                 </div>
             </div>
+
+            {/* MODALES DETALLE CON CLIC HABILITADO */}
+            <ModalDetalleCorte 
+                isOpen={modalAbierto === 'pasteleria'}
+                onClose={() => setModalAbierto(null)}
+                titulo="Corte Pastelería"
+                items={datosPasteleria.items}
+                total={datosPasteleria.total}
+                colorTheme="pink"
+                onItemClick={onVerDetalles} // <-- AHORA ES INTERACTIVO
+            />
+
+            <ModalDetalleCorte 
+                isOpen={modalAbierto === 'cafeteria'}
+                onClose={() => setModalAbierto(null)}
+                titulo="Corte Cafetería"
+                items={datosCafeteria.items}
+                total={datosCafeteria.total}
+                colorTheme="orange"
+                onItemClick={onVerDetalles} // <-- AHORA ES INTERACTIVO
+            />
         </div>
     );
 };

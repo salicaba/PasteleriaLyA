@@ -737,7 +737,8 @@ export default function PasteleriaApp() {
       
       {modo === 'admin' && ( 
         <> 
-            {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} />} 
+            {/* PASAMOS LA FUNCIÓN onVerDetalles AQUÍ */}
+            {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} onVerDetalles={(item) => setPedidoVerDetalles(item)} />} 
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
             {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
         </> 
@@ -802,7 +803,14 @@ export default function PasteleriaApp() {
       {fechaAgendaSeleccionada && <ModalAgendaDia fechaIso={fechaAgendaSeleccionada} pedidos={pedidosPasteleria} cerrar={() => setFechaAgendaSeleccionada(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
       <ModalConfirmacion isOpen={!!pedidoACancelar} onClose={() => setPedidoACancelar(null)} onConfirm={confirmarCancelacion} titulo="¿Cancelar Pedido?" mensaje="El pedido se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
       <ModalConfirmacion isOpen={!!pedidoARestaurar} onClose={() => setPedidoARestaurar(null)} onConfirm={confirmarRestauracion} titulo="¿Restaurar Pedido?" mensaje="El pedido volverá a Pendientes." />
-      <ModalConfirmacion isOpen={!!pedidoAEntregar} onClose={() => setPedidoAEntregar(null)} onConfirm={confirmarEntrega} titulo="¿Confirmar Entrega?" mensaje="El pedido se marcará como entregado." />
+      
+      <ModalConfirmacion 
+        isOpen={!!pedidoAEntregar} 
+        onClose={() => setPedidoAEntregar(null)} 
+        onConfirm={confirmarEntrega} 
+        titulo="¿Confirmar Entrega?" 
+        mensaje={pedidoAEntregar ? `El pedido de ${pedidosPasteleria.find(p => p.folio === pedidoAEntregar)?.cliente} se marcará como entregado.` : "El pedido se marcará como entregado."} 
+      />
     </LayoutConSidebar>
   );
 

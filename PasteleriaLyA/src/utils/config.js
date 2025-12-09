@@ -27,7 +27,7 @@ export const SESIONES_LLEVAR_INIT = [];
 export const VENTAS_CAFETERIA_INIT = [];
 export const PEDIDOS_PASTELERIA_INIT = [];
 
-// --- FUNCIÓN DE IMPRESIÓN (SIN CAMBIOS) ---
+// --- FUNCIÓN DE IMPRESIÓN (ACTUALIZADA CON TOTAL EN COMANDA) ---
 export const imprimirTicket = (datos, tipo = 'ticket') => {
     const ventana = window.open('', 'PRINT', 'height=600,width=400');
     if (!ventana) { alert("Por favor, permite las ventanas emergentes para imprimir."); return; }
@@ -79,6 +79,7 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
             <div class="footer">¡Gracias por su compra!<br/>Vuelva pronto</div>
         `;
     } else if (tipo === 'comanda') {
+        // --- AQUÍ HE AGREGADO EL TOTAL AL FINAL DEL BLOQUE ---
         contenido = `
             <div class="header">
                 <span class="title">LyA</span>
@@ -102,6 +103,11 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
 
                 <span class="comanda-label">Detalles / Decoración</span>
                 <span class="comanda-detail">${datos.detalles}</span>
+
+                <div class="divider"></div>
+                
+                <span class="comanda-label">Costo Total del Pedido</span>
+                <span class="comanda-value" style="font-size: 18px">$${parseFloat(datos.total).toFixed(2)}</span>
             </div>
             <div class="footer">Impreso: ${new Date().toLocaleDateString()}</div>
         `;
