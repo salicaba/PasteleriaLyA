@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar } from 'lucide-react'; // Agregué Calendar
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getFechaHoy } from '../utils/config';
 
@@ -7,8 +7,8 @@ import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getF
 import { db } from '../firebase';
 import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
 
-// --- NUEVO COMPONENTE: MODAL DE DETALLE DE CORTE (CON CLIC EN ITEM) ---
-const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick }) => {
+// ... (El componente ModalDetalleCorte se queda igual, no es necesario cambiarlo) ...
+const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => { // Agregué fecha prop opcional para mostrar en título
     if (!isOpen) return null;
 
     // Configuración de colores dinámica
@@ -31,7 +31,8 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                         <h3 className={`font-bold text-xl ${theme.textHeader} flex items-center gap-2`}>
                             <Receipt size={20} className={theme.iconColor}/> {titulo}
                         </h3>
-                        <p className="text-xs opacity-70 font-medium">Desglose de movimientos de hoy.</p>
+                        {/* Mostramos la fecha del corte que se está viendo */}
+                        <p className="text-xs opacity-70 font-medium">Movimientos del {formatearFechaLocal(fecha)}.</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 transition shadow-sm">
                         <X size={18}/>
@@ -42,7 +43,7 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                     {items.length === 0 ? (
                         <div className="text-center py-12 opacity-40">
                             <DollarSign size={48} className="mx-auto mb-2 text-gray-400"/>
-                            <p className="text-gray-500 text-sm">No hay ingresos registrados hoy.</p>
+                            <p className="text-gray-500 text-sm">No hay ingresos registrados en esta fecha.</p>
                         </div>
                     ) : (
                         items.map((item, index) => (
@@ -83,13 +84,17 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
 export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) => {
     const [cargando, setCargando] = useState(false);
     const [modalAbierto, setModalAbierto] = useState(null); 
-    const hoy = getFechaHoy();
+    
+    // 1. NUEVO ESTADO: Fecha seleccionada para el corte (Por defecto hoy)
+    const [fechaCorte, setFechaCorte] = useState(getFechaHoy());
 
-    // --- DATOS Y CÁLCULOS ---
+    // --- DATOS Y CÁLCULOS (MODIFICADOS PARA USAR fechaCorte) ---
 
-    // 1. Pastelería: Datos detallados
+    // 1. Pastelería: Datos detallados filtrados por fechaCorte
     const datosPasteleria = useMemo(() => {
-        const filtrados = pedidos.filter(p => p.fecha === hoy && p.estado !== 'Cancelado');
+        // CAMBIO: Usamos fechaCorte en lugar de getFechaHoy() directo
+        const filtrados = pedidos.filter(p => p.fecha === fechaCorte && p.estado !== 'Cancelado');
+        
         const items = filtrados.map(p => {
             const totalPedido = p.total || 0;
             const numPagos = parseInt(p.numPagos) || 1;
@@ -112,11 +117,13 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
 
         const total = items.reduce((acc, item) => acc + item.monto, 0);
         return { items, total };
-    }, [pedidos, hoy]);
+    }, [pedidos, fechaCorte]); // Agregamos fechaCorte a dependencias
 
-    // 2. Cafetería: Datos detallados
+    // 2. Cafetería: Datos detallados filtrados por fechaCorte
     const datosCafeteria = useMemo(() => {
-        const filtrados = ventasCafeteria.filter(v => v.fecha === hoy);
+        // CAMBIO: Usamos fechaCorte
+        const filtrados = ventasCafeteria.filter(v => v.fecha === fechaCorte);
+        
         const items = filtrados.map(v => ({
             id: v.id,
             folio: v.folioLocal,
@@ -127,7 +134,7 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
         }));
         const total = items.reduce((acc, item) => acc + item.monto, 0);
         return { items, total };
-    }, [ventasCafeteria, hoy]);
+    }, [ventasCafeteria, fechaCorte]); // Agregamos fechaCorte a dependencias
 
 
     // --- FUNCIÓN PARA SUBIR DATOS INICIALES ---
@@ -176,27 +183,64 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
         setCargando(false);
     };
 
+    // Helper para saber si es hoy (para mostrar texto "HOY" en lugar de fecha)
+    const esHoy = fechaCorte === getFechaHoy();
+
     return (
         <div className="p-4 md:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General de Control de Caja de Hoy</h2>
+            {/* HEADER CON SELECTOR DE FECHA */}
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
+                <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General de Control</h2>
+                    <p className="text-gray-500 text-sm mt-1">Resumen financiero y herramientas de base de datos.</p>
+                </div>
                 
-                <div className="flex gap-2">
-                    <button 
-                        onClick={subirDatosIniciales}
-                        disabled={cargando}
-                        className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-300 transition"
-                    >
-                        {cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}
-                    </button>
+                <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto items-end md:items-center">
+                    
+                    {/* --- NUEVO: SELECTOR DE FECHA PARA EL CORTE --- */}
+                    <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3">
+                        <div className="bg-gray-100 p-2 rounded-lg text-gray-500">
+                            <Calendar size={20} />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Fecha de Corte</label>
+                            <input 
+                                type="date" 
+                                value={fechaCorte}
+                                onChange={(e) => setFechaCorte(e.target.value)}
+                                className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer"
+                            />
+                        </div>
+                        { !esHoy && (
+                            <button 
+                                onClick={() => setFechaCorte(getFechaHoy())}
+                                className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition"
+                            >
+                                IR A HOY
+                            </button>
+                        )}
+                    </div>
+                    
+                    <div className="h-8 w-px bg-gray-300 hidden md:block"></div>
 
-                    <button 
-                        onClick={borrarBaseDatos}
-                        disabled={cargando}
-                        className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"
-                    >
-                        <Trash2 size={16}/> Limpiar BD
-                    </button>
+                    {/* BOTONES DE DB (MANTENIDOS) */}
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={subirDatosIniciales}
+                            disabled={cargando}
+                            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-300 transition"
+                        >
+                            {cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}
+                        </button>
+
+                        <button 
+                            onClick={borrarBaseDatos}
+                            disabled={cargando}
+                            className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"
+                        >
+                            <Trash2 size={16}/> Limpiar BD
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -216,7 +260,7 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                                 Área Pastelería
                             </h3>
                             <p className="text-pink-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                <Eye size={12}/> Ver Corte de Hoy
+                                <Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}
                             </p>
                         </div>
                         <div className="bg-pink-100 p-2 rounded-lg text-pink-600 group-hover:scale-110 transition-transform">
@@ -226,7 +270,7 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                     
                     <div className="flex items-baseline gap-2 mb-2">
                         <span className="text-4xl font-bold text-pink-700">${datosPasteleria.total.toFixed(2)}</span>
-                        <span className="text-sm text-pink-400 font-medium">recaudado hoy</span>
+                        <span className="text-sm text-pink-400 font-medium">recaudado</span>
                     </div>
 
                     <div className="border-t border-pink-100 pt-3 mt-2 flex justify-between items-center text-sm">
@@ -252,7 +296,7 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                                 Área Cafetería
                             </h3>
                             <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                <Eye size={12}/> Ver Corte de Hoy
+                                <Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}
                             </p>
                         </div>
                         <div className="bg-orange-100 p-2 rounded-lg text-orange-600 group-hover:scale-110 transition-transform">
@@ -262,7 +306,7 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
 
                     <div className="flex items-baseline gap-2 mb-2">
                         <span className="text-4xl font-bold text-orange-700">${datosCafeteria.total.toFixed(2)}</span>
-                        <span className="text-sm text-orange-400 font-medium">recaudado hoy</span>
+                        <span className="text-sm text-orange-400 font-medium">recaudado</span>
                     </div>
 
                     <div className="border-t border-orange-100 pt-3 mt-2 flex justify-between items-center text-sm">
@@ -274,25 +318,27 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                 </div>
             </div>
 
-            {/* MODALES DETALLE CON CLIC HABILITADO */}
+            {/* MODALES DETALLE CON CLIC HABILITADO Y FECHA */}
             <ModalDetalleCorte 
                 isOpen={modalAbierto === 'pasteleria'}
                 onClose={() => setModalAbierto(null)}
-                titulo="Corte Pastelería"
+                titulo={`Corte Pastelería`}
                 items={datosPasteleria.items}
                 total={datosPasteleria.total}
                 colorTheme="pink"
-                onItemClick={onVerDetalles} // <-- AHORA ES INTERACTIVO
+                onItemClick={onVerDetalles} 
+                fecha={fechaCorte}
             />
 
             <ModalDetalleCorte 
                 isOpen={modalAbierto === 'cafeteria'}
                 onClose={() => setModalAbierto(null)}
-                titulo="Corte Cafetería"
+                titulo={`Corte Cafetería`}
                 items={datosCafeteria.items}
                 total={datosCafeteria.total}
                 colorTheme="orange"
-                onItemClick={onVerDetalles} // <-- AHORA ES INTERACTIVO
+                onItemClick={onVerDetalles} 
+                fecha={fechaCorte}
             />
         </div>
     );

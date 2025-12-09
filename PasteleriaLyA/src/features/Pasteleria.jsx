@@ -260,8 +260,10 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
 };
 
 // --- MODAL CORTE DE CAJA (HOY) ---
+// --- MODAL CORTE DE CAJA (HOY) ---
 const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
     const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
+    
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up border-t-8 border-pink-500 flex flex-col max-h-[90vh]">
@@ -287,11 +289,14 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
                                 const montoIngresado = (p.total / p.numPagos) * p.pagosRealizados;
                                 const esLiquidado = p.pagosRealizados === p.numPagos;
                                 const esPagoUnico = p.numPagos === 1;
+                                
                                 return (
                                     <div key={i} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center">
                                         <div>
-                                            <p className="font-bold text-gray-800 text-sm">{p.cliente}</p>
-                                            <p className="text-xs text-gray-500">{p.tipoProducto}</p>
+                                            {/* CAMBIO AQUÍ: Primero Folio, luego Cliente */}
+                                            <p className="font-bold text-gray-800 text-sm">{p.folio || p.id}</p>
+                                            <p className="text-xs text-gray-500 uppercase">{p.cliente}</p>
+                                            
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${esLiquidado ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                                     {esPagoUnico ? 'PAGO ÚNICO' : esLiquidado ? 'LIQUIDADO' : `ABONO (${p.pagosRealizados}/${p.numPagos})`}
