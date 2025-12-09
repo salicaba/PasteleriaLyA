@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users
+    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box
 } from 'lucide-react';
 import { imprimirTicket } from '../utils/config';
 import { formatearFechaLocal } from '../utils/config';
@@ -39,16 +39,22 @@ export const CardStat = ({ titulo, valor, color, icon }) => (
 export const CardProducto = ({ producto, onClick }) => {
     const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
 
+    // Lógica visual del stock
+    const tieneControl = producto.controlarStock;
+    const stock = producto.stock !== undefined && producto.stock !== null ? parseInt(producto.stock) : 0;
+    const esAgotado = tieneControl && stock <= 0;
+    const esPocoStock = tieneControl && stock > 0 && stock <= 5;
+
     return (
         <div 
             onClick={onClick} 
-            className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group border border-orange-100 flex flex-col cursor-pointer w-full min-w-[130px] sm:min-w-[150px] md:w-48 flex-shrink-0 md:flex-shrink relative"
+            className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group border flex flex-col cursor-pointer w-full min-w-[130px] sm:min-w-[150px] md:w-48 flex-shrink-0 md:flex-shrink relative ${esAgotado ? 'border-red-200 bg-gray-50' : 'border-orange-100'}`}
         >
-            {/* Contenedor de imagen MÁS COMPACTO */}
+            {/* Contenedor de imagen */}
             <div className="h-24 sm:h-28 bg-orange-50/50 flex items-center justify-center overflow-hidden relative p-3">
                 <div 
                     style={{ transform: `scale(${producto.zoom ? producto.zoom / 100 : 1})` }} 
-                    className="w-full h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                    className={`w-full h-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${esAgotado ? 'grayscale opacity-70' : ''}`}
                 >
                     {esImagen(producto.imagen) ? (
                         <img 
@@ -62,21 +68,47 @@ export const CardProducto = ({ producto, onClick }) => {
                         </span>
                     )}
                 </div>
+
+                {/* ETIQUETA FLOTANTE "AGOTADO" */}
+                {esAgotado && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                        <span className="bg-red-600 text-white text-[10px] font-bold px-3 py-1 rounded shadow-lg transform -rotate-12 border border-white/30 tracking-wider">
+                            AGOTADO
+                        </span>
+                    </div>
+                )}
             </div>
             
-            {/* Contenido de texto MÁS LIMPIO */}
+            {/* Contenido de texto */}
             <div className="p-3 flex-1 flex flex-col justify-between">
                 <div>
-                    <h4 className="font-bold text-gray-800 text-sm leading-tight mb-1 line-clamp-2 min-h-[2.5em]">{producto.nombre}</h4>
-                    {/* Descripción opcional: solo se muestra si hay espacio suficiente */}
-                    <p className="text-[10px] text-gray-400 mb-2 line-clamp-2 hidden sm:block">{producto.descripcion}</p>
+                    <h4 className={`font-bold text-sm leading-tight mb-1 line-clamp-2 min-h-[2.5em] ${esAgotado ? 'text-gray-400' : 'text-gray-800'}`}>
+                        {producto.nombre}
+                    </h4>
+                    
+                    {/* DESCRIPCIÓN O INDICADOR DE STOCK */}
+                    {tieneControl && !esAgotado ? (
+                        <div className={`flex items-center gap-1 text-[10px] font-bold mb-2 ${esPocoStock ? 'text-red-500 animate-pulse' : 'text-green-600'}`}>
+                            <Box size={12} />
+                            <span>{esPocoStock ? `¡Solo quedan ${stock}!` : `En stock: ${stock}`}</span>
+                        </div>
+                    ) : (
+                        <p className="text-[10px] text-gray-400 mb-2 line-clamp-2 hidden sm:block">
+                            {producto.descripcion || (tieneControl ? 'Sin stock' : '')}
+                        </p>
+                    )}
                 </div>
                 
                 <div className="flex justify-between items-end border-t border-gray-100 pt-2 mt-1">
-                    <span className="text-sm sm:text-base font-bold text-orange-600">${producto.precio}</span>
-                    <div className="bg-orange-100 text-orange-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
-                        <PlusCircle size={16} />
-                    </div>
+                    <span className={`text-sm sm:text-base font-bold ${esAgotado ? 'text-gray-400 line-through' : 'text-orange-600'}`}>
+                        ${producto.precio}
+                    </span>
+                    
+                    {!esAgotado && (
+                        <div className="bg-orange-100 text-orange-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+                            <PlusCircle size={16} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

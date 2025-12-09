@@ -5,7 +5,7 @@ import {
     GripVertical, Settings, PlusCircle, Save, AlertTriangle, Smartphone, ShoppingBag, 
     Grid, QrCode, ArrowLeft, Receipt, Users, Printer, Merge, CheckSquare, Square, 
     Cake, Sparkles, AlertCircle, Calculator, MinusCircle,
-    CheckCircle, XCircle, Clock, Info, ArchiveRestore 
+    CheckCircle, XCircle, Clock, Info, ArchiveRestore, Box
 } from 'lucide-react';
 import { Notificacion, CardStat, CardProducto, ModalConfirmacion } from '../components/Shared';
 import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
@@ -477,7 +477,17 @@ const ModalGestionarCategorias = ({ isOpen, onClose, categorias, setCategorias, 
 export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar, categoriasDisponibles }) => {
     if (!isOpen) return null;
 
-    const [form, setForm] = useState({ id: null, nombre: '', categoria: categoriasDisponibles[0] || 'Otros', precio: '', imagen: null });
+    // --- AGREGAMOS controlarStock Y stock AL ESTADO INICIAL ---
+    const [form, setForm] = useState({ 
+        id: null, 
+        nombre: '', 
+        categoria: categoriasDisponibles[0] || 'Otros', 
+        precio: '', 
+        imagen: null,
+        controlarStock: false, 
+        stock: ''
+    });
+    
     const [imagenPreview, setImagenPreview] = useState(null);
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
@@ -489,8 +499,26 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     const fileInputRef = useRef(null);
 
     useEffect(() => {
-        if (producto) { setForm(producto); setImagenPreview(producto.imagen); } 
-        else { setForm({ id: null, nombre: '', categoria: categoriasDisponibles[0] || 'Otros', precio: '', imagen: null }); setImagenPreview(null); }
+        if (producto) { 
+            // --- CARGAMOS LOS DATOS DE STOCK SI EXISTEN ---
+            setForm({
+                ...producto,
+                controlarStock: producto.controlarStock || false,
+                stock: producto.stock !== undefined ? producto.stock : ''
+            }); 
+            setImagenPreview(producto.imagen); 
+        } else { 
+            setForm({ 
+                id: null, 
+                nombre: '', 
+                categoria: categoriasDisponibles[0] || 'Otros', 
+                precio: '', 
+                imagen: null,
+                controlarStock: false, 
+                stock: ''
+            }); 
+            setImagenPreview(null); 
+        }
         setScale(1); setRotation(0); setPosition({ x: 0, y: 0 });
     }, [producto, isOpen]);
 
@@ -525,7 +553,17 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     const handleSubmit = (e) => {
         e.preventDefault();
         const finalImage = (imagenPreview && (scale !== 1 || position.x !== 0 || position.y !== 0 || rotation !== 0)) ? getCroppedImg() : imagenPreview;
-        onGuardar({ ...form, precio: parseFloat(form.precio), imagen: finalImage });
+        
+        // --- PREPARAMOS EL OBJETO CON STOCK ---
+        const productoAGuardar = { 
+            ...form, 
+            precio: parseFloat(form.precio), 
+            imagen: finalImage,
+            // Aseguramos que stock sea número si se controla
+            stock: form.controlarStock ? parseInt(form.stock || 0) : null 
+        };
+        
+        onGuardar(productoAGuardar);
         onClose();
     };
 
@@ -552,6 +590,43 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
                             <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><Tag size={16} className="text-orange-500"/> Categoría</label>
                             <div className="relative"><select className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all appearance-none bg-white font-medium" value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })}>{categoriasDisponibles.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select><Filter size={18} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none"/><ChevronRight size={18} className="absolute right-3 top-3.5 text-gray-400 rotate-90 pointer-events-none"/></div>
                         </div>
+                        
+                        {/* --- NUEVA SECCIÓN DE INVENTARIO --- */}
+                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="flex items-center text-sm font-bold text-gray-700 gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={form.controlarStock} 
+                                        onChange={e => setForm({...form, controlarStock: e.target.checked})}
+                                        className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500 border-gray-300"
+                                    />
+                                    Controlar Inventario (Stock)
+                                </label>
+                            </div>
+                            
+                            {form.controlarStock && (
+                                <div className="animate-fade-in">
+                                    <label className="flex items-center text-xs font-bold text-gray-500 gap-2 mb-1">Cantidad Disponible</label>
+                                    <div className="relative">
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            placeholder="Ej. 10" 
+                                            className="w-full pl-10 pr-4 py-2 border-2 border-orange-200 rounded-lg focus:border-orange-500 focus:ring-0 transition-all font-bold text-gray-700" 
+                                            value={form.stock} 
+                                            onChange={e => setForm({ ...form, stock: e.target.value })} 
+                                        />
+                                        <ArchiveRestore size={16} className="absolute left-3 top-3 text-orange-400"/>
+                                    </div>
+                                    <p className="text-[10px] text-orange-600 mt-1">
+                                        * Si llega a 0, aparecerá como "Agotado" en el menú del cliente.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        {/* ----------------------------------- */}
+
                         <div className="space-y-2">
                             <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><AlignLeft size={16} className="text-orange-500"/> Descripción</label>
                             <textarea placeholder="Ej. Con leche entera y canela..." className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 h-24" value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} />
@@ -610,6 +685,32 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
     );
 };
 
+// COMPONENTE PARA TOMAR LA ORDEN (COMANDA) - ACTUALIZADO
+// --- NUEVO COMPONENTE: MODAL ALERTA STOCK (PARA EMPLEADOS) ---
+const ModalAlertaStock = ({ isOpen, onClose, mensaje, productoNombre }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[300] flex items-center justify-center p-6 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-bounce-in border-4 border-orange-100">
+                <div className="bg-orange-50 p-6 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border-2 border-orange-100 animate-pulse">
+                        <Coffee size={40} className="text-orange-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">Stock Insuficiente</h3>
+                    <p className="text-sm text-orange-600 font-medium uppercase tracking-wide">{productoNombre}</p>
+                </div>
+                <div className="p-6 text-center">
+                    <p className="text-gray-600 mb-6 text-sm leading-relaxed">{mensaje}</p>
+                    <button onClick={onClose} className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold shadow-lg transition-transform transform active:scale-95 flex items-center justify-center gap-2">
+                        Entendido <CheckCircle size={18}/>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// COMPONENTE PARA TOMAR LA ORDEN (COMANDA) - ACTUALIZADO CON VALIDACIÓN
 export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProducto, onPagarCuenta, onActualizarProducto, onCancelarCuenta }) => {
     if (!sesion) return null;
     const nombreCliente = sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente;
@@ -620,127 +721,146 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
     const [confirmacionPagoOpen, setConfirmacionPagoOpen] = useState(false);
     const [confirmacionCancelarOpen, setConfirmacionCancelarOpen] = useState(false);
     
+    // ESTADOS DE UI
+    const [busqueda, setBusqueda] = useState('');
+    const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
+    const [alertaStock, setAlertaStock] = useState({ visible: false, mensaje: '', producto: '' });
+
     const handleImprimir = () => { const datosTicket = { id: sesion.id, cliente: nombreCliente, items: sesion.cuenta, total: sesion.total || 0 }; imprimirTicket(datosTicket, 'ticket'); };
 
     // Cálculos
     const total = sesion.total || 0;
     const cambio = montoRecibido ? parseFloat(montoRecibido) - total : 0;
 
+    // --- LÓGICA DE FILTRADO ---
+    const productosFiltrados = useMemo(() => {
+        const filtrados = productos.filter(p => {
+            const matchNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
+            const matchCategoria = categoriaFiltro === 'Todas' || p.categoria === categoriaFiltro;
+            return matchNombre && matchCategoria;
+        });
+        return filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }, [productos, busqueda, categoriaFiltro]);
+
     return (
         <div className="fixed inset-0 bg-gray-100 z-[60] flex animate-fade-in-up">
+            
+            {/* LADO IZQUIERDO: MENÚ DE PRODUCTOS */}
             <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-gray-300">
-                <div className="bg-white p-4 shadow-sm z-10 flex justify-between items-center"><div><h2 className="text-2xl font-bold text-gray-800">Menú Digital</h2><p className="text-sm text-gray-500">{identificador} • <span className="font-bold text-orange-600">{nombreCliente}</span></p></div><button onClick={onCerrar} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-bold"><ArrowLeft size={20} /> Volver</button></div>
-                <div className="flex-1 overflow-y-auto p-6 bg-orange-50/30">{ORDEN_CATEGORIAS.map(cat => { const prods = productos.filter(p => p.categoria === cat); if (prods.length === 0) return null; return (<div key={cat} className="mb-8"><h3 className="font-bold text-orange-800 text-lg border-b border-orange-200 mb-3 pb-1">{cat}</h3><div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">{prods.map(prod => (<div key={prod.id} onClick={() => onAgregarProducto(sesion.id, prod)} className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md cursor-pointer border border-transparent hover:border-orange-300 transition active:scale-95 flex flex-col items-center text-center"><div className="h-16 w-16 bg-gray-100 rounded-lg flex items-center justify-center text-3xl mb-2 overflow-hidden">{prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? <img src={prod.imagen} className="w-full h-full object-contain" alt={prod.nombre}/> : <span className="truncate w-full text-center">{prod.imagen}</span>}</div><h4 className="font-bold text-gray-800 text-sm leading-tight mb-1">{prod.nombre}</h4><span className="text-orange-600 font-bold">${prod.precio}</span></div>))}</div></div>) })}</div>
-            </div>
-            <div className="w-96 bg-white shadow-2xl flex flex-col h-full border-l border-gray-200">
-                <div className="p-6 bg-gray-900 text-white"><div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold">Comanda</h3><p className="text-gray-400 text-xs font-mono">{sesion.id}</p></div><Receipt className="text-orange-400" /></div><div className="bg-gray-800 p-2 rounded text-xs mb-2"><p className="text-gray-300">Cliente: <span className="text-white font-bold">{nombreCliente}</span></p>{sesion.telefono && <p className="text-gray-300">Tel: <span className="text-white">{sesion.telefono}</span></p>}</div></div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {(!sesion.cuenta || sesion.cuenta.length === 0) ? (
-                        <div className="text-center text-gray-400 py-10 italic">Cuenta vacía.<br />Selecciona productos del menú.</div>
-                    ) : (
-                        sesion.cuenta.map((item, idx) => {
-                            const cantidad = item.cantidad || 1;
-                            const subtotalItem = item.precio * cantidad;
-                            return (
-                                <div key={idx} className="flex justify-between items-start border-b border-gray-100 pb-3 last:border-0">
-                                    <div className="flex-1 pr-2">
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-bold text-gray-800 text-sm">{item.nombre}</p>
-                                            
-                                            {/* BOTÓN DE RESTAR / ELIMINAR ITEM */}
-                                            <button 
-                                                onClick={() => onActualizarProducto(sesion.id, item.id, -1)}
-                                                className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-full transition"
-                                                title="Restar cantidad"
-                                            >
-                                                <MinusCircle size={16}/>
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-gray-500">{item.categoria}</p>
-                                    </div>
-                                    <div className="text-right whitespace-nowrap">
-                                        {cantidad > 1 ? (
-                                            <>
-                                                <p className="font-bold text-gray-900 text-base">${subtotalItem.toFixed(2)}</p>
-                                                <p className="text-xs text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                                                    ${item.precio} x {cantidad}
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <p className="font-bold text-gray-700">${item.precio}</p>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
+                {/* HEADER */}
+                <div className="bg-white p-4 shadow-sm z-20 flex justify-between items-center border-b border-gray-100">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Comanda</h2>
+                        <p className="text-sm text-gray-500">{identificador} • <span className="font-bold text-orange-600">{nombreCliente}</span></p>
+                    </div>
+                    <button onClick={onCerrar} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-bold"><ArrowLeft size={20} /> Volver</button>
+                </div>
+
+                {/* BUSCADOR Y FILTROS */}
+                <div className="bg-white/95 backdrop-blur-sm z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
+                    <div className="relative mb-3">
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Buscar producto..." 
+                            className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                            autoFocus
+                        />
+                        {busqueda && (<button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>)}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                        <button onClick={() => setCategoriaFiltro('Todas')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>Todas</button>
+                        {ORDEN_CATEGORIAS.map(cat => (<button key={cat} onClick={() => setCategoriaFiltro(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}>{cat}</button>))}
+                    </div>
                 </div>
                 
-                <div className="p-6 bg-gray-50 border-t border-gray-200">
-                    <div className="flex justify-between items-center mb-4"><span className="text-lg font-bold text-gray-600">Total</span><span className="text-3xl font-bold text-gray-900">${sesion.total || 0}</span></div>
-                    
-                    {/* --- CALCULADORA DE CAMBIO INTEGRADA --- */}
-                    <div className="bg-white p-3 rounded-xl border border-gray-200 mb-4 shadow-sm">
-                        <label className="text-xs font-bold text-gray-400 uppercase mb-2 block flex items-center gap-1"><Calculator size={12}/> Calculadora de Cambio</label>
-                        <div className="flex gap-3 items-center">
-                            <div className="flex-1">
-                                <input 
-                                    type="number" 
-                                    placeholder="Recibido..." 
-                                    className="w-full p-2 border rounded-lg font-bold text-gray-700 text-sm focus:border-orange-500 focus:outline-none"
-                                    value={montoRecibido}
-                                    onChange={e => setMontoRecibido(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex-1 text-right">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold">Cambio a dar</p>
-                                <p className={`text-xl font-bold ${cambio < 0 ? 'text-red-400' : 'text-green-600'}`}>
-                                    ${montoRecibido ? cambio.toFixed(2) : '0.00'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <button onClick={handleImprimir} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold flex justify-center items-center gap-2 transition"><Printer size={20} /> Imprimir Cuenta</button>
+                {/* LISTA DE PRODUCTOS */}
+                <div className="flex-1 overflow-y-auto p-4 bg-orange-50/30">
+                    {ORDEN_CATEGORIAS.map(cat => { 
+                        if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null;
+                        const prods = productosFiltrados.filter(p => p.categoria === cat); 
+                        if (prods.length === 0) return null; 
                         
-                        {/* BOTÓN CON CONFIRMACIÓN DE PAGO */}
-                        <button 
-                            onClick={() => setConfirmacionPagoOpen(true)} 
-                            disabled={!sesion.cuenta || sesion.cuenta.length === 0} 
-                            className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 ${!sesion.cuenta || sesion.cuenta.length === 0 ? 'bg-gray-300 text-gray-500' : 'bg-green-600 hover:bg-green-700 text-white'}`}
-                        >
-                            <DollarSign size={20} /> Cerrar Cuenta y Pagar
-                        </button>
+                        return (
+                            <div key={cat} className="mb-6 animate-fade-in-up">
+                                <h3 className="font-bold text-orange-800 text-lg border-b border-orange-200 mb-3 pb-1 flex items-center gap-2">
+                                    {cat} <span className="text-xs font-normal text-orange-600 bg-orange-100 px-2 rounded-full">{prods.length}</span>
+                                </h3>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                    {prods.map(prod => {
+                                        const tieneControl = prod.controlarStock;
+                                        const stock = prod.stock !== undefined ? parseInt(prod.stock) : 0;
+                                        const esAgotado = tieneControl && stock <= 0;
+                                        const esPocoStock = tieneControl && stock > 0 && stock <= 5;
 
-                        {/* BOTÓN DE CANCELAR CUENTA (MODIFICADO) */}
-                        <button 
-                            onClick={() => setConfirmacionCancelarOpen(true)}
-                            className="mt-2 text-xs font-bold text-red-400 hover:text-red-600 hover:underline flex justify-center items-center gap-1"
-                        >
-                            <Trash2 size={12}/> Cancelar Cuenta
-                        </button>
-                    </div>
+                                        return (
+                                            <div 
+                                                key={prod.id} 
+                                                onClick={() => {
+                                                    if (!esAgotado) {
+                                                        // --- VALIDACIÓN DE STOCK AL AGREGAR ---
+                                                        const cantidadEnCuenta = sesion.cuenta.find(i => i.id === prod.id)?.cantidad || 0;
+                                                        
+                                                        if (tieneControl && (cantidadEnCuenta + 1) > stock) {
+                                                            setAlertaStock({
+                                                                visible: true,
+                                                                mensaje: `No puedes agregar más. Solo hay ${stock} en inventario y ya tienes ${cantidadEnCuenta} en la comanda.`,
+                                                                producto: prod.nombre
+                                                            });
+                                                            return;
+                                                        }
+                                                        
+                                                        onAgregarProducto(sesion.id, prod);
+                                                    }
+                                                }} 
+                                                className={`bg-white p-3 rounded-xl shadow-sm border transition-all active:scale-95 flex flex-col items-center text-center relative overflow-hidden group ${esAgotado ? 'opacity-60 bg-gray-100 border-gray-200 cursor-not-allowed' : 'hover:shadow-md hover:border-orange-300 cursor-pointer border-transparent'}`}
+                                            >
+                                                <div className="h-20 w-20 bg-gray-100 rounded-lg flex items-center justify-center text-3xl mb-2 overflow-hidden relative">
+                                                    {prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? (<img src={prod.imagen} className={`w-full h-full object-contain ${esAgotado ? 'grayscale' : ''}`} alt={prod.nombre}/>) : (<span className="truncate w-full text-center select-none">{prod.imagen || '☕'}</span>)}
+                                                    {esAgotado && (<div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]"><span className="bg-red-600 text-white text-[8px] font-bold px-2 py-0.5 rounded shadow-sm transform -rotate-12 tracking-wider border border-white/20">AGOTADO</span></div>)}
+                                                </div>
+                                                <h4 className={`font-bold text-sm leading-tight mb-1 line-clamp-2 ${esAgotado ? 'text-gray-400' : 'text-gray-800'}`}>{prod.nombre}</h4>
+                                                <span className={`font-bold ${esAgotado ? 'text-gray-400 line-through' : 'text-orange-600'}`}>${prod.precio}</span>
+                                                {!esAgotado && esPocoStock && (<p className="text-[9px] text-red-500 font-bold mt-1 animate-pulse flex items-center justify-center gap-1"><Box size={10}/> ¡Quedan {stock}!</p>)}
+                                                {!esAgotado && (<div className="absolute top-2 right-2 bg-orange-100 text-orange-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><PlusCircle size={14} /></div>)}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) 
+                    })}
+                    {productosFiltrados.length === 0 && (<div className="text-center py-12 opacity-60"><Search size={40} className="mx-auto mb-3 text-gray-300"/><p className="text-gray-500 font-medium">No se encontró "{busqueda}".</p><button onClick={() => {setBusqueda(''); setCategoriaFiltro('Todas');}} className="mt-2 text-orange-600 text-xs font-bold hover:underline">Ver todo</button></div>)}
                 </div>
             </div>
 
-            {/* MODAL DE CONFIRMACIÓN DE PAGO (CORREGIDO) */}
-            <ModalConfirmacion 
-                isOpen={confirmacionPagoOpen}
-                onClose={() => setConfirmacionPagoOpen(false)}
-                onConfirm={() => { onPagarCuenta(sesion); setConfirmacionPagoOpen(false); }}
-                titulo="¿Confirmar Cobro?"
-                mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`}
-                tipo="pago" // <--- ESTO ACTIVA EL ESTILO VERDE Y EL ÍCONO DE DINERO
-            />
+            {/* LADO DERECHO: CUENTA / TICKET */}
+            <div className="w-96 bg-white shadow-2xl flex flex-col h-full border-l border-gray-200">
+                <div className="p-6 bg-gray-900 text-white">
+                    <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold">Comanda</h3><p className="text-gray-400 text-xs font-mono">{sesion.id}</p></div><Receipt className="text-orange-400" /></div>
+                    <div className="bg-gray-800 p-2 rounded text-xs mb-2"><p className="text-gray-300">Cliente: <span className="text-white font-bold">{nombreCliente}</span></p>{sesion.telefono && <p className="text-gray-300">Tel: <span className="text-white">{sesion.telefono}</span></p>}</div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {(!sesion.cuenta || sesion.cuenta.length === 0) ? (<div className="text-center text-gray-400 py-10 italic">Cuenta vacía.<br />Selecciona productos.</div>) : (sesion.cuenta.map((item, idx) => { const cantidad = item.cantidad || 1; const subtotalItem = item.precio * cantidad; return (<div key={idx} className="flex justify-between items-start border-b border-gray-100 pb-3 last:border-0"><div className="flex-1 pr-2"><div className="flex items-center gap-2"><p className="font-bold text-gray-800 text-sm">{item.nombre}</p><button onClick={() => onActualizarProducto(sesion.id, item.id, -1)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded-full transition" title="Restar cantidad"><MinusCircle size={16}/></button></div><p className="text-xs text-gray-500">{item.categoria}</p></div><div className="text-right whitespace-nowrap">{cantidad > 1 ? (<><p className="font-bold text-gray-900 text-base">${subtotalItem.toFixed(2)}</p><p className="text-xs text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded inline-block mt-0.5">${item.precio} x {cantidad}</p></>) : (<p className="font-bold text-gray-700">${item.precio}</p>)}</div></div>); }))}
+                </div>
+                <div className="p-6 bg-gray-50 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-4"><span className="text-lg font-bold text-gray-600">Total</span><span className="text-3xl font-bold text-gray-900">${sesion.total || 0}</span></div>
+                    <div className="bg-white p-3 rounded-xl border border-gray-200 mb-4 shadow-sm"><label className="text-xs font-bold text-gray-400 uppercase mb-2 block flex items-center gap-1"><Calculator size={12}/> Calculadora de Cambio</label><div className="flex gap-3 items-center"><div className="flex-1"><input type="number" placeholder="Recibido..." className="w-full p-2 border rounded-lg font-bold text-gray-700 text-sm focus:border-orange-500 focus:outline-none" value={montoRecibido} onChange={e => setMontoRecibido(e.target.value)} /></div><div className="flex-1 text-right"><p className="text-[10px] text-gray-400 uppercase font-bold">Cambio a dar</p><p className={`text-xl font-bold ${cambio < 0 ? 'text-red-400' : 'text-green-600'}`}>${montoRecibido ? cambio.toFixed(2) : '0.00'}</p></div></div></div>
+                    <div className="flex flex-col gap-2"><button onClick={handleImprimir} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold flex justify-center items-center gap-2 transition"><Printer size={20} /> Imprimir Cuenta</button><button onClick={() => setConfirmacionPagoOpen(true)} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 ${!sesion.cuenta || sesion.cuenta.length === 0 ? 'bg-gray-300 text-gray-500' : 'bg-green-600 hover:bg-green-700 text-white'}`}><DollarSign size={20} /> Cerrar Cuenta y Pagar</button><button onClick={() => setConfirmacionCancelarOpen(true)} className="mt-2 text-xs font-bold text-red-400 hover:text-red-600 hover:underline flex justify-center items-center gap-1"><Trash2 size={12}/> Cancelar Cuenta</button></div>
+                </div>
+            </div>
 
-            {/* MODAL DE CONFIRMACIÓN DE CANCELACIÓN (MODIFICADO) */}
-            <ModalConfirmacion 
-                isOpen={confirmacionCancelarOpen}
-                onClose={() => setConfirmacionCancelarOpen(false)}
-                onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }}
-                titulo="¿Cancelar Cuenta?"
-                mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente."
+            <ModalConfirmacion isOpen={confirmacionPagoOpen} onClose={() => setConfirmacionPagoOpen(false)} onConfirm={() => { onPagarCuenta(sesion); setConfirmacionPagoOpen(false); }} titulo="¿Confirmar Cobro?" mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`} tipo="pago" />
+            <ModalConfirmacion isOpen={confirmacionCancelarOpen} onClose={() => setConfirmacionCancelarOpen(false)} onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }} titulo="¿Cancelar Cuenta?" mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
+            
+            {/* NUESTRO MODAL BONITO PARA EL EMPLEADO */}
+            <ModalAlertaStock 
+                isOpen={alertaStock.visible} 
+                onClose={() => setAlertaStock({ ...alertaStock, visible: false })} 
+                mensaje={alertaStock.mensaje} 
+                productoNombre={alertaStock.producto} 
             />
         </div>
     );
@@ -841,79 +961,127 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
 
     const mostrarNotificacion = (mensaje, tipo = 'exito') => { setNotificacion({ visible: true, mensaje, tipo }); setTimeout(() => setNotificacion(prev => ({ ...prev, visible: false })), 3000); };
 
+    // --- LÓGICA DE FILTRADO Y ORDENAMIENTO (A-Z) ---
     const productosFiltrados = useMemo(() => {
-        return productos.filter(p => {
+        const filtrados = productos.filter(p => {
             const cumpleBusqueda = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
             const cumpleCategoria = categoriaFiltro === 'Todas' || p.categoria === categoriaFiltro;
             return cumpleBusqueda && cumpleCategoria;
         });
+        // ORDENAR ALFABÉTICAMENTE
+        return filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [productos, busqueda, categoriaFiltro]);
 
     const handleGuardarWrapper = (prod) => { onGuardarProducto(prod); mostrarNotificacion(prod.id ? "Producto actualizado" : "Producto creado", "exito"); };
     const handleEliminarProductoWrapper = (id) => { if(window.confirm("¿Eliminar este producto permanentemente?")) { onEliminarProducto(id); } }
 
     return (
-        <div className="p-8 min-h-screen bg-gray-50">
+        <div className="p-4 md:p-8 min-h-screen bg-gray-50 pb-32">
             <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
             
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                 <div>
-                    <h2 className="text-4xl font-bold text-gray-800 flex items-center gap-3"><Coffee size={40} className="text-orange-600"/> Menú de Cafetería</h2>
-                    <p className="text-gray-500 mt-2">Gestiona tus productos, precios y categorías.</p>
+                    <h2 className="text-3xl md:text-4xl font-bold text-gray-800 flex items-center gap-3"><Coffee size={40} className="text-orange-600"/> Menú de Cafetería</h2>
+                    <p className="text-gray-500 mt-1">Gestiona tus productos, precios y categorías.</p>
                 </div>
                 
-                {/* --- BOTONES DE MENÚ ADAPTABLES --- */}
-                <div className="grid grid-cols-1 md:flex gap-3 w-full md:w-auto relative z-10">
-                    <button onClick={() => setModalCategoriasOpen(true)} className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95">
-                        <Settings size={20}/> Gestionar Categorías
+                <div className="grid grid-cols-1 sm:flex gap-3 w-full md:w-auto relative z-10">
+                    <button onClick={() => setModalCategoriasOpen(true)} className="bg-gray-800 hover:bg-gray-900 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 text-sm">
+                        <Settings size={18}/> Categorías
                     </button>
-                    <button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95">
-                        <PlusCircle size={20}/> Nuevo Producto
+                    <button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 text-sm">
+                        <PlusCircle size={18}/> Nuevo Producto
                     </button>
                 </div>
-                {/* ---------------------------------- */}
-
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-8 flex flex-col md:flex-row gap-4 relative z-0"><div className="relative flex-1"><Search size={20} className="absolute left-3 top-3.5 text-gray-400" /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:border-orange-500 focus:ring-0 transition-all" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></div><div className="relative md:w-64"><Filter size={20} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" /><select className="w-full pl-10 pr-10 py-3 border-2 border-gray-100 rounded-xl focus:border-orange-500 focus:ring-0 transition-all appearance-none bg-white font-medium text-gray-700 cursor-pointer" value={categoriaFiltro} onChange={e => setCategoriaFiltro(e.target.value)}><option value="Todas">Todas las Categorías</option>{categoriasOrdenadas.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select><ChevronRight size={20} className="absolute right-3 top-3.5 text-gray-400 rotate-90 pointer-events-none" /></div></div>
+            {/* --- SECCIÓN BUSCADOR Y FILTROS (STICKY) --- */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-8 sticky top-2 z-20">
+                {/* 1. Barra de Búsqueda */}
+                <div className="relative mb-4">
+                    <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+                    <input 
+                        type="text" 
+                        placeholder="Buscar producto para editar..." 
+                        className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all outline-none"
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                    />
+                    {busqueda && (
+                        <button onClick={() => setBusqueda('')} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                            <X size={18} />
+                        </button>
+                    )}
+                </div>
+
+                {/* 2. Filtro de Categorías (Carrusel) */}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button 
+                        onClick={() => setCategoriaFiltro('Todas')}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:bg-gray-50'}`}
+                    >
+                        Todas
+                    </button>
+                    {categoriasOrdenadas.map(cat => (
+                        <button 
+                            key={cat}
+                            onClick={() => setCategoriaFiltro(cat)}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:bg-orange-50'}`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            </div>
             
-            {/* CARRUSEL HORIZONTAL DE PRODUCTOS */}
+            {/* CARRUSEL/GRID DE PRODUCTOS */}
             <div className="space-y-8 relative z-0">
                 {categoriasOrdenadas.map(categoria => {
+                    // Si hay filtro activo y no es esta categoría, saltar
+                    if (categoriaFiltro !== 'Todas' && categoriaFiltro !== categoria) return null;
+
                     const productosCat = productosFiltrados.filter(p => p.categoria === categoria);
-                    if (productosCat.length === 0 && categoriaFiltro !== 'Todas' && categoriaFiltro !== categoria) return null;
-                    if (productosCat.length === 0 && busqueda) return null;
+                    if (productosCat.length === 0) return null;
 
                     return (
-                        <section key={categoria} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
-                            <div className="flex items-center justify-between mb-6 border-b pb-4">
-                                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                                    <Tag size={24} className="text-orange-500"/> {categoria}
-                                    <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{productosCat.length}</span>
+                        <section key={categoria} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
+                            <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Tag size={20} className="text-orange-500"/> {categoria}
+                                    <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{productosCat.length}</span>
                                 </h3>
-                                <button onClick={() => setModalCategoriasOpen(true)} className="text-gray-400 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition" title="Editar Categoría"><Edit size={18}/></button>
+                                <button onClick={() => setModalCategoriasOpen(true)} className="text-gray-400 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition" title="Editar Categoría"><Edit size={16}/></button>
                             </div>
                             
-                            {productosCat.length > 0 ? (
-                                // CONTENEDOR FLEX CON SCROLL HORIZONTAL
-                                <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                                    {productosCat.map(producto => (
-                                        // WRAPPER CON SHRINK-0 PARA QUE NO SE ENCOJA
-                                        <div key={producto.id} className="relative group shrink-0">
-                                            <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
-                                            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={(e) => { e.stopPropagation(); setProductoAEditar(producto); setModalProductoOpen(true); }} className="p-2 bg-white text-blue-600 rounded-full shadow-sm hover:bg-blue-50 border border-gray-200" title="Editar"><Edit size={16} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-sm hover:bg-red-50 border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
-                                            </div>
+                            {/* --- LAYOUT HÍBRIDO (Igual que en Cliente) --- */}
+                            <div className="flex gap-4 overflow-x-auto pb-4 snap-x lg:grid lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:pb-0 lg:overflow-visible no-scrollbar">
+                                {productosCat.map(producto => (
+                                    <div 
+                                        key={producto.id} 
+                                        className="relative group shrink-0 min-w-[85%] sm:min-w-[45%] lg:min-w-0 snap-center"
+                                    >
+                                        <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
+                                        
+                                        {/* Botones de acción flotantes (Solo visibles en hover o siempre visibles en móvil si prefieres) */}
+                                        <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={(e) => { e.stopPropagation(); setProductoAEditar(producto); setModalProductoOpen(true); }} className="p-2 bg-white text-blue-600 rounded-full shadow-sm hover:bg-blue-50 border border-gray-200" title="Editar"><Edit size={16} /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-sm hover:bg-red-50 border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
                                         </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-gray-400 text-center py-8 italic bg-gray-50 rounded-xl border border-dashed">No hay productos en esta categoría que coincidan con la búsqueda.</p>
-                            )}
+                                    </div>
+                                ))}
+                            </div>
                         </section>
                     );
                 })}
+
+                {/* Mensaje si no hay resultados */}
+                {productosFiltrados.length === 0 && (
+                    <div className="text-center py-12 opacity-60 bg-white rounded-2xl border border-dashed border-gray-200">
+                        <Search size={48} className="mx-auto mb-3 text-gray-300"/>
+                        <p className="text-gray-500 font-medium">No encontramos productos con "{busqueda}".</p>
+                        <button onClick={() => {setBusqueda(''); setCategoriaFiltro('Todas');}} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Limpiar filtros</button>
+                    </div>
+                )}
             </div>
 
             <ModalProducto isOpen={modalProductoOpen} onClose={() => { setModalProductoOpen(false); setProductoAEditar(null); }} producto={productoAEditar} onGuardar={handleGuardarWrapper} onEliminar={onEliminarProducto} categoriasDisponibles={categoriasOrdenadas} />

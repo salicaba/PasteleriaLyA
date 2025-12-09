@@ -12,7 +12,8 @@ import { VistaLogin } from './components/Login';
 
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from './firebase';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, writeBatch } from 'firebase/firestore';
+// AGREGADO 'increment' A LAS IMPORTACIONES
+import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, writeBatch, increment } from 'firebase/firestore';
 
 // --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
 const TextoCargandoAnimado = () => {
@@ -376,6 +377,29 @@ export default function PasteleriaApp() {
   };
   
   const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
+    // --- 1. DESCONTAR STOCK (LÓGICA NUEVA) ---
+    const batch = writeBatch(db);
+    let hayProductosConStock = false;
+
+    carrito.forEach(item => {
+        if (item.controlarStock && item.id) {
+            const productoRef = doc(db, "productos", item.id);
+            // Restamos la cantidad comprada al stock actual de forma atómica
+            batch.update(productoRef, { stock: increment(-item.cantidad) });
+            hayProductosConStock = true;
+        }
+    });
+
+    if (hayProductosConStock) {
+        try {
+            await batch.commit();
+            console.log("Stock actualizado");
+        } catch (e) {
+            console.error("Error al actualizar stock:", e);
+        }
+    }
+    // -----------------------------------------
+
     if (idMesa === ID_QR_LLEVAR) {
         const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
         if (sesionExistente) {

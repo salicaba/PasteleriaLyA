@@ -2,11 +2,50 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
-    LogOut, UserCheck, Info 
+    LogOut, UserCheck, Info, Box, X, Search, Filter
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS } from '../utils/config';
 
-// COMPONENTE: PANTALLA INICIAL (LOGIN)
+// --- NUEVO COMPONENTE: MODAL DE ALERTA "BONITO" (ESTILO CAFETERÍA) ---
+const ModalAlertaStock = ({ isOpen, onClose, mensaje, productoNombre, stock }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[300] flex items-center justify-center p-6 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-bounce-in border-4 border-orange-100">
+                <div className="bg-orange-50 p-6 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border-2 border-orange-100 animate-pulse">
+                        <Coffee size={40} className="text-orange-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">¡Lo sentimos!</h3>
+                    <p className="text-sm text-orange-600 font-medium uppercase tracking-wide">{productoNombre}</p>
+                </div>
+                
+                <div className="p-6 text-center">
+                    <p className="text-gray-600 mb-6 text-sm leading-relaxed">
+                        {mensaje}
+                    </p>
+                    
+                    {stock !== null && stock !== undefined && (
+                        <div className="bg-gray-50 rounded-xl p-3 mb-6 border border-gray-100">
+                            <p className="text-xs text-gray-400 uppercase font-bold mb-1">Disponibles ahora</p>
+                            <p className="text-2xl font-bold text-gray-800">{stock}</p>
+                        </div>
+                    )}
+
+                    <button 
+                        onClick={onClose} 
+                        className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold shadow-lg transition-transform transform active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        Entendido <CheckCircle size={18}/>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ... (El componente PantallaLogin se queda IGUAL) ...
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
@@ -132,7 +171,7 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     );
 };
 
-// COMPONENTE: CARRITO FLOTANTE
+// ... (El componente CarritoFlotante se queda IGUAL) ...
 const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) => {
     const [confirmando, setConfirmando] = useState(false);
     const total = cuenta.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
@@ -204,7 +243,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// COMPONENTE: RESUMEN DE CUENTA TOTAL
+// ... (El componente VistaMiCuentaTotal se queda IGUAL) ...
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
@@ -285,6 +324,11 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const [carrito, setCarrito] = useState([]);
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
+    const [alertaStock, setAlertaStock] = useState({ visible: false, mensaje: '', producto: '', stock: 0 });
+
+    // --- NUEVOS ESTADOS PARA BÚSQUEDA Y FILTROS ---
+    const [busqueda, setBusqueda] = useState('');
+    const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
 
     const esParaLlevar = useMemo(() => mesa?.nombre.toLowerCase().includes('llevar'), [mesa]);
     const miCuentaAcumulada = useMemo(() => {
@@ -292,186 +336,227 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
 
+    // --- LÓGICA DE FILTRADO DE PRODUCTOS ---
+    const productosFiltrados = useMemo(() => {
+        const filtrados = productos.filter(p => {
+            const matchNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
+            const matchCategoria = categoriaFiltro === 'Todas' || p.categoria === categoriaFiltro;
+            return matchNombre && matchCategoria;
+        });
+
+        // AGREGADO: Ordenar alfabéticamente por nombre (A-Z)
+        return filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        
+    }, [productos, busqueda, categoriaFiltro]);
+
+    // --- CATEGORÍAS DISPONIBLES EN BASE A LA BÚSQUEDA (Opcional, pero mejora UX) ---
+    // Si quieres que siempre salgan todas las categorías, usa ORDEN_CATEGORIAS directamente.
+    // Aquí usaremos ORDEN_CATEGORIAS para mantener el orden fijo.
+
     const agregarAlCarrito = (producto) => {
         setCarrito(prev => {
-            const existe = prev.find(item => item.id === producto.id);
-            if (existe) return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item);
+            const itemEnCarrito = prev.find(item => item.id === producto.id);
+            const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
+            const cantidadTotalDeseada = cantidadEnCarrito + 1;
+            if (producto.controlarStock) {
+                if (cantidadTotalDeseada > producto.stock) {
+                    setAlertaStock({ visible: true, mensaje: `Ya has agregado todos los disponibles. No podemos añadir más a tu pedido por el momento.`, producto: producto.nombre, stock: producto.stock });
+                    return prev;
+                }
+            }
+            if (itemEnCarrito) { return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item); }
             return [...prev, { ...producto, cantidad: 1, tempId: Date.now() }];
         });
     };
 
     const actualizarCantidad = (tempId, delta) => {
         setCarrito(prev => prev.map(item => {
-            if (item.tempId === tempId) return { ...item, cantidad: Math.max(1, item.cantidad + delta) };
+            if (item.tempId === tempId) {
+                const nuevaCantidad = item.cantidad + delta;
+                if (delta > 0 && item.controlarStock) {
+                    if (nuevaCantidad > item.stock) {
+                        setAlertaStock({ visible: true, mensaje: `Límite de existencias alcanzado para este producto.`, producto: item.nombre, stock: item.stock });
+                        return item;
+                    }
+                }
+                return { ...item, cantidad: Math.max(1, nuevaCantidad) };
+            }
             return item;
         }));
     };
 
-    const eliminarItem = (tempId) => {
-        setCarrito(prev => prev.filter(item => item.tempId !== tempId));
-    };
+    const eliminarItem = (tempId) => { setCarrito(prev => prev.filter(item => item.tempId !== tempId)); };
+    const confirmarPedido = () => { onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); setPedidoEnviado(true); setCarrito([]); };
+    const handleVerCuentaDirecta = (n, t) => { setNombreCliente(n); setTelefonoCliente(t); setViendoCuentaTotal(true); };
 
-    const confirmarPedido = () => {
-        onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente);
-        setPedidoEnviado(true);
-        setCarrito([]);
-    };
-
-    const handleVerCuentaDirecta = (n, t) => {
-        setNombreCliente(n);
-        setTelefonoCliente(t);
-        setViendoCuentaTotal(true);
-    };
-
-    if (!nombreCliente) {
-        return <PantallaLogin 
-            mesaNombre={mesa.nombre} 
-            onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} 
-            onVerCuentaDirecta={handleVerCuentaDirecta}
-            onSalir={onSalir}
-            cuentasActivas={mesa.cuentas}
-        />;
-    }
-
-    if (viendoCuentaTotal) {
-        return <VistaMiCuentaTotal cuentaAcumulada={miCuentaAcumulada} onVolver={() => { setViendoCuentaTotal(false); setPedidoEnviado(false); }} />;
-    }
-
-    if (pedidoEnviado) {
+    if (!nombreCliente) { return <PantallaLogin mesaNombre={mesa.nombre} onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} onVerCuentaDirecta={handleVerCuentaDirecta} onSalir={onSalir} cuentasActivas={mesa.cuentas} />; }
+    if (viendoCuentaTotal) { return <VistaMiCuentaTotal cuentaAcumulada={miCuentaAcumulada} onVolver={() => { setViendoCuentaTotal(false); setPedidoEnviado(false); }} />; }
+    if (pedidoEnviado) { 
         return (
             <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                    <CheckCircle size={60} className="text-green-600" />
-                </div>
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={60} className="text-green-600" /></div>
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Recibido!</h2>
                 <p className="text-gray-600 mb-6">Gracias <strong>{nombreCliente}</strong>.</p>
-                
                 {esParaLlevar ? (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left space-y-4">
-                        
-                        {/* 1. Preparando */}
-                        <div className="flex items-start gap-3">
-                            <ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/>
-                            <p className="text-sm text-gray-600">Estamos preparando tus alimentos para llevar.</p>
-                        </div>
-
-                        {/* 2. Pagar en caja */}
-                        <div className="flex items-start gap-3">
-                            <DollarSign className="text-green-600 mt-1 shrink-0" size={20}/>
-                            <p className="text-sm text-gray-600 font-bold">Por favor, acércate a caja para realizar tu pago y esperar tu entrega.</p>
-                        </div>
-
-                        {/* 3. Teléfono (Con nota de disponibilidad) */}
-                        {telefonoCliente && (
-                            <div className="flex items-start gap-3">
-                                <Phone className="text-green-600 mt-1 shrink-0" size={20}/>
-                                <div>
-                                    <p className="text-sm text-gray-600">
-                                        Te llamaremos al <strong>{telefonoCliente}</strong> cuando esté listo.
-                                    </p>
-                                    <p className="text-xs text-gray-400 italic mt-1">
-                                        (Solo si el personal se encuentra disponible para llamar).
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* 4. NUEVO MENSAJE: Recomendación de acercarse */}
-                        <div className="flex gap-3 items-start bg-green-50 p-3 rounded-lg border border-green-100">
-                            <Info className="text-green-700 shrink-0 mt-0.5" size={18} />
-                            <p className="text-xs text-green-800 font-medium leading-relaxed">
-                                Por preferencia, te recomendamos <strong>esperar cerca o acercarte a caja</strong> a preguntar por tu pedido para evitar demoras.
-                            </p>
-                        </div>
-
+                        <div className="flex items-start gap-3"><ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600">Estamos preparando tus alimentos para llevar.</p></div>
+                        <div className="flex items-start gap-3"><DollarSign className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600 font-bold">Por favor, acércate a caja para realizar tu pago y esperar tu entrega.</p></div>
+                        {telefonoCliente && (<div className="flex items-start gap-3"><Phone className="text-green-600 mt-1 shrink-0" size={20}/><div><p className="text-sm text-gray-600">Te llamaremos al <strong>{telefonoCliente}</strong> cuando esté listo.</p><p className="text-xs text-gray-400 italic mt-1">(Solo si el personal se encuentra disponible para llamar).</p></div></div>)}
+                        <div className="flex gap-3 items-start bg-green-50 p-3 rounded-lg border border-green-100"><Info className="text-green-700 shrink-0 mt-0.5" size={18} /><p className="text-xs text-green-800 font-medium leading-relaxed">Por preferencia, te recomendamos <strong>esperar cerca o acercarte a caja</strong> a preguntar por tu pedido para evitar demoras.</p></div>
                     </div>
                 ) : (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
-                        <div className="flex items-start gap-3 mb-4">
-                            <Coffee className="text-green-600 mt-1 shrink-0" size={20}/>
-                            <p className="text-sm text-gray-600">Tus alimentos llegarán pronto a tu mesa. ¡Disfruta!</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <Package className="text-orange-500 mt-1 shrink-0" size={20}/>
-                            <p className="text-sm text-gray-500 italic">
-                                ¿Deseas llevar algo a casa? Si necesitas empaquetar algún producto o pedir algo extra para llevar, por favor coméntalo a nuestro personal o en caja.
-                            </p>
-                        </div>
+                        <div className="flex items-start gap-3 mb-4"><Coffee className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600">Tus alimentos llegarán pronto a tu mesa. ¡Disfruta!</p></div>
+                        <div className="flex items-start gap-3"><Package className="text-orange-500 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-500 italic">¿Deseas llevar algo a casa? Si necesitas empaquetar algún producto o pedir algo extra para llevar, por favor coméntalo a nuestro personal o en caja.</p></div>
                     </div>
                 )}
-
-                <div className="flex flex-col gap-3 w-full max-w-xs">
-                    <button onClick={() => setPedidoEnviado(false)} className="bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-green-700 transition">
-                        Pedir más cosas
-                    </button>
-                    <button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2">
-                        <Receipt size={18}/> Ver mi Cuenta
-                    </button>
-                </div>
+                <div className="flex flex-col gap-3 w-full max-w-xs"><button onClick={() => setPedidoEnviado(false)} className="bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-green-700 transition">Pedir más cosas</button><button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2"><Receipt size={18}/> Ver mi Cuenta</button></div>
             </div>
-        );
+        ); 
     }
 
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
-            <div className="bg-white p-4 sticky top-0 z-10 shadow-sm flex justify-between items-center">
+            {/* HEADER FIJO */}
+            <div className="bg-white p-4 sticky top-0 z-20 shadow-sm flex justify-between items-center border-b border-gray-100">
                 <div>
                     <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
                     <p className="text-xs text-gray-500">Hola, <span className="font-bold text-orange-600">{nombreCliente}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {miCuentaAcumulada && (
-                        <button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100">
-                            <DollarSign size={14}/> {miCuentaAcumulada.total}
-                        </button>
-                    )}
+                    {miCuentaAcumulada && (<button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100"><DollarSign size={14}/> {miCuentaAcumulada.total}</button>)}
                     <button onClick={onSalir} className="text-xs bg-gray-100 p-2 rounded text-gray-500">Salir</button>
                 </div>
             </div>
 
+            {/* --- SECCIÓN BUSCADOR Y FILTROS (STICKY) --- */}
+            <div className="bg-white/95 backdrop-blur-sm sticky top-[73px] z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
+                
+                {/* 1. Barra de Búsqueda */}
+                <div className="relative mb-3">
+                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                    <input 
+                        type="text" 
+                        placeholder="¿Qué se te antoja hoy?" 
+                        className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400"
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                    />
+                    {busqueda && (
+                        <button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+
+                {/* 2. Filtro de Categorías (Carrusel) */}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button 
+                        onClick={() => setCategoriaFiltro('Todas')}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
+                    >
+                        Todas
+                    </button>
+                    {ORDEN_CATEGORIAS.map(cat => (
+                        <button 
+                            key={cat}
+                            onClick={() => setCategoriaFiltro(cat)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* --- LISTA DE PRODUCTOS --- */}
             <div className="p-4">
+                {/* Renderizar categorías filtradas */}
                 {ORDEN_CATEGORIAS.map(cat => {
-                    const prods = productos.filter(p => p.categoria === cat);
+                    if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null;
+                    const prods = productosFiltrados.filter(p => p.categoria === cat);
                     if (prods.length === 0) return null;
+
                     return (
-                        <div key={cat} className="mb-6">
-                            <h3 className="font-bold text-lg text-gray-800 mb-3">{cat}</h3>
-                            <div className="grid grid-cols-1 gap-3">
-                                {prods.map(prod => (
-                                    <div key={prod.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-4">
-                                        <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-4xl shrink-0 overflow-hidden">
-                                            {prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? (
-                                                <img src={prod.imagen} className="w-full h-full object-contain" alt={prod.nombre}/>
-                                            ) : (
-                                                prod.imagen
-                                            )}
-                                        </div>
-                                        <div className="flex-1 flex flex-col justify-between">
-                                            <div>
-                                                <h4 className="font-bold text-gray-800">{prod.nombre}</h4>
-                                                <p className="text-xs text-gray-500 line-clamp-1">{prod.descripcion}</p>
+                        <div key={cat} className="mb-8 animate-fade-in-up">
+                            <h3 className="font-bold text-xl text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
+                                {cat} <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{prods.length}</span>
+                            </h3>
+                            
+                            {/* --- CAMBIO AQUÍ: CARRUSEL EN MÓVIL, GRID EN PC --- */}
+                            {/* flex: Pone los elementos en fila (necesario para el scroll) */}
+                            {/* overflow-x-auto: Permite deslizar a la derecha */}
+                            {/* snap-x: Hace que el scroll se "enganche" en cada producto */}
+                            {/* lg:grid...: En pantallas grandes, vuelve a ser Grid normal */}
+                            <div className="flex gap-4 overflow-x-auto pb-6 snap-x lg:grid lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:pb-0 lg:overflow-visible no-scrollbar">
+                                {prods.map(prod => {
+                                    const agotado = prod.controlarStock && prod.stock <= 0;
+                                    const pocoStock = prod.controlarStock && prod.stock > 0 && prod.stock <= 3;
+
+                                    return (
+                                        // --- AGREGADO min-w-[85%] o w-64 para que no se aplasten en el carrusel ---
+                                        <div 
+                                            key={prod.id} 
+                                            className={`
+                                                min-w-[85%] sm:min-w-[45%] lg:min-w-0  /* Ancho fijo en móvil para obligar al scroll */
+                                                snap-center                             /* Para que el scroll se detenga centrado */
+                                                bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-4 
+                                                ${agotado ? 'opacity-60 bg-gray-50' : 'hover:shadow-md hover:border-orange-200 transition-all'}
+                                            `}
+                                        >
+                                            <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-4xl shrink-0 overflow-hidden relative">
+                                                {prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? (
+                                                    <img src={prod.imagen} className={`w-full h-full object-cover ${agotado ? 'grayscale' : ''}`} alt={prod.nombre}/>
+                                                ) : (
+                                                    prod.imagen
+                                                )}
+                                                {agotado && (
+                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                                        <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg transform -rotate-12">AGOTADO</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex justify-between items-end mt-2">
-                                                <span className="font-bold text-orange-600">${prod.precio}</span>
-                                                <button onClick={() => agregarAlCarrito(prod)} className="bg-orange-100 text-orange-700 p-2 rounded-full hover:bg-orange-200 transition">
-                                                    <PlusCircle size={20}/>
-                                                </button>
+                                            <div className="flex-1 flex flex-col justify-between py-1">
+                                                <div>
+                                                    <h4 className="font-bold text-gray-800 leading-tight text-sm">{prod.nombre}</h4>
+                                                    <p className="text-xs text-gray-500 line-clamp-2 mt-1">{prod.descripcion}</p>
+                                                    {pocoStock && (
+                                                        <p className="text-[10px] text-orange-600 font-bold mt-1 flex items-center gap-1">
+                                                            <Box size={10}/> ¡Solo quedan {prod.stock}!
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="flex justify-between items-end mt-2">
+                                                    <span className="font-bold text-lg text-orange-600">${prod.precio}</span>
+                                                    <button 
+                                                        onClick={() => !agotado && agregarAlCarrito(prod)} 
+                                                        disabled={agotado}
+                                                        className={`p-2 rounded-full transition shadow-sm ${agotado ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white active:scale-95'}`}
+                                                    >
+                                                        <PlusCircle size={22}/>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     );
                 })}
+
+                {/* Mensaje si no hay resultados */}
+                {productosFiltrados.length === 0 && (
+                    <div className="text-center py-10 opacity-60">
+                        <Search size={48} className="mx-auto mb-3 text-gray-300"/>
+                        <p className="text-gray-500 font-medium">No encontramos productos con "{busqueda}".</p>
+                        <button onClick={() => {setBusqueda(''); setCategoriaFiltro('Todas');}} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Ver todo el menú</button>
+                    </div>
+                )}
             </div>
 
-            <CarritoFlotante 
-                cuenta={carrito} 
-                onUpdateCantidad={actualizarCantidad} 
-                onEliminar={eliminarItem} 
-                onConfirmar={confirmarPedido}
-            />
+            <CarritoFlotante cuenta={carrito} onUpdateCantidad={actualizarCantidad} onEliminar={eliminarItem} onConfirmar={confirmarPedido} />
+            <ModalAlertaStock isOpen={alertaStock.visible} onClose={() => setAlertaStock({...alertaStock, visible: false})} mensaje={alertaStock.mensaje} productoNombre={alertaStock.producto} stock={alertaStock.stock} />
         </div>
     );
 };

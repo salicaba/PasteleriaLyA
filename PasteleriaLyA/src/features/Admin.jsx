@@ -1,17 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar } from 'lucide-react'; // Agregué Calendar
+import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getFechaHoy } from '../utils/config';
+
+// --- NUEVA IMPORTACIÓN: RECHARTS PARA GRÁFICAS ---
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from '../firebase';
 import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
 
-// ... (El componente ModalDetalleCorte se queda igual, no es necesario cambiarlo) ...
-const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => { // Agregué fecha prop opcional para mostrar en título
+// ... (El componente ModalDetalleCorte se queda igual) ...
+const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
     if (!isOpen) return null;
 
-    // Configuración de colores dinámica
     const theme = {
         bgHeader: colorTheme === 'orange' ? 'bg-orange-50' : 'bg-pink-50',
         textHeader: colorTheme === 'orange' ? 'text-orange-900' : 'text-pink-900',
@@ -31,7 +33,6 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                         <h3 className={`font-bold text-xl ${theme.textHeader} flex items-center gap-2`}>
                             <Receipt size={20} className={theme.iconColor}/> {titulo}
                         </h3>
-                        {/* Mostramos la fecha del corte que se está viendo */}
                         <p className="text-xs opacity-70 font-medium">Movimientos del {formatearFechaLocal(fecha)}.</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 transition shadow-sm">
@@ -81,269 +82,104 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
     );
 };
 
+// ... (VistaInicioAdmin se queda igual con el selector de fecha y los colores) ...
 export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) => {
     const [cargando, setCargando] = useState(false);
     const [modalAbierto, setModalAbierto] = useState(null); 
-    
-    // 1. NUEVO ESTADO: Fecha seleccionada para el corte (Por defecto hoy)
     const [fechaCorte, setFechaCorte] = useState(getFechaHoy());
 
-    // --- DATOS Y CÁLCULOS (MODIFICADOS PARA USAR fechaCorte) ---
-
-    // 1. Pastelería: Datos detallados filtrados por fechaCorte
     const datosPasteleria = useMemo(() => {
-        // CAMBIO: Usamos fechaCorte en lugar de getFechaHoy() directo
         const filtrados = pedidos.filter(p => p.fecha === fechaCorte && p.estado !== 'Cancelado');
-        
         const items = filtrados.map(p => {
             const totalPedido = p.total || 0;
             const numPagos = parseInt(p.numPagos) || 1;
             const pagosRealizados = p.pagosRealizados || 0;
             const montoCobrado = (totalPedido / numPagos) * pagosRealizados;
-            
             let etiqueta = 'ABONO';
             if (numPagos === 1) etiqueta = 'CONTADO';
             else if (pagosRealizados === numPagos) etiqueta = 'LIQUIDACIÓN';
-
-            return {
-                id: p.id,
-                folio: p.folio,
-                descripcion: p.cliente,
-                monto: montoCobrado,
-                etiqueta: etiqueta,
-                original: p 
-            };
+            return { id: p.id, folio: p.folio, descripcion: p.cliente, monto: montoCobrado, etiqueta: etiqueta, original: p };
         }).filter(item => item.monto > 0); 
-
         const total = items.reduce((acc, item) => acc + item.monto, 0);
         return { items, total };
-    }, [pedidos, fechaCorte]); // Agregamos fechaCorte a dependencias
+    }, [pedidos, fechaCorte]);
 
-    // 2. Cafetería: Datos detallados filtrados por fechaCorte
     const datosCafeteria = useMemo(() => {
-        // CAMBIO: Usamos fechaCorte
         const filtrados = ventasCafeteria.filter(v => v.fecha === fechaCorte);
-        
-        const items = filtrados.map(v => ({
-            id: v.id,
-            folio: v.folioLocal,
-            descripcion: v.cliente,
-            monto: v.total || 0,
-            etiqueta: 'TICKET',
-            original: v
-        }));
+        const items = filtrados.map(v => ({ id: v.id, folio: v.folioLocal, descripcion: v.cliente, monto: v.total || 0, etiqueta: 'TICKET', original: v }));
         const total = items.reduce((acc, item) => acc + item.monto, 0);
         return { items, total };
-    }, [ventasCafeteria, fechaCorte]); // Agregamos fechaCorte a dependencias
+    }, [ventasCafeteria, fechaCorte]);
 
-
-    // --- FUNCIÓN PARA SUBIR DATOS INICIALES ---
     const subirDatosIniciales = async () => {
         if (!confirm("¿Subir productos y mesas iniciales a la base de datos?")) return;
         setCargando(true);
         try {
             const batch = writeBatch(db);
-            if (PRODUCTOS_CAFETERIA_INIT.length > 0) {
-                PRODUCTOS_CAFETERIA_INIT.forEach(prod => {
-                    const ref = doc(collection(db, "productos")); 
-                    batch.set(ref, prod);
-                });
-            }
-            if (MESAS_FISICAS_INIT.length > 0) {
-                MESAS_FISICAS_INIT.forEach(mesa => {
-                    const ref = doc(db, "mesas", mesa.id);
-                    batch.set(ref, mesa);
-                });
-            }
-            await batch.commit();
-            alert("¡Éxito! Datos subidos.");
-        } catch (error) {
-            console.error("Error:", error);
-            alert("Error: " + error.message);
-        }
+            if (PRODUCTOS_CAFETERIA_INIT.length > 0) { PRODUCTOS_CAFETERIA_INIT.forEach(prod => { const ref = doc(collection(db, "productos")); batch.set(ref, prod); }); }
+            if (MESAS_FISICAS_INIT.length > 0) { MESAS_FISICAS_INIT.forEach(mesa => { const ref = doc(db, "mesas", mesa.id); batch.set(ref, mesa); }); }
+            await batch.commit(); alert("¡Éxito! Datos subidos.");
+        } catch (error) { console.error("Error:", error); alert("Error: " + error.message); }
         setCargando(false);
     };
 
-    // --- FUNCIÓN PARA BORRAR TODO DE LA BD (RESET) ---
     const borrarBaseDatos = async () => {
         if (!confirm("⚠️ ¡PELIGRO! ⚠️\n\nEsto borrará TODOS los productos y mesas de la Base de Datos en la nube.\n¿Estás seguro?")) return;
         setCargando(true);
         try {
             const batch = writeBatch(db);
-            const prodSnapshot = await getDocs(collection(db, "productos"));
-            prodSnapshot.forEach((doc) => batch.delete(doc.ref));
-            const mesasSnapshot = await getDocs(collection(db, "mesas"));
-            mesasSnapshot.forEach((doc) => batch.delete(doc.ref));
-            await batch.commit();
-            alert("✅ Base de datos limpiada correctamente.");
-        } catch (error) {
-            console.error("Error borrando:", error);
-            alert("Error al borrar: " + error.message);
-        }
+            const prodSnapshot = await getDocs(collection(db, "productos")); prodSnapshot.forEach((doc) => batch.delete(doc.ref));
+            const mesasSnapshot = await getDocs(collection(db, "mesas")); mesasSnapshot.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit(); alert("✅ Base de datos limpiada correctamente.");
+        } catch (error) { console.error("Error borrando:", error); alert("Error al borrar: " + error.message); }
         setCargando(false);
     };
 
-    // Helper para saber si es hoy (para mostrar texto "HOY" en lugar de fecha)
     const esHoy = fechaCorte === getFechaHoy();
 
     return (
         <div className="p-4 md:p-8">
-            {/* HEADER CON SELECTOR DE FECHA */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
                 <div>
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General de Control</h2>
                     <p className="text-gray-500 text-sm mt-1">Resumen financiero y herramientas de base de datos.</p>
                 </div>
-                
                 <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto items-end md:items-center">
-                    
-                    {/* --- NUEVO: SELECTOR DE FECHA PARA EL CORTE --- */}
                     <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3">
-                        <div className="bg-gray-100 p-2 rounded-lg text-gray-500">
-                            <Calendar size={20} />
-                        </div>
-                        <div className="flex flex-col">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Fecha de Corte</label>
-                            <input 
-                                type="date" 
-                                value={fechaCorte}
-                                onChange={(e) => setFechaCorte(e.target.value)}
-                                className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer"
-                            />
-                        </div>
-                        { !esHoy && (
-                            <button 
-                                onClick={() => setFechaCorte(getFechaHoy())}
-                                className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition"
-                            >
-                                IR A HOY
-                            </button>
-                        )}
+                        <div className="bg-gray-100 p-2 rounded-lg text-gray-500"><Calendar size={20} /></div>
+                        <div className="flex flex-col"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Fecha de Corte</label><input type="date" value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer" /></div>
+                        { !esHoy && (<button onClick={() => setFechaCorte(getFechaHoy())} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition">IR A HOY</button>)}
                     </div>
-                    
                     <div className="h-8 w-px bg-gray-300 hidden md:block"></div>
-
-                    {/* BOTONES DE DB (MANTENIDOS) */}
                     <div className="flex gap-2">
-                        <button 
-                            onClick={subirDatosIniciales}
-                            disabled={cargando}
-                            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-300 transition"
-                        >
-                            {cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}
-                        </button>
-
-                        <button 
-                            onClick={borrarBaseDatos}
-                            disabled={cargando}
-                            className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"
-                        >
-                            <Trash2 size={16}/> Limpiar BD
-                        </button>
+                        <button onClick={subirDatosIniciales} disabled={cargando} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-300 transition">{cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}</button>
+                        <button onClick={borrarBaseDatos} disabled={cargando} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"><Trash2 size={16}/> Limpiar BD</button>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* TARJETA PASTELERÍA (CLICABLE) */}
-                <div 
-                    onClick={() => setModalAbierto('pasteleria')}
-                    className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1"
-                >
-                    <div className="absolute top-0 right-0 bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                        VER DETALLES
-                    </div>
-                    
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 className="text-xl font-bold text-pink-800 flex items-center gap-2">
-                                Área Pastelería
-                            </h3>
-                            <p className="text-pink-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                <Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}
-                            </p>
-                        </div>
-                        <div className="bg-pink-100 p-2 rounded-lg text-pink-600 group-hover:scale-110 transition-transform">
-                            <Wallet size={24} />
-                        </div>
-                    </div>
-                    
-                    <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl font-bold text-pink-700">${datosPasteleria.total.toFixed(2)}</span>
-                        <span className="text-sm text-pink-400 font-medium">recaudado</span>
-                    </div>
-
-                    <div className="border-t border-pink-100 pt-3 mt-2 flex justify-between items-center text-sm">
-                        <span className="text-gray-500">Movimientos / Pagos:</span>
-                        <span className="font-bold text-gray-700 bg-pink-50 px-2 py-0.5 rounded">
-                            {datosPasteleria.items.length}
-                        </span>
-                    </div>
+                <div onClick={() => setModalAbierto('pasteleria')} className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">VER DETALLES</div>
+                    <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-pink-800 flex items-center gap-2">Área Pastelería</h3><p className="text-pink-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1"><Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}</p></div><div className="bg-pink-100 p-2 rounded-lg text-pink-600 group-hover:scale-110 transition-transform"><Wallet size={24} /></div></div>
+                    <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-pink-700">${datosPasteleria.total.toFixed(2)}</span><span className="text-sm text-pink-400 font-medium">recaudado</span></div>
+                    <div className="border-t border-pink-100 pt-3 mt-2 flex justify-between items-center text-sm"><span className="text-gray-500">Movimientos / Pagos:</span><span className="font-bold text-gray-700 bg-pink-50 px-2 py-0.5 rounded">{datosPasteleria.items.length}</span></div>
                 </div>
-
-                {/* TARJETA CAFETERÍA (CLICABLE) */}
-                <div 
-                    onClick={() => setModalAbierto('cafeteria')}
-                    className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1"
-                >
-                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                        VER DETALLES
-                    </div>
-
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 className="text-xl font-bold text-orange-800 flex items-center gap-2">
-                                Área Cafetería
-                            </h3>
-                            <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
-                                <Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}
-                            </p>
-                        </div>
-                        <div className="bg-orange-100 p-2 rounded-lg text-orange-600 group-hover:scale-110 transition-transform">
-                            <Coffee size={24} />
-                        </div>
-                    </div>
-
-                    <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl font-bold text-orange-700">${datosCafeteria.total.toFixed(2)}</span>
-                        <span className="text-sm text-orange-400 font-medium">recaudado</span>
-                    </div>
-
-                    <div className="border-t border-orange-100 pt-3 mt-2 flex justify-between items-center text-sm">
-                        <span className="text-gray-500">Tickets cobrados:</span>
-                        <span className="font-bold text-gray-700 bg-orange-50 px-2 py-0.5 rounded">
-                            {datosCafeteria.items.length}
-                        </span>
-                    </div>
+                <div onClick={() => setModalAbierto('cafeteria')} className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
+                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">VER DETALLES</div>
+                    <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-orange-800 flex items-center gap-2">Área Cafetería</h3><p className="text-orange-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1"><Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}</p></div><div className="bg-orange-100 p-2 rounded-lg text-orange-600 group-hover:scale-110 transition-transform"><Coffee size={24} /></div></div>
+                    <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-orange-700">${datosCafeteria.total.toFixed(2)}</span><span className="text-sm text-orange-400 font-medium">recaudado</span></div>
+                    <div className="border-t border-orange-100 pt-3 mt-2 flex justify-between items-center text-sm"><span className="text-gray-500">Tickets cobrados:</span><span className="font-bold text-gray-700 bg-orange-50 px-2 py-0.5 rounded">{datosCafeteria.items.length}</span></div>
                 </div>
             </div>
 
-            {/* MODALES DETALLE CON CLIC HABILITADO Y FECHA */}
-            <ModalDetalleCorte 
-                isOpen={modalAbierto === 'pasteleria'}
-                onClose={() => setModalAbierto(null)}
-                titulo={`Corte Pastelería`}
-                items={datosPasteleria.items}
-                total={datosPasteleria.total}
-                colorTheme="pink"
-                onItemClick={onVerDetalles} 
-                fecha={fechaCorte}
-            />
-
-            <ModalDetalleCorte 
-                isOpen={modalAbierto === 'cafeteria'}
-                onClose={() => setModalAbierto(null)}
-                titulo={`Corte Cafetería`}
-                items={datosCafeteria.items}
-                total={datosCafeteria.total}
-                colorTheme="orange"
-                onItemClick={onVerDetalles} 
-                fecha={fechaCorte}
-            />
+            <ModalDetalleCorte isOpen={modalAbierto === 'pasteleria'} onClose={() => setModalAbierto(null)} titulo={`Corte Pastelería`} items={datosPasteleria.items} total={datosPasteleria.total} colorTheme="pink" onItemClick={onVerDetalles} fecha={fechaCorte} />
+            <ModalDetalleCorte isOpen={modalAbierto === 'cafeteria'} onClose={() => setModalAbierto(null)} titulo={`Corte Cafetería`} items={datosCafeteria.items} total={datosCafeteria.total} colorTheme="orange" onItemClick={onVerDetalles} fecha={fechaCorte} />
         </div>
     );
 };
 
+// --- VISTA REPORTE UNIVERSAL CON RECHARTS ---
 export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo, onAbrirModalDia }) => {
     const [mesSeleccionado, setMesSeleccionado] = useState('2025-12');
     const [rangoInicio, setRangoInicio] = useState('');
@@ -375,31 +211,37 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
 
         let totalPasteleria = 0, totalCafeteria = 0;
         let desglose = [];
+        // Si no es rango personalizado, mostramos todos los días del mes
+        // Si es rango, deberíamos generar los días del rango (por simplicidad, si es mes completo usamos diasEnMes)
         const diasEnMes = new Date(anio, mes + 1, 0).getDate();
 
+        // Inicializar desglose con 0
         for (let i = 1; i <= diasEnMes; i++) {
-            desglose.push({ label: `${i}`, valorP: 0, valorC: 0 });
+            desglose.push({ label: `${i}`, valorP: 0, valorC: 0, fechaFull: `${anio}-${String(mes + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}` });
         }
 
         datosFiltrados.forEach(p => {
             const [y, m, d] = p.fecha.split('-').map(Number);
+            
             if (p.origen === 'Pastelería') totalPasteleria += p.total;
             else totalCafeteria += p.total;
 
+            // Solo sumar al desglose si estamos viendo el mes correcto (o si manejamos rangos, habría que ajustar esto)
+            // Por ahora, la lógica visual asume vista mensual para las barras
             if (y === anio && m === (mes + 1)) {
                 if (p.origen === 'Pastelería') desglose[d-1].valorP += p.total;
                 else desglose[d-1].valorC += p.total;
             }
         });
 
-        const maxValor = Math.max(...desglose.map(d => d.valorP + d.valorC), 1);
+        // Filtrar días vacíos si es un rango muy grande? No, mejor mostrar todo el mes para ver "huecos"
+        // Opcional: Si se quisiera limpiar la gráfica
 
         return {
             totalPasteleria,
             totalCafeteria,
             totalGlobal: totalPasteleria + totalCafeteria,
             desglose,
-            maxValor,
             anio,
             mes,
             tituloPeriodo
@@ -407,6 +249,27 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
     }, [todosLosDatosCompletos, mesSeleccionado, rangoInicio, rangoFin]);
 
     const limpiarRango = () => { setRangoInicio(''); setRangoFin(''); };
+
+    // Formateador para el tooltip
+    const CustomTooltip = ({ active, payload, label }) => {
+        if (active && payload && payload.length) {
+            return (
+                <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg">
+                    <p className="font-bold text-gray-700 mb-1">Día {label}</p>
+                    {payload.map((entry, index) => (
+                        <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
+                            {entry.name}: ${entry.value.toFixed(2)}
+                        </p>
+                    ))}
+                    <div className="border-t pt-1 mt-1">
+                        <p className="font-bold text-gray-800 text-sm">Total: ${(payload.reduce((acc, curr) => acc + curr.value, 0)).toFixed(2)}</p>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1 italic">Click para ver detalles</p>
+                </div>
+            );
+        }
+        return null;
+    };
 
     return (
         <div className="p-4 md:p-8">
@@ -435,281 +298,90 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-                {modo !== 'cafeteria' && <CardStat titulo="Total Pastelería" valor={`$${datosReporte.totalPasteleria}`} color="bg-pink-100 text-pink-800" />}
-                {modo !== 'pasteleria' && <CardStat titulo="Total Cafetería" valor={`$${datosReporte.totalCafeteria}`} color="bg-orange-100 text-orange-800" />}
-                {modo === 'admin' && <CardStat titulo="Gran Total" valor={`$${datosReporte.totalGlobal}`} color="bg-green-100 text-green-800" />}
+                {modo !== 'cafeteria' && <CardStat titulo="Total Pastelería" valor={`$${datosReporte.totalPasteleria.toFixed(2)}`} color="bg-pink-100 text-pink-800" />}
+                {modo !== 'pasteleria' && <CardStat titulo="Total Cafetería" valor={`$${datosReporte.totalCafeteria.toFixed(2)}`} color="bg-orange-100 text-orange-800" />}
+                {modo === 'admin' && <CardStat titulo="Gran Total" valor={`$${datosReporte.totalGlobal.toFixed(2)}`} color="bg-green-100 text-green-800" />}
             </div>
 
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center mb-6">
+            {/* --- GRÁFICA CON RECHARTS --- */}
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 h-[500px] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-gray-700 flex items-center gap-2 capitalize text-sm md:text-base"><BarChart3 size={20} /> {datosReporte.tituloPeriodo}</h3>
                 </div>
-                <div className="overflow-x-auto pb-2">
-                    <div className="h-64 flex items-end justify-between gap-1 px-2 min-w-[600px] md:min-w-0">
-                        {datosReporte.desglose.map((item, i) => {
-                            const tieneDatos = item.valorP > 0 || item.valorC > 0;
-                            return (
-                                <div key={i} className={`flex flex-col items-center justify-end h-full flex-1 group relative ${tieneDatos ? 'cursor-pointer' : ''}`} onClick={() => { if (tieneDatos) { onAbrirModalDia(item.label, datosReporte.mes, datosReporte.anio, todosLosDatosCompletos); } }}>
-                                    <div className="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 bg-gray-800 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap z-10 shadow-lg transition-opacity">Día {item.label}: ${item.valorP + item.valorC}</div>
-                                    <div className={`w-full max-w-[30px] flex flex-col justify-end h-full rounded-t overflow-hidden ${tieneDatos ? 'bg-gray-50 hover:bg-gray-100' : 'bg-transparent'}`}>
-                                        {(modo === 'admin' || modo === 'pasteleria') && <div className="bg-pink-500 w-full transition-all duration-500" style={{ height: `${(item.valorP / datosReporte.maxValor) * 100}%` }}></div>}
-                                        {(modo === 'admin' || modo === 'cafeteria') && <div className="bg-orange-500 w-full transition-all duration-500" style={{ height: `${(item.valorC / datosReporte.maxValor) * 100}%` }}></div>}
-                                    </div>
-                                    <span className="mt-2 text-[10px] text-gray-400 font-medium">{item.label}</span>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// --- MODAL PARA CREAR/EDITAR USUARIO (CON LÓGICA MINÚSCULAS) ---
-const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
-    const [form, setForm] = useState({ nombre: '', usuario: '', password: '', rol: 'empleado' });
-
-    useEffect(() => {
-        if (usuarioAEditar) {
-            setForm(usuarioAEditar);
-        } else {
-            setForm({ nombre: '', usuario: '', password: '', rol: 'empleado' });
-        }
-    }, [usuarioAEditar, isOpen]);
-
-    // --- LÓGICA DE SUGERENCIA AUTOMÁTICA ---
-    const generarCredenciales = () => {
-        // Solo generar si hay nombre y el usuario está vacío (para no sobrescribir si ya escribió)
-        if (!form.nombre.trim()) return;
-
-        // Limpiar acentos y espacios
-        const limpiarTexto = (texto) => {
-            return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
-        };
-
-        const partes = form.nombre.trim().split(/\s+/);
-        const nombre1 = partes[0] ? limpiarTexto(partes[0]) : "";
-        const apellido = partes.length > 1 ? limpiarTexto(partes[1]) : "";
-
-        // 1. Generar Usuario Sugerido: nombre.apellido@lya.com (MINÚSCULAS)
-        if (!form.usuario) {
-            let usuarioBase = nombre1;
-            if (apellido) usuarioBase += `.${apellido}`;
-            // AQUÍ FORZAMOS MINÚSCULAS PARA LA SUGERENCIA
-            const usuarioSugerido = `${usuarioBase.toLowerCase()}@lya.com`;
-            
-            setForm(prev => ({ ...prev, usuario: usuarioSugerido }));
-        }
-
-        // 2. Generar Contraseña Sugerida (Random 4 dígitos)
-        if (!form.password) {
-            const random = Math.floor(1000 + Math.random() * 9000);
-            const passSugerida = `LyA.${random}`;
-            setForm(prev => ({ ...prev, password: passSugerida }));
-        }
-    };
-
-    if (!isOpen) return null;
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        
-        // Asegurar que el usuario tenga el dominio correcto y esté limpio
-        let usuarioFinal = form.usuario.trim();
-        if (!usuarioFinal.endsWith('@lya.com')) {
-            if (!usuarioFinal.includes('@')) {
-                usuarioFinal += '@lya.com';
-            }
-        }
-
-        onGuardar({ ...form, usuario: usuarioFinal });
-        onClose();
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[250] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up border-t-8 border-gray-900">
-                <div className="bg-gray-50 p-6 flex justify-between items-center border-b border-gray-100">
-                    <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
-                        {usuarioAEditar ? <Edit size={20} className="text-pink-600"/> : <UserPlus size={20} className="text-pink-600"/>} 
-                        {usuarioAEditar ? 'Editar Usuario' : 'Nuevo Usuario'}
-                    </h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition"><X size={20}/></button>
-                </div>
                 
-                <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                    {/* NOMBRE COMPLETO CON AUTO-UPPERCASE Y SUGERENCIAS */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre y Primer Apellido</label>
-                        <input 
-                            required 
-                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none transition-colors uppercase font-bold text-gray-700"
-                            value={form.nombre} 
-                            onChange={e => setForm({...form, nombre: e.target.value.toUpperCase()})} 
-                            onBlur={generarCredenciales} 
-                            placeholder="EJ. JUAN PÉREZ" 
-                        />
-                        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                            <Sparkles size={10} className="text-yellow-500"/> Se generarán credenciales automáticamente
-                        </p>
-                    </div>
-
-                    {/* USUARIO Y CONTRASEÑA */}
-                    <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Usuario (Login)</label>
-                            <input 
-                                required 
-                                className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" 
-                                value={form.usuario} 
-                                onChange={e => setForm({...form, usuario: e.target.value})} 
-                                placeholder="juan.perez@lya.com" 
+                <div className="flex-1 w-full min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                            data={datosReporte.desglose}
+                            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                            onClick={(data) => {
+                                // DETECTAR CLIC EN BARRA
+                                if (data && data.activePayload && data.activePayload.length > 0) {
+                                    const dia = data.activePayload[0].payload.label;
+                                    onAbrirModalDia(dia, datosReporte.mes, datosReporte.anio, todosLosDatosCompletos);
+                                }
+                            }}
+                            className="cursor-pointer"
+                        >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb"/>
+                            <XAxis 
+                                dataKey="label" 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{ fill: '#9ca3af', fontSize: 12 }} 
+                                dy={10}
                             />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Contraseña</label>
-                            <input 
-                                required 
-                                type="text" 
-                                className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" 
-                                value={form.password} 
-                                onChange={e => setForm({...form, password: e.target.value})} 
-                                placeholder="Generada..." 
+                            <YAxis 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                tickFormatter={(value) => `$${value}`}
                             />
-                        </div>
-                    </div>
-
-                    {/* ROL */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Asignar Rol</label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button type="button" onClick={() => setForm({...form, rol: 'admin'})} className={`p-3 rounded-xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${form.rol === 'admin' ? 'bg-pink-50 border-pink-500 text-pink-700' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}>
-                                <Shield size={20}/> Admin
-                            </button>
-                            <button type="button" onClick={() => setForm({...form, rol: 'empleado'})} className={`p-3 rounded-xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${form.rol === 'empleado' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}>
-                                <Briefcase size={20}/> Empleado
-                            </button>
-                        </div>
-                    </div>
-
-                    <button type="submit" className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 flex justify-center items-center gap-2">
-                        <Check size={20}/> {usuarioAEditar ? 'Guardar Cambios' : 'Crear Usuario'}
-                    </button>
-                </form>
+                            <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
+                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                            
+                            {/* BARRAS APILADAS PARA ADMIN, INDIVIDUALES PARA RESTO */}
+                            {(modo === 'admin' || modo === 'pasteleria') && (
+                                <Bar 
+                                    dataKey="valorP" 
+                                    name="Pastelería" 
+                                    stackId="a" 
+                                    fill="#ec4899" // Pink-500
+                                    radius={[4, 4, 0, 0]} 
+                                    maxBarSize={50}
+                                />
+                            )}
+                            {(modo === 'admin' || modo === 'cafeteria') && (
+                                <Bar 
+                                    dataKey="valorC" 
+                                    name="Cafetería" 
+                                    stackId="a" 
+                                    fill="#f97316" // Orange-500
+                                    radius={[4, 4, 0, 0]} 
+                                    maxBarSize={50}
+                                />
+                            )}
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-gray-400 text-center mt-2 italic">Haz clic en una barra para ver el detalle del día.</p>
             </div>
         </div>
     );
 };
 
-// --- VISTA GESTIÓN USUARIOS ---
+// ... (ModalUsuario y VistaGestionUsuarios se mantienen igual) ...
+const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
+    // ... (Mismo código de ModalUsuario que tenías antes) ...
+    const [form, setForm] = useState({ nombre: '', usuario: '', password: '', rol: 'empleado' });
+    useEffect(() => { if (usuarioAEditar) { setForm(usuarioAEditar); } else { setForm({ nombre: '', usuario: '', password: '', rol: 'empleado' }); } }, [usuarioAEditar, isOpen]);
+    const generarCredenciales = () => { if (!form.nombre.trim()) return; const limpiarTexto = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, ""); const partes = form.nombre.trim().split(/\s+/); const nombre1 = partes[0] ? limpiarTexto(partes[0]) : ""; const apellido = partes.length > 1 ? limpiarTexto(partes[1]) : ""; if (!form.usuario) { let usuarioBase = nombre1; if (apellido) usuarioBase += `.${apellido}`; const usuarioSugerido = `${usuarioBase.toLowerCase()}@lya.com`; setForm(prev => ({ ...prev, usuario: usuarioSugerido })); } if (!form.password) { const random = Math.floor(1000 + Math.random() * 9000); const passSugerida = `LyA.${random}`; setForm(prev => ({ ...prev, password: passSugerida })); } };
+    if (!isOpen) return null;
+    const handleSubmit = (e) => { e.preventDefault(); let usuarioFinal = form.usuario.trim(); if (!usuarioFinal.endsWith('@lya.com')) { if (!usuarioFinal.includes('@')) { usuarioFinal += '@lya.com'; } } onGuardar({ ...form, usuario: usuarioFinal }); onClose(); };
+    return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-[250] flex items-center justify-center p-4 backdrop-blur-sm"> <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up border-t-8 border-gray-900"> <div className="bg-gray-50 p-6 flex justify-between items-center border-b border-gray-100"> <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"> {usuarioAEditar ? <Edit size={20} className="text-pink-600"/> : <UserPlus size={20} className="text-pink-600"/>} {usuarioAEditar ? 'Editar Usuario' : 'Nuevo Usuario'} </h3> <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition"><X size={20}/></button> </div> <form onSubmit={handleSubmit} className="p-6 space-y-5"> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre y Primer Apellido</label> <input required className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none transition-colors uppercase font-bold text-gray-700" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value.toUpperCase()})} onBlur={generarCredenciales} placeholder="EJ. JUAN PÉREZ" /> <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"> <Sparkles size={10} className="text-yellow-500"/> Se generarán credenciales automáticamente </p> </div> <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100"> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Usuario (Login)</label> <input required className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" value={form.usuario} onChange={e => setForm({...form, usuario: e.target.value})} placeholder="juan.perez@lya.com" /> </div> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Contraseña</label> <input required type="text" className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Generada..." /> </div> </div> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Asignar Rol</label> <div className="grid grid-cols-2 gap-3"> <button type="button" onClick={() => setForm({...form, rol: 'admin'})} className={`p-3 rounded-xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${form.rol === 'admin' ? 'bg-pink-50 border-pink-500 text-pink-700' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}> <Shield size={20}/> Admin </button> <button type="button" onClick={() => setForm({...form, rol: 'empleado'})} className={`p-3 rounded-xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${form.rol === 'empleado' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}> <Briefcase size={20}/> Empleado </button> </div> </div> <button type="submit" className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 flex justify-center items-center gap-2"> <Check size={20}/> {usuarioAEditar ? 'Guardar Cambios' : 'Crear Usuario'} </button> </form> </div> </div> );
+};
+
 export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
-    const [modalOpen, setModalOpen] = useState(false);
-    const [usuarioEditar, setUsuarioEditar] = useState(null);
-    const [usuarioEliminar, setUsuarioEliminar] = useState(null);
-
-    // Separar usuarios por rol
-    const administradores = usuarios.filter(u => u.rol === 'admin');
-    const empleados = usuarios.filter(u => u.rol === 'empleado');
-
-    return (
-        <div className="p-4 md:p-8 h-full overflow-y-auto">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                        <Users className="text-pink-600" /> Gestión de Usuarios
-                    </h2>
-                    <p className="text-gray-500 text-sm mt-1">Administra quién tiene acceso al sistema.</p>
-                </div>
-                <button onClick={() => { setUsuarioEditar(null); setModalOpen(true); }} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition transform active:scale-95 w-full sm:w-auto justify-center">
-                    <UserPlus size={20}/> Nuevo Usuario
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* COLUMNA ADMINISTRADORES */}
-                <div className="bg-pink-50/50 rounded-3xl p-6 border border-pink-100 h-fit">
-                    <h3 className="font-bold text-xl text-pink-800 mb-4 flex items-center gap-2">
-                        <Shield size={24}/> Administradores
-                        <span className="text-xs bg-pink-200 text-pink-800 px-2 py-1 rounded-full">{administradores.length}</span>
-                    </h3>
-                    <div className="space-y-3">
-                        {administradores.map(user => (
-                            <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden">
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-400"></div>
-                                <div className="flex items-center gap-3 pl-2">
-                                    <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-lg border border-pink-200 shadow-sm">
-                                        {user.nombre.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-gray-800">{user.nombre}</p>
-                                        <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit">{user.usuario}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={18}/></button>
-                                    <button onClick={() => setUsuarioEliminar(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={18}/></button>
-                                </div>
-                            </div>
-                        ))}
-                        {administradores.length === 0 && (
-                            <div className="text-center py-8 opacity-50">
-                                <Shield size={40} className="mx-auto mb-2 text-gray-300"/>
-                                <p className="text-gray-400 italic text-sm">No hay administradores.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* COLUMNA EMPLEADOS */}
-                <div className="bg-orange-50/50 rounded-3xl p-6 border border-orange-100 h-fit">
-                    <h3 className="font-bold text-xl text-orange-800 mb-4 flex items-center gap-2">
-                        <Briefcase size={24}/> Empleados
-                        <span className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded-full">{empleados.length}</span>
-                    </h3>
-                    <div className="space-y-3">
-                        {empleados.map(user => (
-                            <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden">
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div>
-                                <div className="flex items-center gap-3 pl-2">
-                                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg border border-orange-200 shadow-sm">
-                                        {user.nombre.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-gray-800">{user.nombre}</p>
-                                        <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit">{user.usuario}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={18}/></button>
-                                    <button onClick={() => setUsuarioEliminar(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={18}/></button>
-                                </div>
-                            </div>
-                        ))}
-                        {empleados.length === 0 && (
-                            <div className="text-center py-8 opacity-50">
-                                <Briefcase size={40} className="mx-auto mb-2 text-gray-300"/>
-                                <p className="text-gray-400 italic text-sm">No hay empleados registrados.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <ModalUsuario 
-                isOpen={modalOpen} 
-                onClose={() => setModalOpen(false)} 
-                onGuardar={onGuardar} 
-                usuarioAEditar={usuarioEditar}
-            />
-
-            <ModalConfirmacion 
-                isOpen={!!usuarioEliminar}
-                onClose={() => setUsuarioEliminar(null)}
-                onConfirm={() => { onEliminar(usuarioEliminar.id); setUsuarioEliminar(null); }}
-                titulo="¿Eliminar Usuario?"
-                mensaje={`Se eliminará permanentemente la cuenta de "${usuarioEliminar?.nombre}".`}
-            />
-        </div>
-    );
+    // ... (Mismo código de VistaGestionUsuarios que tenías antes) ...
+    const [modalOpen, setModalOpen] = useState(false); const [usuarioEditar, setUsuarioEditar] = useState(null); const [usuarioEliminar, setUsuarioEliminar] = useState(null); const administradores = usuarios.filter(u => u.rol === 'admin'); const empleados = usuarios.filter(u => u.rol === 'empleado'); return ( <div className="p-4 md:p-8 h-full overflow-y-auto"> <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"> <div> <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2"> <Users className="text-pink-600" /> Gestión de Usuarios </h2> <p className="text-gray-500 text-sm mt-1">Administra quién tiene acceso al sistema.</p> </div> <button onClick={() => { setUsuarioEditar(null); setModalOpen(true); }} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition transform active:scale-95 w-full sm:w-auto justify-center"> <UserPlus size={20}/> Nuevo Usuario </button> </div> <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div className="bg-pink-50/50 rounded-3xl p-6 border border-pink-100 h-fit"> <h3 className="font-bold text-xl text-pink-800 mb-4 flex items-center gap-2"> <Shield size={24}/> Administradores <span className="text-xs bg-pink-200 text-pink-800 px-2 py-1 rounded-full">{administradores.length}</span> </h3> <div className="space-y-3"> {administradores.map(user => ( <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden"> <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-400"></div> <div className="flex items-center gap-3 pl-2"> <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-lg border border-pink-200 shadow-sm"> {user.nombre.charAt(0)} </div> <div> <p className="font-bold text-gray-800">{user.nombre}</p> <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit">{user.usuario}</p> </div> </div> <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"> <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={18}/></button> <button onClick={() => setUsuarioEliminar(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={18}/></button> </div> </div> ))} {administradores.length === 0 && ( <div className="text-center py-8 opacity-50"> <Shield size={40} className="mx-auto mb-2 text-gray-300"/> <p className="text-gray-400 italic text-sm">No hay administradores.</p> </div> )} </div> </div> <div className="bg-orange-50/50 rounded-3xl p-6 border border-orange-100 h-fit"> <h3 className="font-bold text-xl text-orange-800 mb-4 flex items-center gap-2"> <Briefcase size={24}/> Empleados <span className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded-full">{empleados.length}</span> </h3> <div className="space-y-3"> {empleados.map(user => ( <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden"> <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div> <div className="flex items-center gap-3 pl-2"> <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg border border-orange-200 shadow-sm"> {user.nombre.charAt(0)} </div> <div> <p className="font-bold text-gray-800">{user.nombre}</p> <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit">{user.usuario}</p> </div> </div> <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"> <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={18}/></button> <button onClick={() => setUsuarioEliminar(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={18}/></button> </div> </div> ))} {empleados.length === 0 && ( <div className="text-center py-8 opacity-50"> <Briefcase size={40} className="mx-auto mb-2 text-gray-300"/> <p className="text-gray-400 italic text-sm">No hay empleados registrados.</p> </div> )} </div> </div> </div> <ModalUsuario isOpen={modalOpen} onClose={() => setModalOpen(false)} onGuardar={onGuardar} usuarioAEditar={usuarioEditar} /> <ModalConfirmacion isOpen={!!usuarioEliminar} onClose={() => setUsuarioEliminar(null)} onConfirm={() => { onEliminar(usuarioEliminar.id); setUsuarioEliminar(null); }} titulo="¿Eliminar Usuario?" mensaje={`Se eliminará permanentemente la cuenta de "${usuarioEliminar?.nombre}".`} /> </div> );
 };
