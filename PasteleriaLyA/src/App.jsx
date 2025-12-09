@@ -12,7 +12,7 @@ import { VistaLogin } from './components/Login';
 
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from './firebase';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, writeBatch } from 'firebase/firestore';
 
 // --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
 const TextoCargandoAnimado = () => {
@@ -220,6 +220,37 @@ export default function PasteleriaApp() {
       setCancelados(prev => prev.filter(c => c.id !== id));
       mostrarNotificacion("Elemento eliminado definitivamente", "info");
   };
+
+  // --- NUEVAS FUNCIONES PARA PAPELERA DE PASTELERÍA ---
+  const eliminarPedidoPermanente = async (id) => {
+      try {
+          await deleteDoc(doc(db, "pedidos", id));
+          mostrarNotificacion("Pedido eliminado definitivamente", "info");
+      } catch (e) { 
+          console.error(e);
+          mostrarNotificacion("Error al eliminar", "error"); 
+      }
+  };
+
+  const vaciarPapeleraPasteleria = async () => {
+      const cancelados = pedidosPasteleria.filter(p => p.estado === 'Cancelado');
+      if (cancelados.length === 0) return;
+
+      const batch = writeBatch(db);
+      cancelados.forEach(p => {
+          const ref = doc(db, "pedidos", p.id);
+          batch.delete(ref);
+      });
+
+      try {
+          await batch.commit();
+          mostrarNotificacion("Papelera de pastelería vaciada.", "info");
+      } catch (e) {
+          console.error(e);
+          mostrarNotificacion("Error al vaciar papelera", "error");
+      }
+  };
+  // ----------------------------------------------------
 
   useEffect(() => {
       const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
@@ -498,7 +529,7 @@ export default function PasteleriaApp() {
           ...sesion,
           timestamp: Date.now(),
           origenMesaId: sesion.tipo === 'llevar' ? null : sesion.idMesa,
-          nombreMesa: sesion.nombreMesa || null, // <--- FIX AQUÍ TAMBIÉN
+          nombreMesa: sesion.nombreMesa || null, 
           cuentaOriginal: sesion.cuenta,
           nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente
       };
@@ -527,7 +558,7 @@ export default function PasteleriaApp() {
           telefono: item.telefono || '',
           tipo: item.origenMesaId ? 'mesa' : 'llevar',
           idMesa: item.origenMesaId || null,
-          nombreMesa: item.nombreMesa || null, // <--- FIX CRÍTICO AQUÍ
+          nombreMesa: item.nombreMesa || null,
           estado: 'Activa'
       };
 
@@ -658,17 +689,36 @@ export default function PasteleriaApp() {
       }
   };
 
-  const iniciarEntrega = (f) => setPedidoAEntregar(f);
+  // --- FUNCIÓN ACTUALIZADA: INICIAR ENTREGA CON VALIDACIÓN DE PAGO ---
+  const iniciarEntrega = (f) => {
+      const pedido = pedidosPasteleria.find(p => p.folio === f);
+      
+      if (pedido) {
+          const pagado = pedido.pagosRealizados || 0;
+          const totalPagos = parseInt(pedido.numPagos) || 1;
+          
+          if (pagado < totalPagos) {
+              mostrarNotificacion(`⚠️ No se puede entregar: Faltan pagos (${pagado}/${totalPagos})`, "error");
+              return;
+          }
+      }
+      setPedidoAEntregar(f);
+  };
   
   const confirmarEntrega = async () => { 
-      const pedido = pedidosPasteleria.find(p => p.folio === pedidoAEntregar);
+      const folioParaEntregar = pedidoAEntregar; // 1. Capturar folio antes de borrar estado
+      setPedidoAEntregar(null); // 2. Cerrar modal INMEDIATAMENTE (Optimistic)
+
+      const pedido = pedidosPasteleria.find(p => p.folio === folioParaEntregar);
       if (pedido) {
           try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Entregado' });
+              await updateDoc(doc(db, "pedidos", pedido.id), { 
+                  estado: 'Entregado',
+                  fechaEntregaReal: new Date().toISOString()
+              });
               mostrarNotificacion("Pedido entregado con éxito", "exito");
           } catch (e) { mostrarNotificacion("Error al entregar", "error"); }
       }
-      setPedidoAEntregar(null); 
   };
 
   const restaurarDeEntregados = async (folio) => { 
@@ -702,7 +752,9 @@ export default function PasteleriaApp() {
                 onIniciarEntrega={iniciarEntrega} 
                 onCancelar={iniciarCancelacion} 
                 onRestaurar={restaurarPedidoDirectamente} 
-                onDeshacerEntrega={restaurarDeEntregados} 
+                onDeshacerEntrega={restaurarDeEntregados}
+                onVaciarPapelera={vaciarPapeleraPasteleria}
+                onEliminarDePapelera={eliminarPedidoPermanente}
             />} 
             {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} 
             {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} 
@@ -748,7 +800,7 @@ export default function PasteleriaApp() {
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
       {datosModalDia && <ModalVentasDia dia={datosModalDia.dia} mes={datosModalDia.mes} anio={datosModalDia.anio} ventas={datosModalDia.ventas} cerrar={() => setDatosModalDia(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
       {fechaAgendaSeleccionada && <ModalAgendaDia fechaIso={fechaAgendaSeleccionada} pedidos={pedidosPasteleria} cerrar={() => setFechaAgendaSeleccionada(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
-      <ModalConfirmacion isOpen={!!pedidoACancelar} onClose={() => setPedidoACancelar(null)} onConfirm={confirmarCancelacion} titulo="¿Cancelar Pedido?" mensaje="El pedido se enviará a la Papelera." />
+      <ModalConfirmacion isOpen={!!pedidoACancelar} onClose={() => setPedidoACancelar(null)} onConfirm={confirmarCancelacion} titulo="¿Cancelar Pedido?" mensaje="El pedido se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
       <ModalConfirmacion isOpen={!!pedidoARestaurar} onClose={() => setPedidoARestaurar(null)} onConfirm={confirmarRestauracion} titulo="¿Restaurar Pedido?" mensaje="El pedido volverá a Pendientes." />
       <ModalConfirmacion isOpen={!!pedidoAEntregar} onClose={() => setPedidoAEntregar(null)} onConfirm={confirmarEntrega} titulo="¿Confirmar Entrega?" mensaje="El pedido se marcará como entregado." />
     </LayoutConSidebar>

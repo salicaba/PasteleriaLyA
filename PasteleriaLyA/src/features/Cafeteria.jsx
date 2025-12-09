@@ -76,7 +76,7 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPap
 
     const esVenta = tipo === 'vendidos';
     
-    const titulo = esVenta ? 'Vendidos' : 'Papelera';
+    const titulo = esVenta ? 'Vendidos' : 'Cancelados de Cafetería';
     // Cambiamos el texto del subtítulo para reflejar el cambio de lógica
     const subtitulo = esVenta 
         ? 'Historial de ventas del día.' 
@@ -214,8 +214,8 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPap
                         onClose(); 
                     }
                 }}
-                titulo={esVenta ? "¿Deshacer Venta?" : "¿Recuperar Pedido?"}
-                mensaje={itemParaRestaurar ? `El pedido de "${itemParaRestaurar.cliente || itemParaRestaurar.nombreCliente}" volverá a estar activo en ${itemParaRestaurar.origenMesaId ? 'su mesa original' : 'Para Llevar'}.` : ''}
+                titulo={esVenta ? "¿Deshacer Venta?" : "¿Recuperar Cuenta?"}
+                mensaje={itemParaRestaurar ? `La cuenta de ${itemParaRestaurar.cliente || itemParaRestaurar.nombreCliente} volverá a estar activo en ${itemParaRestaurar.origenMesaId ? 'su mesa original' : 'Para Llevar'}.` : ''}
             />
 
             {/* CONFIRMACIÓN ELIMINAR UNO */}
@@ -718,7 +718,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                             onClick={() => setConfirmacionCancelarOpen(true)}
                             className="mt-2 text-xs font-bold text-red-400 hover:text-red-600 hover:underline flex justify-center items-center gap-1"
                         >
-                            <Trash2 size={12}/> Cancelar Pedido
+                            <Trash2 size={12}/> Cancelar Cuenta
                         </button>
                     </div>
                 </div>
@@ -739,8 +739,8 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 isOpen={confirmacionCancelarOpen}
                 onClose={() => setConfirmacionCancelarOpen(false)}
                 onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }}
-                titulo="¿Cancelar Pedido?"
-                mensaje="El pedido se moverá a la lista de 'Cancelados', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente."
+                titulo="¿Cancelar Cuenta?"
+                mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente."
             />
         </div>
     );
@@ -987,7 +987,7 @@ export const VistaInicioCafeteria = ({
                 {/* 4. CANCELADOS (Rojo) - Interactivo */}
                 <div onClick={() => setModalHistorial({ open: true, tipo: 'cancelados' })} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
                     <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados Hoy</p>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Papelera</p>
                         <p className="text-3xl font-bold text-gray-800 mt-2">{cancelados.length}</p>
                     </div>
                     <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30} /></div>

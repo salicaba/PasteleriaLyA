@@ -1,15 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt } from 'lucide-react';
-import { CardStat, ModalConfirmacion } from '../components/Shared'; // <--- IMPORTANTE: ModalConfirmacion AQUI
+import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
-// --- COMPONENTE MODAL PAPELERA (CORREGIDO) ---
-const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
+// --- HELPER PARA FORMATEAR HORA ---
+const formatearHora = (isoString) => {
+    if (!isoString) return 'Reciente';
+    return new Date(isoString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+};
+
+// --- COMPONENTE MODAL PAPELERA (CON VACIAR, ELIMINAR UNO Y HORA) ---
+const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVaciar }) => {
     const [busqueda, setBusqueda] = useState('');
     const [pedidoParaRestaurar, setPedidoParaRestaurar] = useState(null);
+    const [pedidoParaEliminar, setPedidoParaEliminar] = useState(null);
+    const [confirmarVaciar, setConfirmarVaciar] = useState(false);
 
-    // Limpiar búsqueda al abrir
-    useEffect(() => { if (isOpen) setBusqueda(''); }, [isOpen]);
+    // Limpiar estados al abrir
+    useEffect(() => { 
+        if (isOpen) {
+            setBusqueda(''); 
+            setConfirmarVaciar(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -28,18 +41,18 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                     <div className="p-6 bg-red-50 text-red-800 flex justify-between items-start border-b border-red-100">
                         <div>
                             <h3 className="font-bold text-2xl flex items-center mb-1">
-                                <ArchiveRestore size={24} className="mr-2"/> Papelera
+                                <ArchiveRestore size={24} className="mr-2"/> Cancelados de Pastelería
                             </h3>
-                            <p className="text-sm opacity-80">Los pedidos se eliminan automáticamente en 5 minutos.</p>
+                            <p className="text-sm opacity-80">Los pedidos se eliminarán automáticamente al final del día.</p>
                         </div>
                         <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 transition shadow-sm text-gray-500">
                             <X size={20}/>
                         </button>
                     </div>
 
-                    {/* Buscador */}
-                    <div className="p-4 border-b border-gray-100 bg-white">
-                        <div className="relative">
+                    {/* Buscador y Botón Vaciar */}
+                    <div className="p-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row gap-3">
+                        <div className="relative flex-1">
                             <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
                             <input 
                                 type="text" 
@@ -49,6 +62,16 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                                 onChange={(e) => setBusqueda(e.target.value)}
                             />
                         </div>
+                        
+                        {/* BOTÓN VACIAR TODO */}
+                        {pedidos.length > 0 && (
+                            <button 
+                                onClick={() => setConfirmarVaciar(true)}
+                                className="px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition"
+                            >
+                                <Trash2 size={18} /> Vaciar Todo
+                            </button>
+                        )}
                     </div>
 
                     {/* Lista de Pedidos Cancelados */}
@@ -61,7 +84,7 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                         ) : (
                             pedidosFiltrados.map((pedido) => (
                                 <div key={pedido.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition">
-                                    <div>
+                                    <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-red-100 text-red-700">
                                                 CANCELADO
@@ -72,17 +95,30 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                                         <div className="text-xs text-gray-500 mt-1">
                                             {pedido.tipoProducto} • {new Date(pedido.fechaEntrega).toLocaleDateString()}
                                         </div>
-                                        <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1 font-bold">
-                                            <Clock size={10}/> Se borra pronto
+                                        
+                                        {/* ETIQUETA HORA CANCELADO */}
+                                        <p className="text-[10px] text-red-600 mt-2 flex items-center gap-1.5 font-bold bg-red-50 w-fit px-2 py-0.5 rounded border border-red-100">
+                                            <Clock size={11}/> Cancelado a las {formatearHora(pedido.fechaCancelacion)}
                                         </p>
                                     </div>
 
-                                    <button 
-                                        onClick={() => setPedidoParaRestaurar(pedido)}
-                                        className="shrink-0 px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center gap-2 transition w-full sm:w-auto justify-center"
-                                    >
-                                        <RotateCcw size={16}/> Restaurar
-                                    </button>
+                                    <div className="flex gap-2 w-full sm:w-auto">
+                                        <button 
+                                            onClick={() => setPedidoParaRestaurar(pedido)}
+                                            className="flex-1 sm:flex-none px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition"
+                                        >
+                                            <RotateCcw size={16}/> Restaurar
+                                        </button>
+
+                                        {/* BOTÓN ELIMINAR INDIVIDUAL */}
+                                        <button 
+                                            onClick={() => setPedidoParaEliminar(pedido)}
+                                            className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition flex items-center justify-center"
+                                            title="Eliminar definitivamente"
+                                        >
+                                            <Trash2 size={18}/>
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -90,7 +126,7 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                 </div>
             </div>
 
-            {/* Modal de Confirmación para Restaurar (CORREGIDO: Usa la variable correcta) */}
+            {/* Modal de Confirmación para Restaurar */}
             <ModalConfirmacion 
                 isOpen={!!pedidoParaRestaurar} 
                 onClose={() => setPedidoParaRestaurar(null)}
@@ -98,75 +134,128 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar }) => {
                     if(pedidoParaRestaurar) {
                         onRestaurar(pedidoParaRestaurar.folio);
                         setPedidoParaRestaurar(null);
-                        onClose(); // Cierra también la papelera al restaurar si lo deseas, o quita esta línea
+                        onClose(); 
                     }
                 }}
                 titulo="¿Restaurar Pedido?"
                 mensaje={`El pedido de ${pedidoParaRestaurar?.cliente} volverá a la lista de Pendientes.`}
             />
+
+            {/* Modal de Confirmación para ELIMINAR UNO */}
+            <ModalConfirmacion 
+                isOpen={!!pedidoParaEliminar}
+                onClose={() => setPedidoParaEliminar(null)}
+                onConfirm={() => {
+                    if (pedidoParaEliminar) {
+                        onEliminar(pedidoParaEliminar.id); // Usamos ID de firebase
+                        setPedidoParaEliminar(null);
+                    }
+                }}
+                titulo="¿Eliminar definitivamente?"
+                mensaje="Esta acción no se puede deshacer. El pedido desaparecerá para siempre de la base de datos."
+            />
+
+            {/* Modal de Confirmación para VACIAR TODO */}
+            <ModalConfirmacion 
+                isOpen={confirmarVaciar}
+                onClose={() => setConfirmarVaciar(false)}
+                onConfirm={() => {
+                    onVaciar();
+                    setConfirmarVaciar(false);
+                }}
+                titulo="¿Vaciar Papelera?"
+                mensaje="Se eliminarán TODOS los pedidos cancelados de Pastelería. Esta acción es irreversible."
+            />
         </>
     );
 };
 
-// --- MODAL ENTREGADOS (HISTORIAL DEL DÍA) ---
+// --- MODAL ENTREGADOS (CON HORA DE ENTREGA Y CIERRE AUTOMÁTICO) ---
 const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     const [busqueda, setBusqueda] = useState('');
+    const [pedidoParaDeshacer, setPedidoParaDeshacer] = useState(null);
+
     const filtrados = pedidosEntregados.filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)));
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-green-500 flex flex-col max-h-[90vh]">
-                <div className="bg-green-50 p-4 flex justify-between items-center border-b border-green-100 shrink-0">
-                    <div>
-                        <h3 className="font-bold text-xl text-green-900 flex items-center gap-2">
-                            <PackageCheck size={24} className="text-green-600"/> Entregados
-                        </h3>
-                        <p className="text-xs text-green-700 mt-1">Historial de entregas del día.</p>
+        <>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-green-500 flex flex-col max-h-[90vh]">
+                    <div className="bg-green-50 p-4 flex justify-between items-center border-b border-green-100 shrink-0">
+                        <div>
+                            <h3 className="font-bold text-xl text-green-900 flex items-center gap-2">
+                                <PackageCheck size={24} className="text-green-600"/> Entregados
+                            </h3>
+                            <p className="text-xs text-green-700 mt-1">Historial de entregas del día.</p>
+                        </div>
+                        <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
                     </div>
-                    <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
-                </div>
 
-                <div className="p-4 bg-white border-b border-gray-100 shrink-0">
-                    <div className="relative">
-                        <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
-                        <input 
-                            type="text" 
-                            placeholder="BUSCAR..." 
-                            className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none" 
-                            value={busqueda} 
-                            onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
-                        />
+                    <div className="p-4 bg-white border-b border-gray-100 shrink-0">
+                        <div className="relative">
+                            <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
+                            <input 
+                                type="text" placeholder="BUSCAR..." 
+                                className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none" 
+                                value={busqueda} onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
+                            />
+                        </div>
                     </div>
-                </div>
-                
-                <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
-                    {filtrados.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                            <CheckCircle size={48} className="mx-auto mb-3 opacity-20"/>
-                            <p>{busqueda ? "No se encontraron coincidencias." : "No hay pedidos entregados aún."}</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {filtrados.map((p, i) => (
-                                <div key={i} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex justify-between items-center group hover:shadow-md transition">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 uppercase">Entregado</span>
-                                            <span className="text-[10px] font-bold text-gray-400">{p.folio}</span>
+                    
+                    <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
+                        {filtrados.length === 0 ? (
+                            <div className="text-center py-12 text-gray-400">
+                                <CheckCircle size={48} className="mx-auto mb-3 opacity-20"/>
+                                <p>{busqueda ? "No se encontraron coincidencias." : "No hay pedidos entregados aún."}</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {filtrados.map((p, i) => (
+                                    <div key={i} className="bg-white p-4 rounded-xl border border-green-100 shadow-sm flex justify-between items-center group hover:shadow-md transition">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 uppercase">Entregado</span>
+                                                <span className="text-[10px] font-bold text-gray-400">{p.folio}</span>
+                                            </div>
+                                            <p className="font-bold text-gray-800">{p.cliente}</p>
+                                            <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
+                                            
+                                            {/* ETIQUETA HORA ENTREGADO */}
+                                            <p className="text-[10px] text-green-700 mt-2 flex items-center gap-1.5 font-bold bg-green-50 w-fit px-2 py-0.5 rounded border border-green-100">
+                                                <Clock size={11}/> Entregado a las {formatearHora(p.fechaEntregaReal)}
+                                            </p>
                                         </div>
-                                        <p className="font-bold text-gray-800">{p.cliente}</p>
-                                        <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
+                                        <button 
+                                            onClick={() => setPedidoParaDeshacer(p)} 
+                                            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200" 
+                                            title="Regresar a Pendientes"
+                                        >
+                                            <RotateCcw size={16}/> Deshacer
+                                        </button>
                                     </div>
-                                    <button onClick={() => onDeshacerEntrega(p.folio)} className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200" title="Regresar a Pendientes">
-                                        <RotateCcw size={16}/> Deshacer
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* MODAL DE CONFIRMACIÓN (Estilo Rojo/Eliminar como en Cafetería) */}
+            <ModalConfirmacion 
+                isOpen={!!pedidoParaDeshacer}
+                onClose={() => setPedidoParaDeshacer(null)}
+                onConfirm={() => {
+                    if (pedidoParaDeshacer) {
+                        onDeshacerEntrega(pedidoParaDeshacer.folio);
+                        setPedidoParaDeshacer(null);
+                        onClose(); // <--- ESTA LÍNEA CIERRA EL MODAL PRINCIPAL AL CONFIRMAR
+                    }
+                }}
+                titulo="¿Deshacer Entrega?"
+                mensaje={pedidoParaDeshacer ? `El pedido de ${pedidoParaDeshacer.cliente} volverá a estar activo en la lista de pendientes.` : ''}
+                tipo="eliminar" 
+            />
+        </>
     );
 };
 
@@ -227,8 +316,8 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
     );
 };
 
-// --- VISTA: INICIO (DASHBOARD) ---
-export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onVerDetalles, onCancelar, onRestaurar, onDeshacerEntrega }) => {
+// --- VISTA: INICIO (DASHBOARD) ACTUALIZADA ---
+export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onVerDetalles, onCancelar, onRestaurar, onDeshacerEntrega, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [mostrarPapelera, setMostrarPapelera] = useState(false);
     const [mostrarEntregados, setMostrarEntregados] = useState(false);
@@ -269,7 +358,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
                 {/* Cancelados */}
                 <div onClick={() => setMostrarPapelera(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
-                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Cancelados (48h)</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p></div>
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Papelera</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p></div>
                     <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30}/></div>
                 </div>
                 {/* Total Caja */}
@@ -296,7 +385,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {/* TABLA PENDIENTES (CON SCROLL) */}
+            {/* TABLA PENDIENTES */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[800px]">
@@ -334,15 +423,20 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {/* AQUÍ ESTABA EL ERROR: AHORA ENVÍA LA PROPIEDAD CORRECTA Y ESTÁ DENTRO DE LA LLAMADA DE COMPONENTE */}
+            {/* MODAL PAPELERA */}
             <ModalPapelera 
                 isOpen={mostrarPapelera}
                 pedidos={pedidosCancelados} 
                 onClose={() => setMostrarPapelera(false)} 
-                onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} 
+                onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }}
+                onVaciar={onVaciarPapelera}
+                onEliminar={onEliminarDePapelera}
             />
             
+            {/* MODAL ENTREGADOS */}
             {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregados} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
+            
+            {/* MODAL CORTE CAJA */}
             {mostrarCajaHoy && <ModalCorteCaja pedidosDelDia={pedidosCajaHoy} totalCaja={totalCajaHoy} onClose={() => setMostrarCajaHoy(false)} />}
         </div>
     );
@@ -377,7 +471,6 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
         if (formulario.cliente.trim().length < 3) { mostrarNotificacion("Nombre muy corto.", "error"); return; }
         if (categoriaSeleccionada === 'Otro' && otroTexto.trim() === '') { mostrarNotificacion("Especifica qué producto es.", "error"); return; }
         const folioFinal = pedidoAEditar ? formulario.folio : generarFolio();
-        // Nota: Al usar firebase, la validación de ID repetido se maneja diferente, pero mantenemos esta lógica local
         
         onGuardarPedido({
             ...formulario,
@@ -436,7 +529,6 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
     );
 };
 
-// --- VISTA: CALENDARIO ---
 export const VistaCalendarioPasteleria = ({ pedidos, onSeleccionarDia }) => {
     const [fechaVisual, setFechaVisual] = useState(new Date(2025, 11, 1)); 
     const [fechaBusqueda, setFechaBusqueda] = useState('');
