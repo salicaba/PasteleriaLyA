@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Smartphone, ShoppingBag, Loader, Coffee, AlertCircle, Info, WifiOff } from 'lucide-react'; 
 
-import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy } from './utils/config';
+import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy, formatearFechaLocal } from './utils/config';
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
 import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } from './features/Pasteleria';
 import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa } from './features/Cafeteria';
@@ -633,8 +633,14 @@ export default function PasteleriaApp() {
     const pedido = pedidosPasteleria.find(p => p.folio === folio);
     if (!pedido) return;
     const nuevosPagos = esLiquidacion ? parseInt(pedido.numPagos) : (parseInt(pedido.pagosRealizados || 0) + 1);
+    
     try {
-        await updateDoc(doc(db, "pedidos", pedido.id), { pagosRealizados: nuevosPagos });
+        await updateDoc(doc(db, "pedidos", pedido.id), { 
+            pagosRealizados: nuevosPagos,
+            // AGREGADO: Guardamos la hora exacta del pago
+            horaPago: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        });
+        
         if (pedidoVerDetalles && pedidoVerDetalles.folio === folio) {
             setPedidoVerDetalles({ ...pedidoVerDetalles, pagosRealizados: nuevosPagos });
         }
@@ -755,6 +761,17 @@ export default function PasteleriaApp() {
       }
   };
 
+  const mensajeEntrega = useMemo(() => {
+      if (!pedidoAEntregar) return '';
+      const p = pedidosPasteleria.find(x => x.folio === pedidoAEntregar);
+      if (!p) return '';
+      
+      if (p.fechaEntrega !== getFechaHoy()) {
+          return `⚠️ ATENCIÓN: Estás entregando un pedido de ${p.tipoProducto} para ${p.cliente} que estaba programado para el ${formatearFechaLocal(p.fechaEntrega)}. ¿Estás seguro de entregarlo hoy?`;
+      }
+      return `El pedido de ${p.cliente} se marcará como entregado.`;
+  }, [pedidoAEntregar, pedidosPasteleria]);
+
   const renderContenidoProtegido = () => (
     <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
@@ -832,8 +849,8 @@ export default function PasteleriaApp() {
         isOpen={!!pedidoAEntregar} 
         onClose={() => setPedidoAEntregar(null)} 
         onConfirm={confirmarEntrega} 
-        titulo="¿Confirmar Entrega?" 
-        mensaje={pedidoAEntregar ? `El pedido de ${pedidosPasteleria.find(p => p.folio === pedidoAEntregar)?.cliente} se marcará como entregado.` : "El pedido se marcará como entregado."} 
+        titulo={pedidoAEntregar && pedidosPasteleria.find(p => p.folio === pedidoAEntregar)?.fechaEntrega !== getFechaHoy() ? "¿Entrega Diferida?" : "¿Confirmar Entrega?"} 
+        mensaje={mensajeEntrega} 
       />
     </LayoutConSidebar>
   );

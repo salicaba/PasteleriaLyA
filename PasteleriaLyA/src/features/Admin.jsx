@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, X, CloudUpload, Trash2, AlertTriangle, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getFechaHoy } from '../utils/config';
 
@@ -10,7 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { db } from '../firebase';
 import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
 
-// ... (El componente ModalDetalleCorte se queda igual) ...
+// MODAL DETALLE CORTE (ACTUALIZADO CON HORA)
 const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
     if (!isOpen) return null;
 
@@ -35,9 +35,7 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                         </h3>
                         <p className="text-xs opacity-70 font-medium">Movimientos del {formatearFechaLocal(fecha)}.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 transition shadow-sm">
-                        <X size={18}/>
-                    </button>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 text-gray-500 transition shadow-sm"><X size={18}/></button>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3 bg-gray-50/50">
@@ -60,19 +58,23 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                                             {item.etiqueta || 'VENTA'}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors">{item.descripcion}</p>
+                                    <p className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors uppercase">{item.descripcion}</p>
+                                    
+                                    {/* --- AQUÍ MOSTRAMOS LA HORA --- */}
+                                    {item.hora && (
+                                        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                            <Clock size={10}/> {item.hora}
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="text-right">
                                     <p className={`font-bold text-lg ${theme.iconColor}`}>+${item.monto.toFixed(2)}</p>
-                                    <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1">
-                                        <Eye size={10}/> Ver
-                                    </span>
+                                    <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1"><Eye size={10}/> Ver</span>
                                 </div>
                             </div>
                         ))
                     )}
                 </div>
-
                 <div className={`${theme.footerBg} p-5 text-white flex justify-between items-center`}>
                     <span className="font-bold text-white/80 text-sm uppercase tracking-wider">Total Recaudado</span>
                     <span className="font-bold text-2xl text-white">${total.toFixed(2)}</span>
@@ -95,18 +97,46 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
             const numPagos = parseInt(p.numPagos) || 1;
             const pagosRealizados = p.pagosRealizados || 0;
             const montoCobrado = (totalPedido / numPagos) * pagosRealizados;
+            
             let etiqueta = 'ABONO';
             if (numPagos === 1) etiqueta = 'CONTADO';
             else if (pagosRealizados === numPagos) etiqueta = 'LIQUIDACIÓN';
-            return { id: p.id, folio: p.folio, descripcion: p.cliente, monto: montoCobrado, etiqueta: etiqueta, original: p };
+
+            const horaMostrar = p.horaPago || null; 
+
+            return {
+                id: p.id,
+                folio: p.folio,
+                descripcion: p.cliente,
+                monto: montoCobrado,
+                etiqueta: etiqueta,
+                original: p,
+                hora: horaMostrar 
+            };
         }).filter(item => item.monto > 0); 
+
+        // ORDENAR POR HORA
+        items.sort((a, b) => (a.hora || '00:00').localeCompare(b.hora || '00:00'));
+
         const total = items.reduce((acc, item) => acc + item.monto, 0);
         return { items, total };
     }, [pedidos, fechaCorte]);
 
     const datosCafeteria = useMemo(() => {
         const filtrados = ventasCafeteria.filter(v => v.fecha === fechaCorte);
-        const items = filtrados.map(v => ({ id: v.id, folio: v.folioLocal, descripcion: v.cliente, monto: v.total || 0, etiqueta: 'TICKET', original: v }));
+        const items = filtrados.map(v => ({ 
+            id: v.id, 
+            folio: v.folioLocal, 
+            descripcion: v.cliente, 
+            monto: v.total || 0, 
+            etiqueta: 'TICKET', 
+            original: v, 
+            hora: v.hora 
+        }));
+
+        // ORDENAR POR HORA
+        items.sort((a, b) => (a.hora || '00:00').localeCompare(b.hora || '00:00'));
+
         const total = items.reduce((acc, item) => acc + item.monto, 0);
         return { items, total };
     }, [ventasCafeteria, fechaCorte]);
@@ -180,6 +210,7 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
 };
 
 // --- VISTA REPORTE UNIVERSAL CON RECHARTS ---
+// --- VISTA REPORTE UNIVERSAL CON RECHARTS (CORREGIDA) ---
 export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo, onAbrirModalDia }) => {
     const [mesSeleccionado, setMesSeleccionado] = useState('2025-12');
     const [rangoInicio, setRangoInicio] = useState('');
@@ -211,11 +242,8 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
 
         let totalPasteleria = 0, totalCafeteria = 0;
         let desglose = [];
-        // Si no es rango personalizado, mostramos todos los días del mes
-        // Si es rango, deberíamos generar los días del rango (por simplicidad, si es mes completo usamos diasEnMes)
         const diasEnMes = new Date(anio, mes + 1, 0).getDate();
 
-        // Inicializar desglose con 0
         for (let i = 1; i <= diasEnMes; i++) {
             desglose.push({ label: `${i}`, valorP: 0, valorC: 0, fechaFull: `${anio}-${String(mes + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}` });
         }
@@ -223,25 +251,38 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
         datosFiltrados.forEach(p => {
             const [y, m, d] = p.fecha.split('-').map(Number);
             
-            if (p.origen === 'Pastelería') totalPasteleria += p.total;
-            else totalCafeteria += p.total;
+            // --- CORRECCIÓN AQUÍ: CALCULAR MONTO REAL PAGADO ---
+            let montoReal = 0;
 
-            // Solo sumar al desglose si estamos viendo el mes correcto (o si manejamos rangos, habría que ajustar esto)
-            // Por ahora, la lógica visual asume vista mensual para las barras
+            if (p.origen === 'Pastelería') {
+                // Solo cuenta lo que se ha pagado (Abonos o Total)
+                const numPagos = parseInt(p.numPagos) || 1;
+                const pagosHechos = p.pagosRealizados || 0;
+                montoReal = (p.total / numPagos) * pagosHechos;
+            } else {
+                // En cafetería es venta directa, así que es el total
+                montoReal = p.total;
+            }
+            // ---------------------------------------------------
+
+            if (p.origen === 'Pastelería') totalPasteleria += montoReal;
+            else totalCafeteria += montoReal;
+
             if (y === anio && m === (mes + 1)) {
-                if (p.origen === 'Pastelería') desglose[d-1].valorP += p.total;
-                else desglose[d-1].valorC += p.total;
+                if (p.origen === 'Pastelería') desglose[d-1].valorP += montoReal;
+                else desglose[d-1].valorC += montoReal;
             }
         });
 
-        // Filtrar días vacíos si es un rango muy grande? No, mejor mostrar todo el mes para ver "huecos"
-        // Opcional: Si se quisiera limpiar la gráfica
+        // Calculamos el máximo para la escala de las gráficas (evitar división por 0)
+        const maxValor = Math.max(...desglose.map(d => d.valorP + d.valorC), 1);
 
         return {
             totalPasteleria,
             totalCafeteria,
             totalGlobal: totalPasteleria + totalCafeteria,
             desglose,
+            maxValor, // Se usa para la escala si volvieras a las barras manuales, pero con Recharts no afecta tanto
             anio,
             mes,
             tituloPeriodo
@@ -250,7 +291,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
 
     const limpiarRango = () => { setRangoInicio(''); setRangoFin(''); };
 
-    // Formateador para el tooltip
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             return (
@@ -303,7 +343,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                 {modo === 'admin' && <CardStat titulo="Gran Total" valor={`$${datosReporte.totalGlobal.toFixed(2)}`} color="bg-green-100 text-green-800" />}
             </div>
 
-            {/* --- GRÁFICA CON RECHARTS --- */}
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 h-[500px] flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-gray-700 flex items-center gap-2 capitalize text-sm md:text-base"><BarChart3 size={20} /> {datosReporte.tituloPeriodo}</h3>
@@ -315,7 +354,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                             data={datosReporte.desglose}
                             margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                             onClick={(data) => {
-                                // DETECTAR CLIC EN BARRA
                                 if (data && data.activePayload && data.activePayload.length > 0) {
                                     const dia = data.activePayload[0].payload.label;
                                     onAbrirModalDia(dia, datosReporte.mes, datosReporte.anio, todosLosDatosCompletos);
@@ -340,26 +378,11 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                             <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
                             <Legend wrapperStyle={{ paddingTop: '20px' }} />
                             
-                            {/* BARRAS APILADAS PARA ADMIN, INDIVIDUALES PARA RESTO */}
                             {(modo === 'admin' || modo === 'pasteleria') && (
-                                <Bar 
-                                    dataKey="valorP" 
-                                    name="Pastelería" 
-                                    stackId="a" 
-                                    fill="#ec4899" // Pink-500
-                                    radius={[4, 4, 0, 0]} 
-                                    maxBarSize={50}
-                                />
+                                <Bar dataKey="valorP" name="Pastelería" stackId="a" fill="#ec4899" radius={[4, 4, 0, 0]} maxBarSize={50} />
                             )}
                             {(modo === 'admin' || modo === 'cafeteria') && (
-                                <Bar 
-                                    dataKey="valorC" 
-                                    name="Cafetería" 
-                                    stackId="a" 
-                                    fill="#f97316" // Orange-500
-                                    radius={[4, 4, 0, 0]} 
-                                    maxBarSize={50}
-                                />
+                                <Bar dataKey="valorC" name="Cafetería" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={50} />
                             )}
                         </BarChart>
                     </ResponsiveContainer>

@@ -16,7 +16,6 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
     const [pedidoParaEliminar, setPedidoParaEliminar] = useState(null);
     const [confirmarVaciar, setConfirmarVaciar] = useState(false);
 
-    // Limpiar estados al abrir
     useEffect(() => { 
         if (isOpen) {
             setBusqueda(''); 
@@ -26,18 +25,25 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
 
     if (!isOpen) return null;
 
-    const pedidosFiltrados = pedidos.filter(p => 
-        p.estado === 'Cancelado' && 
-        (p.cliente.toLowerCase().includes(busqueda.toLowerCase()) || 
-         p.folio.toLowerCase().includes(busqueda.toLowerCase()))
-    );
+    // 1. FILTRAR Y LUEGO ORDENAR CRONOLÓGICAMENTE (NORMAL)
+    const pedidosFiltrados = pedidos
+        .filter(p => 
+            p.estado === 'Cancelado' && 
+            (p.cliente.toLowerCase().includes(busqueda.toLowerCase()) || 
+             p.folio.toLowerCase().includes(busqueda.toLowerCase()))
+        )
+        .sort((a, b) => {
+            // Ordenar por fecha de cancelación (Ascendente: Mañana -> Noche)
+            const fechaA = a.fechaCancelacion || '';
+            const fechaB = b.fechaCancelacion || '';
+            return fechaA.localeCompare(fechaB);
+        });
 
     return (
         <>
             <div className="fixed inset-0 bg-black bg-opacity-50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-red-500">
                     
-                    {/* Header Rojo */}
                     <div className="p-6 bg-red-50 text-red-800 flex justify-between items-start border-b border-red-100">
                         <div>
                             <h3 className="font-bold text-2xl flex items-center mb-1">
@@ -45,36 +51,21 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
                             </h3>
                             <p className="text-sm opacity-80">Los pedidos se eliminarán automáticamente al final del día.</p>
                         </div>
-                        <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 transition shadow-sm text-gray-500">
-                            <X size={20}/>
-                        </button>
+                        <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-gray-100 transition shadow-sm text-gray-500"><X size={20}/></button>
                     </div>
 
-                    {/* Buscador y Botón Vaciar */}
                     <div className="p-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <Search size={18} className="absolute left-3 top-3.5 text-gray-400" />
-                            <input 
-                                type="text" 
-                                placeholder="BUSCAR..." 
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-500 focus:outline-none bg-gray-50 focus:bg-white transition-all uppercase"
-                                value={busqueda}
-                                onChange={(e) => setBusqueda(e.target.value)}
-                            />
+                            <input type="text" placeholder="BUSCAR..." className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:border-orange-500 focus:outline-none bg-gray-50 focus:bg-white transition-all uppercase" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
                         </div>
-                        
-                        {/* BOTÓN VACIAR TODO */}
                         {pedidos.length > 0 && (
-                            <button 
-                                onClick={() => setConfirmarVaciar(true)}
-                                className="px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition"
-                            >
+                            <button onClick={() => setConfirmarVaciar(true)} className="px-4 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition">
                                 <Trash2 size={18} /> Vaciar Todo
                             </button>
                         )}
                     </div>
 
-                    {/* Lista de Pedidos Cancelados */}
                     <div className="max-h-[50vh] overflow-y-auto p-4 space-y-3 bg-gray-50">
                         {pedidosFiltrados.length === 0 ? (
                             <div className="text-center py-12 opacity-50">
@@ -86,36 +77,20 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
                                 <div key={pedido.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-red-100 text-red-700">
-                                                CANCELADO
-                                            </span>
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase bg-red-100 text-red-700">CANCELADO</span>
                                             <span className="text-xs font-mono text-gray-400 font-bold">{pedido.folio}</span>
                                         </div>
                                         <h4 className="font-bold text-gray-800 text-lg uppercase">{pedido.cliente}</h4>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            {pedido.tipoProducto} • {new Date(pedido.fechaEntrega).toLocaleDateString()}
-                                        </div>
-                                        
-                                        {/* ETIQUETA HORA CANCELADO */}
+                                        <div className="text-xs text-gray-500 mt-1">{pedido.tipoProducto} • {new Date(pedido.fechaEntrega).toLocaleDateString()}</div>
                                         <p className="text-[10px] text-red-600 mt-2 flex items-center gap-1.5 font-bold bg-red-50 w-fit px-2 py-0.5 rounded border border-red-100">
                                             <Clock size={11}/> Cancelado a las {formatearHora(pedido.fechaCancelacion)}
                                         </p>
                                     </div>
-
                                     <div className="flex gap-2 w-full sm:w-auto">
-                                        <button 
-                                            onClick={() => setPedidoParaRestaurar(pedido)}
-                                            className="flex-1 sm:flex-none px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition"
-                                        >
+                                        <button onClick={() => setPedidoParaRestaurar(pedido)} className="flex-1 sm:flex-none px-4 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition">
                                             <RotateCcw size={16}/> Restaurar
                                         </button>
-
-                                        {/* BOTÓN ELIMINAR INDIVIDUAL */}
-                                        <button 
-                                            onClick={() => setPedidoParaEliminar(pedido)}
-                                            className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition flex items-center justify-center"
-                                            title="Eliminar definitivamente"
-                                        >
+                                        <button onClick={() => setPedidoParaEliminar(pedido)} className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg transition flex items-center justify-center" title="Eliminar definitivamente">
                                             <Trash2 size={18}/>
                                         </button>
                                     </div>
@@ -126,46 +101,9 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
                 </div>
             </div>
 
-            {/* Modal de Confirmación para Restaurar */}
-            <ModalConfirmacion 
-                isOpen={!!pedidoParaRestaurar} 
-                onClose={() => setPedidoParaRestaurar(null)}
-                onConfirm={() => {
-                    if(pedidoParaRestaurar) {
-                        onRestaurar(pedidoParaRestaurar.folio);
-                        setPedidoParaRestaurar(null);
-                        onClose(); 
-                    }
-                }}
-                titulo="¿Restaurar Pedido?"
-                mensaje={`El pedido de ${pedidoParaRestaurar?.cliente} volverá a la lista de Pendientes.`}
-            />
-
-            {/* Modal de Confirmación para ELIMINAR UNO */}
-            <ModalConfirmacion 
-                isOpen={!!pedidoParaEliminar}
-                onClose={() => setPedidoParaEliminar(null)}
-                onConfirm={() => {
-                    if (pedidoParaEliminar) {
-                        onEliminar(pedidoParaEliminar.id); // Usamos ID de firebase
-                        setPedidoParaEliminar(null);
-                    }
-                }}
-                titulo="¿Eliminar definitivamente?"
-                mensaje="Esta acción no se puede deshacer. El pedido desaparecerá para siempre de la base de datos."
-            />
-
-            {/* Modal de Confirmación para VACIAR TODO */}
-            <ModalConfirmacion 
-                isOpen={confirmarVaciar}
-                onClose={() => setConfirmarVaciar(false)}
-                onConfirm={() => {
-                    onVaciar();
-                    setConfirmarVaciar(false);
-                }}
-                titulo="¿Vaciar Papelera?"
-                mensaje="Se eliminarán TODOS los pedidos cancelados de Pastelería. Esta acción es irreversible."
-            />
+            <ModalConfirmacion isOpen={!!pedidoParaRestaurar} onClose={() => setPedidoParaRestaurar(null)} onConfirm={() => { if(pedidoParaRestaurar) { onRestaurar(pedidoParaRestaurar.folio); setPedidoParaRestaurar(null); onClose(); } }} titulo="¿Restaurar Pedido?" mensaje={`El pedido de ${pedidoParaRestaurar?.cliente} volverá a la lista de Pendientes.`} />
+            <ModalConfirmacion isOpen={!!pedidoParaEliminar} onClose={() => setPedidoParaEliminar(null)} onConfirm={() => { if (pedidoParaEliminar) { onEliminar(pedidoParaEliminar.id); setPedidoParaEliminar(null); } }} titulo="¿Eliminar definitivamente?" mensaje="Esta acción no se puede deshacer. El pedido desaparecerá para siempre de la base de datos." />
+            <ModalConfirmacion isOpen={confirmarVaciar} onClose={() => setConfirmarVaciar(false)} onConfirm={() => { onVaciar(); setConfirmarVaciar(false); }} titulo="¿Vaciar Papelera?" mensaje="Se eliminarán TODOS los pedidos cancelados de Pastelería. Esta acción es irreversible." />
         </>
     );
 };
@@ -175,7 +113,15 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     const [busqueda, setBusqueda] = useState('');
     const [pedidoParaDeshacer, setPedidoParaDeshacer] = useState(null);
 
-    const filtrados = pedidosEntregados.filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)));
+    // 1. FILTRAR Y LUEGO ORDENAR CRONOLÓGICAMENTE (NORMAL)
+    const filtrados = pedidosEntregados
+        .filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)))
+        .sort((a, b) => {
+            // Ordenar por fecha real de entrega (Ascendente: Mañana -> Noche)
+            const fechaA = a.fechaEntregaReal || '';
+            const fechaB = b.fechaEntregaReal || '';
+            return fechaA.localeCompare(fechaB);
+        });
 
     return (
         <>
@@ -183,9 +129,7 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-green-500 flex flex-col max-h-[90vh]">
                     <div className="bg-green-50 p-4 flex justify-between items-center border-b border-green-100 shrink-0">
                         <div>
-                            <h3 className="font-bold text-xl text-green-900 flex items-center gap-2">
-                                <PackageCheck size={24} className="text-green-600"/> Entregados
-                            </h3>
+                            <h3 className="font-bold text-xl text-green-900 flex items-center gap-2"><PackageCheck size={24} className="text-green-600"/> Entregados</h3>
                             <p className="text-xs text-green-700 mt-1">Historial de entregas del día.</p>
                         </div>
                         <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
@@ -194,20 +138,13 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
                     <div className="p-4 bg-white border-b border-gray-100 shrink-0">
                         <div className="relative">
                             <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
-                            <input 
-                                type="text" placeholder="BUSCAR..." 
-                                className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none" 
-                                value={busqueda} onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
-                            />
+                            <input type="text" placeholder="BUSCAR..." className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm uppercase bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none" value={busqueda} onChange={(e) => setBusqueda(e.target.value.toUpperCase())} />
                         </div>
                     </div>
                     
                     <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
                         {filtrados.length === 0 ? (
-                            <div className="text-center py-12 text-gray-400">
-                                <CheckCircle size={48} className="mx-auto mb-3 opacity-20"/>
-                                <p>{busqueda ? "No se encontraron coincidencias." : "No hay pedidos entregados aún."}</p>
-                            </div>
+                            <div className="text-center py-12 text-gray-400"><CheckCircle size={48} className="mx-auto mb-3 opacity-20"/><p>{busqueda ? "No se encontraron coincidencias." : "No hay pedidos entregados aún."}</p></div>
                         ) : (
                             <div className="space-y-3">
                                 {filtrados.map((p, i) => (
@@ -219,17 +156,11 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
                                             </div>
                                             <p className="font-bold text-gray-800">{p.cliente}</p>
                                             <p className="text-xs text-gray-500">{p.tipoProducto} • {formatearFechaLocal(p.fechaEntrega)}</p>
-                                            
-                                            {/* ETIQUETA HORA ENTREGADO */}
                                             <p className="text-[10px] text-green-700 mt-2 flex items-center gap-1.5 font-bold bg-green-50 w-fit px-2 py-0.5 rounded border border-green-100">
                                                 <Clock size={11}/> Entregado a las {formatearHora(p.fechaEntregaReal)}
                                             </p>
                                         </div>
-                                        <button 
-                                            onClick={() => setPedidoParaDeshacer(p)} 
-                                            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200" 
-                                            title="Regresar a Pendientes"
-                                        >
+                                        <button onClick={() => setPedidoParaDeshacer(p)} className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors border border-yellow-200" title="Regresar a Pendientes">
                                             <RotateCcw size={16}/> Deshacer
                                         </button>
                                     </div>
@@ -239,83 +170,64 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
                     </div>
                 </div>
             </div>
-
-            {/* MODAL DE CONFIRMACIÓN (Estilo Rojo/Eliminar como en Cafetería) */}
-            <ModalConfirmacion 
-                isOpen={!!pedidoParaDeshacer}
-                onClose={() => setPedidoParaDeshacer(null)}
-                onConfirm={() => {
-                    if (pedidoParaDeshacer) {
-                        onDeshacerEntrega(pedidoParaDeshacer.folio);
-                        setPedidoParaDeshacer(null);
-                        onClose(); // <--- ESTA LÍNEA CIERRA EL MODAL PRINCIPAL AL CONFIRMAR
-                    }
-                }}
-                titulo="¿Deshacer Entrega?"
-                mensaje={pedidoParaDeshacer ? `El pedido de ${pedidoParaDeshacer.cliente} volverá a estar activo en la lista de pendientes.` : ''}
-                tipo="eliminar" 
-            />
+            <ModalConfirmacion isOpen={!!pedidoParaDeshacer} onClose={() => setPedidoParaDeshacer(null)} onConfirm={() => { if (pedidoParaDeshacer) { onDeshacerEntrega(pedidoParaDeshacer.folio); setPedidoParaDeshacer(null); onClose(); } }} titulo="¿Deshacer Entrega?" mensaje={pedidoParaDeshacer ? `El pedido de ${pedidoParaDeshacer.cliente} volverá a estar activo en la lista de pendientes.` : ''} tipo="eliminar" />
         </>
     );
 };
 
-// --- MODAL CORTE DE CAJA (HOY) ---
+// --- MODAL CORTE DE CAJA (CORREGIDO PARA MOSTRAR HORA DE PAGO) ---
 // --- MODAL CORTE DE CAJA (HOY) ---
 const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
+    // 1. Filtramos
     const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
     
+    // 2. ORDENAMOS POR HORA DE PAGO (A-Z para que salga de mañana a noche)
+    const ingresosOrdenados = [...ingresos].sort((a, b) => {
+        const horaA = a.horaPago || '00:00';
+        const horaB = b.horaPago || '00:00';
+        return horaA.localeCompare(horaB);
+    });
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up border-t-8 border-pink-500 flex flex-col max-h-[90vh]">
+                {/* ... (Header se queda igual) ... */}
                 <div className="bg-pink-50 p-4 flex justify-between items-center border-b border-pink-100 shrink-0">
-                    <div>
-                        <h3 className="font-bold text-xl text-pink-900 flex items-center gap-2">
-                            <Receipt size={24} className="text-pink-600"/> Corte de Caja
-                        </h3>
-                        <p className="text-xs text-pink-700 mt-1">Ingresos registrados hoy.</p>
-                    </div>
+                    <div><h3 className="font-bold text-xl text-pink-900 flex items-center gap-2"><Receipt size={24} className="text-pink-600"/> Corte de Caja</h3><p className="text-xs text-pink-700 mt-1">Ingresos registrados hoy.</p></div>
                     <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
                 </div>
 
                 <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
-                    {ingresos.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                            <DollarSign size={48} className="mx-auto mb-3 opacity-20"/>
-                            <p>No hay ingresos registrados hoy.</p>
-                        </div>
+                    {ingresosOrdenados.length === 0 ? (
+                        <div className="text-center py-12 text-gray-400"><DollarSign size={48} className="mx-auto mb-3 opacity-20"/><p>No hay ingresos registrados hoy.</p></div>
                     ) : (
                         <div className="space-y-3">
-                            {ingresos.map((p, i) => {
+                            {/* CAMBIO: Usamos ingresosOrdenados */}
+                            {ingresosOrdenados.map((p, i) => {
                                 const montoIngresado = (p.total / p.numPagos) * p.pagosRealizados;
                                 const esLiquidado = p.pagosRealizados === p.numPagos;
                                 const esPagoUnico = p.numPagos === 1;
-                                
                                 return (
                                     <div key={i} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center">
                                         <div>
-                                            {/* CAMBIO AQUÍ: Primero Folio, luego Cliente */}
                                             <p className="font-bold text-gray-800 text-sm">{p.folio || p.id}</p>
                                             <p className="text-xs text-gray-500 uppercase">{p.cliente}</p>
-                                            
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${esLiquidado ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                                     {esPagoUnico ? 'PAGO ÚNICO' : esLiquidado ? 'LIQUIDADO' : `ABONO (${p.pagosRealizados}/${p.numPagos})`}
                                                 </span>
+                                                {/* HORA */}
+                                                {p.horaPago && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {p.horaPago}</span>}
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="block font-bold text-pink-600 text-lg">+${montoIngresado.toFixed(2)}</span>
-                                        </div>
+                                        <div className="text-right"><span className="block font-bold text-pink-600 text-lg">+${montoIngresado.toFixed(2)}</span></div>
                                     </div>
                                 );
                             })}
                         </div>
                     )}
                 </div>
-                <div className="bg-pink-900 p-4 text-white flex justify-between items-center shrink-0">
-                    <span className="font-bold text-pink-200 uppercase tracking-wider text-sm">Total Recaudado</span>
-                    <span className="font-bold text-3xl">${totalCaja.toFixed(2)}</span>
-                </div>
+                <div className="bg-pink-900 p-4 text-white flex justify-between items-center shrink-0"><span className="font-bold text-pink-200 uppercase tracking-wider text-sm">Total Recaudado</span><span className="font-bold text-3xl">${totalCaja.toFixed(2)}</span></div>
             </div>
         </div>
     );
@@ -324,48 +236,82 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
 // --- VISTA: INICIO (DASHBOARD) ACTUALIZADA ---
 export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onVerDetalles, onCancelar, onRestaurar, onDeshacerEntrega, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
+    const [fechaFiltro, setFechaFiltro] = useState(''); 
     const [mostrarPapelera, setMostrarPapelera] = useState(false);
     const [mostrarEntregados, setMostrarEntregados] = useState(false);
     const [mostrarCajaHoy, setMostrarCajaHoy] = useState(false);
 
+    // Listas memorizadas
     const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
     const pedidosEntregados = useMemo(() => pedidos.filter(p => p.estado === 'Entregado'), [pedidos]);
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
 
+    // Lógica de filtrado para la tabla principal
     const pedidosFiltrados = useMemo(() => {
-        let procesados = [...pedidosPendientes].sort((a, b) => new Date(a.fechaEntrega) - new Date(b.fechaEntrega));
-        if (busqueda) {
-            const texto = busqueda;
-            procesados = procesados.filter(p => p.cliente.toUpperCase().includes(texto) || p.telefono.includes(texto));
-        }
+        let procesados = [...pedidosPendientes].sort((a, b) => {
+            const fechaA = new Date(a.fechaEntrega);
+            const fechaB = new Date(b.fechaEntrega);
+            const diffFechas = fechaA - fechaB;
+            if (diffFechas !== 0) return diffFechas;
+            const horaA = a.horaEntrega || '00:00'; 
+            const horaB = b.horaEntrega || '00:00';
+            return horaA.localeCompare(horaB);
+        });
+        if (fechaFiltro) { procesados = procesados.filter(p => p.fechaEntrega === fechaFiltro); }
+        if (busqueda) { const texto = busqueda; procesados = procesados.filter(p => p.cliente.toUpperCase().includes(texto) || p.telefono.includes(texto)); }
         return procesados;
-    }, [pedidosPendientes, busqueda]);
+    }, [pedidosPendientes, busqueda, fechaFiltro]);
 
-    const entregadosHoyCount = pedidos.filter(p => p.estado === 'Entregado' && p.fechaEntrega === getFechaHoy()).length; 
+    // --- CORRECCIÓN INTELIGENTE DEL CONTADOR ---
+    const entregadosHoyCount = useMemo(() => {
+        const hoy = new Date();
+        return pedidos.filter(p => {
+            // 1. Tiene que estar entregado
+            if (p.estado !== 'Entregado') return false;
+            
+            // 2. Si tiene fecha real de entrega (el momento exacto del click), usamos esa
+            if (p.fechaEntregaReal) {
+                const fechaReal = new Date(p.fechaEntregaReal);
+                return fechaReal.getDate() === hoy.getDate() &&
+                       fechaReal.getMonth() === hoy.getMonth() &&
+                       fechaReal.getFullYear() === hoy.getFullYear();
+            }
+            
+            // 3. (Fallback) Si es un pedido viejo sin fechaReal, usamos la fecha programada
+            return p.fechaEntrega === getFechaHoy();
+        }).length;
+    }, [pedidos]);
+    // -------------------------------------------
+
     const pedidosCajaHoy = useMemo(() => { const hoy = getFechaHoy(); return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy); }, [pedidos]);
     const totalCajaHoy = useMemo(() => { return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosCajaHoy]);
 
     return (
         <div className="p-4 md:p-8">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Pedidos de la Pastelería</h2>
-            
-            {/* GRID DE TARJETAS (RESPONSIVO) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                 {/* Pendientes */}
-                <div onClick={() => setBusqueda('')} className="p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 bg-white flex justify-between items-center cursor-pointer hover:bg-yellow-50 transition-colors group" title="Limpiar búsqueda">
+                <div onClick={() => { setBusqueda(''); setFechaFiltro(''); }} className="p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 bg-white flex justify-between items-center cursor-pointer hover:bg-yellow-50 transition-colors group" title="Limpiar filtros">
                     <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Pendientes</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosPendientes.length}</p></div>
-                    <div className="text-yellow-300 opacity-50 group-hover:text-yellow-500 group-hover:opacity-100 transition">{busqueda ? <FilterX size={30} /> : <Clock size={30}/>}</div>
+                    <div className="text-yellow-300 opacity-50 group-hover:text-yellow-500 group-hover:opacity-100 transition">{(busqueda || fechaFiltro) ? <FilterX size={30} /> : <Clock size={30}/>}</div>
                 </div>
+                
                 {/* Entregados Hoy */}
                 <div onClick={() => setMostrarEntregados(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group">
-                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p></div>
+                    <div>
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p>
+                        {/* Aquí usamos el nuevo cálculo */}
+                        <p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p>
+                    </div>
                     <div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><PackageCheck size={30}/></div>
                 </div>
+
                 {/* Cancelados */}
                 <div onClick={() => setMostrarPapelera(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
                     <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Papelera</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p></div>
                     <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30}/></div>
                 </div>
+                
                 {/* Total Caja */}
                 <div onClick={() => setMostrarCajaHoy(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-pink-500 bg-white flex justify-between items-center cursor-pointer hover:bg-pink-50 transition-colors group">
                     <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p></div>
@@ -373,35 +319,27 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {/* BUSCADOR */}
-            <div className="flex justify-end mb-4">
+            {/* Filtros y Tabla */}
+            <div className="flex flex-col md:flex-row justify-end mb-4 gap-3">
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><CalendarDays size={18} className="text-gray-400" /></div>
+                    <input type="date" className="pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm text-sm text-gray-600 bg-white font-medium cursor-pointer" value={fechaFiltro} onChange={(e) => setFechaFiltro(e.target.value)} />
+                    {fechaFiltro && (<button onClick={() => setFechaFiltro('')} className="absolute inset-y-0 right-9 flex items-center text-gray-400 hover:text-red-500" title="Borrar fecha"><X size={16} /></button>)}
+                </div>
                 <div className="relative w-full md:w-96">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
-                    <input 
-                        type="text" 
-                        placeholder="BUSCAR POR NOMBRE O TELÉFONO..." 
-                        className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" 
-                        value={busqueda} 
-                        onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
-                    />
-                    {busqueda && (
-                        <button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"><X size={16} /></button>
-                    )}
+                    <input type="text" placeholder="BUSCAR POR NOMBRE O TELÉFONO..." className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" value={busqueda} onChange={(e) => setBusqueda(e.target.value.toUpperCase())} />
+                    {busqueda && (<button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"><X size={16} /></button>)}
                 </div>
             </div>
 
-            {/* TABLA PENDIENTES */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[800px]">
-                        <thead>
-                            <tr className="bg-pink-50 text-pink-800 text-sm">
-                                <th className="p-4">Folio</th><th className="p-4">Cliente</th><th className="p-4">Entrega</th><th className="p-4">Total</th><th className="p-4">Pagos</th><th className="p-4">Estado</th><th className="p-4">Acciones</th>
-                            </tr>
-                        </thead>
+                        <thead><tr className="bg-pink-50 text-pink-800 text-sm"><th className="p-4">Folio</th><th className="p-4">Cliente</th><th className="p-4">Entrega</th><th className="p-4">Total</th><th className="p-4">Pagos</th><th className="p-4">Estado</th><th className="p-4">Acciones</th></tr></thead>
                         <tbody>
                             {pedidosFiltrados.length === 0 ? (
-                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda ? "No se encontraron coincidencias." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
+                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda || fechaFiltro ? "No se encontraron coincidencias con los filtros actuales." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
                             ) : (
                                 pedidosFiltrados.map((p, i) => (
                                     <tr key={i} onClick={() => onVerDetalles(p)} className="border-b hover:bg-gray-50 cursor-pointer">
@@ -410,11 +348,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                         <td className="p-4 text-sm font-medium text-gray-600">{formatearFechaLocal(p.fechaEntrega)}<br/><span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span></td>
                                         <td className="p-4 font-bold text-green-600">${p.total}</td>
                                         <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
-                                        <td className="p-4">
-                                            <button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado">
-                                                <Clock size={12} /> Pendiente
-                                            </button>
-                                        </td>
+                                        <td className="p-4"><button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado"><Clock size={12} /> Pendiente</button></td>
                                         <td className="p-4 flex gap-2">
                                             <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
                                             <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
@@ -428,20 +362,8 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {/* MODAL PAPELERA */}
-            <ModalPapelera 
-                isOpen={mostrarPapelera}
-                pedidos={pedidosCancelados} 
-                onClose={() => setMostrarPapelera(false)} 
-                onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }}
-                onVaciar={onVaciarPapelera}
-                onEliminar={onEliminarDePapelera}
-            />
-            
-            {/* MODAL ENTREGADOS */}
+            <ModalPapelera isOpen={mostrarPapelera} pedidos={pedidosCancelados} onClose={() => setMostrarPapelera(false)} onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} onVaciar={onVaciarPapelera} onEliminar={onEliminarDePapelera} />
             {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregados} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
-            
-            {/* MODAL CORTE CAJA */}
             {mostrarCajaHoy && <ModalCorteCaja pedidosDelDia={pedidosCajaHoy} totalCaja={totalCajaHoy} onClose={() => setMostrarCajaHoy(false)} />}
         </div>
     );

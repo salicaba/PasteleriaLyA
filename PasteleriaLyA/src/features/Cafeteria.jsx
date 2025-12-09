@@ -13,51 +13,48 @@ import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
 const CATEGORIAS_INICIALES = ['Bebidas Calientes', 'Bebidas Frías', 'Pastelería', 'Bocadillos', 'Otros'];
 
 // --- COMPONENTE 1: MODAL CORTE DE CAJA ---
+// --- MODAL CORTE DE CAJA (HOY) ---
+// --- MODAL CORTE DE CAJA (HOY) ---
 const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
     if (!isOpen) return null;
     const total = ventas.reduce((acc, v) => acc + v.total, 0);
 
+    // ORDENAR VENTAS POR HORA
+    const ventasOrdenadas = [...ventas].sort((a, b) => {
+        const horaA = a.hora || '00:00';
+        const horaB = b.hora || '00:00';
+        return horaA.localeCompare(horaB);
+    });
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[260] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up flex flex-col border-t-8 border-orange-500">
+                {/* ... (Header igual) ... */}
                 <div className="p-5 bg-orange-50 flex justify-between items-center border-b border-orange-100">
-                    <div>
-                        <h3 className="font-bold text-xl text-orange-900 flex items-center gap-2">
-                            <Receipt size={20}/> Corte de Caja
-                        </h3>
-                        <p className="text-xs text-orange-600">Ingresos registrados hoy.</p>
-                    </div>
+                    <div><h3 className="font-bold text-xl text-orange-900 flex items-center gap-2"><Receipt size={20}/> Corte de Caja</h3><p className="text-xs text-orange-600">Ingresos registrados hoy.</p></div>
                     <button onClick={onClose} className="p-2 bg-white rounded-full hover:bg-orange-100 text-orange-400 transition shadow-sm"><X size={18}/></button>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto p-4 space-y-3 bg-gray-50/50">
-                    {ventas.length === 0 ? (
-                        <div className="text-center py-12 opacity-40">
-                            <DollarSign size={48} className="mx-auto mb-2 text-gray-400"/>
-                            <p className="text-gray-500 text-sm">No hay ingresos registrados hoy.</p>
-                        </div>
+                    {ventasOrdenadas.length === 0 ? ( // Usamos ventasOrdenadas
+                        <div className="text-center py-12 opacity-40"><DollarSign size={48} className="mx-auto mb-2 text-gray-400"/><p className="text-gray-500 text-sm">No hay ingresos registrados hoy.</p></div>
                     ) : (
-                        ventas.map((venta) => (
+                        ventasOrdenadas.map((venta) => (
                             <div key={venta.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center">
                                 <div>
                                     <p className="font-bold text-gray-800 text-sm mb-0.5">{venta.folioLocal || venta.id}</p>
-                                    <p className="text-xs text-gray-500 mb-1.5">{venta.cliente}</p>
-                                    <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded border border-orange-200 uppercase">
-                                        VENTA
-                                    </span>
+                                    <p className="text-xs text-gray-500 mb-1.5 uppercase">{venta.cliente}</p>
+                                    <div className="flex gap-2 items-center">
+                                        <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded border border-orange-200 uppercase">VENTA</span>
+                                        {venta.hora && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {venta.hora}</span>}
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-lg text-orange-700">+${venta.total.toFixed(2)}</p>
-                                </div>
+                                <div className="text-right"><p className="font-bold text-lg text-orange-700">+${venta.total.toFixed(2)}</p></div>
                             </div>
                         ))
                     )}
                 </div>
-
-                <div className="bg-orange-900 p-5 text-white flex justify-between items-center">
-                    <span className="font-bold text-orange-100 text-sm uppercase tracking-wider">Total Recaudado</span>
-                    <span className="font-bold text-2xl text-white">${total.toFixed(2)}</span>
-                </div>
+                <div className="bg-orange-900 p-5 text-white flex justify-between items-center"><span className="font-bold text-orange-100 text-sm uppercase tracking-wider">Total Recaudado</span><span className="font-bold text-2xl text-white">${total.toFixed(2)}</span></div>
             </div>
         </div>
     );
