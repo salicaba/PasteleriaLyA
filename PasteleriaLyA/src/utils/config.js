@@ -1,6 +1,3 @@
-// src/utils/config.js
-
-// --- HELPER DE FECHAS (ROBUSTO) ---
 export const getFechaHoy = () => {
     const d = new Date();
     const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
@@ -75,6 +72,12 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
             ${itemsHtml.length > 0 ? itemsHtml : `<div class="item-row"><span>${datos.tipoProducto || 'Consumo General'}</span><span>$${datos.total}</span></div>`}
             <div class="divider"></div>
             <div class="total-row"><span>TOTAL</span><span>$${parseFloat(datos.total).toFixed(2)}</span></div>
+            
+            ${datos.recibido ? `
+                <div class="info-row" style="margin-top: 5px;"><span>Efectivo recibido:</span> <span>$${parseFloat(datos.recibido).toFixed(2)}</span></div>
+                <div class="info-row"><span>Cambio:</span> <span>$${parseFloat(datos.cambio).toFixed(2)}</span></div>
+            ` : ''}
+
             ${datos.saldoPendiente ? `<div class="info-row" style="margin-top:5px"><span>Restante:</span> <span>$${datos.saldoPendiente.toFixed(2)}</span></div>` : ''}
             <div class="footer">¡Gracias por su compra!<br/>Vuelva pronto</div>
         `;

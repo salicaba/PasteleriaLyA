@@ -17,856 +17,856 @@ import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, writ
 
 // --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
 const TextoCargandoAnimado = () => {
-    const [puntos, setPuntos] = useState('');
-    useEffect(() => {
-        const intervalo = setInterval(() => {
-            setPuntos(prev => prev.length >= 3 ? '' : prev + '.');
-        }, 500); 
-        return () => clearInterval(intervalo);
-    }, []);
-    
-    return (
-        <div className="flex items-center justify-center gap-0.5" style={{ transform: 'translateX(6px)' }}>
-            <span>Cargando</span>
-            <span className="w-4 text-left">{puntos}</span> 
-        </div>
-    );
+    const [puntos, setPuntos] = useState('');
+    useEffect(() => {
+        const intervalo = setInterval(() => {
+            setPuntos(prev => prev.length >= 3 ? '' : prev + '.');
+        }, 500); 
+        return () => clearInterval(intervalo);
+    }, []);
+    
+    return (
+        <div className="flex items-center justify-center gap-0.5" style={{ transform: 'translateX(6px)' }}>
+            <span>Cargando</span>
+            <span className="w-4 text-left">{puntos}</span> 
+        </div>
+    );
 };
 
 // --- COMPONENTE RUTA CLIENTE MODIFICADO ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading }) => {
-    const { id } = useParams(); 
-    const location = useLocation();
-    const esLlevar = id === 'llevar' || location.pathname === '/llevar';
-    
-    const [tiempoExcedido, setTiempoExcedido] = useState(false);
-    const [online, setOnline] = useState(navigator.onLine);
+    const { id } = useParams(); 
+    const location = useLocation();
+    const esLlevar = id === 'llevar' || location.pathname === '/llevar';
+    
+    const [tiempoExcedido, setTiempoExcedido] = useState(false);
+    const [online, setOnline] = useState(navigator.onLine);
 
-    useEffect(() => {
-        const handleOnline = () => setOnline(true);
-        const handleOffline = () => setOnline(false);
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
-        };
-    }, []);
+    useEffect(() => {
+        const handleOnline = () => setOnline(true);
+        const handleOffline = () => setOnline(false);
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
 
-    useEffect(() => {
-        let timer;
-        if (loading || !online) {
-            timer = setTimeout(() => {
-                setTiempoExcedido(true);
-            }, 10000); // 10 segundos
-        }
-        return () => clearTimeout(timer);
-    }, [loading, online]);
-    
-    const mesaObj = useMemo(() => {
-        if (loading || !online) return null; 
-        
-        if (esLlevar) {
-            if (mesas.length === 0 && sesionesLlevar.length === 0) return null;
+    useEffect(() => {
+        let timer;
+        if (loading || !online) {
+            timer = setTimeout(() => {
+                setTiempoExcedido(true);
+            }, 10000); // 10 segundos
+        }
+        return () => clearTimeout(timer);
+    }, [loading, online]);
+    
+    const mesaObj = useMemo(() => {
+        if (loading || !online) return null; 
+        
+        if (esLlevar) {
+            if (mesas.length === 0 && sesionesLlevar.length === 0) return null;
 
-            const cuentasAdaptadas = sesionesLlevar.map(s => ({ ...s, cliente: s.nombreCliente }));
-            return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
-        }
-        return mesas.find(m => m.id === id);
-    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
+            const cuentasAdaptadas = sesionesLlevar.map(s => ({ ...s, cliente: s.nombreCliente }));
+            return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
+        }
+        return mesas.find(m => m.id === id);
+    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    // 1. PANTALLA DE CARGA
-    if ((loading || !online) && !tiempoExcedido) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 transition-opacity duration-500 text-center">
-                <div className="relative mb-6">
-                    <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <Coffee size={24} className="text-orange-600 opacity-80" />
-                    </div>
-                </div>
-                
-                <div className="text-orange-800 font-bold text-lg animate-pulse">
-                    <TextoCargandoAnimado />
-                </div>
-                <p className="text-xs text-orange-400 mt-2 text-center">Conectando con el sistema...</p>
-            </div>
-        );
-    }
+    // 1. PANTALLA DE CARGA
+    if ((loading || !online) && !tiempoExcedido) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 transition-opacity duration-500 text-center">
+                <div className="relative mb-6">
+                    <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <Coffee size={24} className="text-orange-600 opacity-80" />
+                    </div>
+                </div>
+                
+                <div className="text-orange-800 font-bold text-lg animate-pulse">
+                    <TextoCargandoAnimado />
+                </div>
+                <p className="text-xs text-orange-400 mt-2 text-center">Conectando con el sistema...</p>
+            </div>
+        );
+    }
 
-    // 2. PANTALLA DE ERROR
-    if (!mesaObj || tiempoExcedido || !online) {
-        const titulo = esLlevar ? "Sin Conexión" : "Mesa no encontrada";
-        const mensaje = esLlevar 
-            ? "No se pudo conectar con el servidor. Verifica tu internet para realizar pedidos desde el mostrador."
-            : "El código QR parece ser inválido o la mesa no existe.";
-        
-        const Icono = !online ? WifiOff : AlertCircle;
+    // 2. PANTALLA DE ERROR
+    if (!mesaObj || tiempoExcedido || !online) {
+        const titulo = esLlevar ? "Sin Conexión" : "Mesa no encontrada";
+        const mensaje = esLlevar 
+            ? "No se pudo conectar con el servidor. Verifica tu internet para realizar pedidos desde el mostrador."
+            : "El código QR parece ser inválido o la mesa no existe.";
+        
+        const Icono = !online ? WifiOff : AlertCircle;
 
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center animate-fade-in-up">
-                <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
-                    <div className="mx-auto bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
-                        <Icono size={48} className="text-red-400"/>
-                    </div>
-                    
-                    <h1 className="text-3xl font-bold text-gray-800 mb-3 leading-tight">
-                        {titulo}
-                    </h1>
-                    
-                    <p className="text-gray-600 font-medium mb-2 px-2">
-                        {mensaje}
-                    </p>
-                    
-                    <p className="text-sm text-gray-400 mb-6">
-                        Verifica tu conexión e intenta de nuevo.
-                    </p>
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center animate-fade-in-up">
+                <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+                    <div className="mx-auto bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
+                        <Icono size={48} className="text-red-400"/>
+                    </div>
+                    
+                    <h1 className="text-3xl font-bold text-gray-800 mb-3 leading-tight">
+                        {titulo}
+                    </h1>
+                    
+                    <p className="text-gray-600 font-medium mb-2 px-2">
+                        {mensaje}
+                    </p>
+                    
+                    <p className="text-sm text-gray-400 mb-6">
+                        Verifica tu conexión e intenta de nuevo.
+                    </p>
 
-                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 text-left flex gap-3">
-                        <div className="bg-orange-100 p-2 rounded-full h-fit text-orange-600 shrink-0">
-                            <Info size={20} />
-                        </div>
-                        <p className="text-xs text-orange-800 leading-relaxed font-medium">
-                            Si el problema persiste, por favor <strong>acérquese a caja</strong> o solicite ayuda a nuestro personal para atenderle.
-                        </p>
-                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 text-left flex gap-3">
+                        <div className="bg-orange-100 p-2 rounded-full h-fit text-orange-600 shrink-0">
+                            <Info size={20} />
+                        </div>
+                        <p className="text-xs text-orange-800 leading-relaxed font-medium">
+                            Si el problema persiste, por favor <strong>acérquese a caja</strong> o solicite ayuda a nuestro personal para atenderle.
+                        </p>
+                    </div>
 
-                    <button 
-                        onClick={() => window.location.reload()} 
-                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95"
-                    >
-                        Intentar de nuevo
-                    </button>
-                </div>
-            </div>
-        );
-    }
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95"
+                    >
+                        Intentar de nuevo
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
-    return <VistaCliente mesa={mesaObj} productos={productos} onRealizarPedido={onRealizarPedido} onSalir={onSalir} />;
+    return <VistaCliente mesa={mesaObj} productos={productos} onRealizarPedido={onRealizarPedido} onSalir={onSalir} />;
 };
 
 export default function PasteleriaApp() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-      return localStorage.getItem('lya_session_active') === 'true';
-  });
-  
-  const [vistaActual, setVistaActual] = useState('inicio');
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+      return localStorage.getItem('lya_session_active') === 'true';
+  });
+  
+  const [vistaActual, setVistaActual] = useState('inicio');
 
-  const modo = useMemo(() => {
-      const path = location.pathname;
-      if (path.includes('/pasteleria')) return 'pasteleria';
-      if (path.includes('/cafeteria')) return 'cafeteria';
-      return 'admin';
-  }, [location]);
+  const modo = useMemo(() => {
+      const path = location.pathname;
+      if (path.includes('/pasteleria')) return 'pasteleria';
+      if (path.includes('/cafeteria')) return 'cafeteria';
+      return 'admin';
+  }, [location]);
 
-  const [productosCafeteria, setProductosCafeteria] = useState([]);
-  const [mesas, setMesas] = useState([]);
-  const [pedidosPasteleria, setPedidosPasteleria] = useState([]); 
-  const [ventasCafeteria, setVentasCafeteria] = useState([]); 
-  const [usuariosSistema, setUsuariosSistema] = useState([]);
-  const [sesionesLlevar, setSesionesLlevar] = useState([]); 
+  const [productosCafeteria, setProductosCafeteria] = useState([]);
+  const [mesas, setMesas] = useState([]);
+  const [pedidosPasteleria, setPedidosPasteleria] = useState([]); 
+  const [ventasCafeteria, setVentasCafeteria] = useState([]); 
+  const [usuariosSistema, setUsuariosSistema] = useState([]);
+  const [sesionesLlevar, setSesionesLlevar] = useState([]); 
 
-  const [firebaseCargando, setFirebaseCargando] = useState(true);
-  const [tiempoMinimoCarga, setTiempoMinimoCarga] = useState(true);
+  const [firebaseCargando, setFirebaseCargando] = useState(true);
+  const [tiempoMinimoCarga, setTiempoMinimoCarga] = useState(true);
 
-  const cargandoDatos = firebaseCargando || tiempoMinimoCarga;
+  const cargandoDatos = firebaseCargando || tiempoMinimoCarga;
 
-  const [cancelados, setCancelados] = useState([]); 
+  const [cancelados, setCancelados] = useState([]); 
 
-  const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
-  const [cuentaActiva, setCuentaActiva] = useState(null); 
-  const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
-  
-  const mesaSeleccionadaObj = useMemo(() => {
-      return mesas.find(m => m.id === mesaSeleccionadaId);
-  }, [mesas, mesaSeleccionadaId]);
+  const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
+  const [cuentaActiva, setCuentaActiva] = useState(null); 
+  const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
+  
+  const mesaSeleccionadaObj = useMemo(() => {
+      return mesas.find(m => m.id === mesaSeleccionadaId);
+  }, [mesas, mesaSeleccionadaId]);
 
-  const [pedidoAEditar, setPedidoAEditar] = useState(null);
-  const [pedidoVerDetalles, setPedidoVerDetalles] = useState(null);
-  const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'info' });
-  const [datosModalDia, setDatosModalDia] = useState(null);
-  const [pedidoACancelar, setPedidoACancelar] = useState(null);
-  const [pedidoARestaurar, setPedidoARestaurar] = useState(null);
-  const [pedidoAEntregar, setPedidoAEntregar] = useState(null);
-  
-  const ID_QR_LLEVAR = 'QR_LLEVAR';
+  const [pedidoAEditar, setPedidoAEditar] = useState(null);
+  const [pedidoVerDetalles, setPedidoVerDetalles] = useState(null);
+  const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'info' });
+  const [datosModalDia, setDatosModalDia] = useState(null);
+  const [pedidoACancelar, setPedidoACancelar] = useState(null);
+  const [pedidoARestaurar, setPedidoARestaurar] = useState(null);
+  const [pedidoAEntregar, setPedidoAEntregar] = useState(null);
+  
+  const ID_QR_LLEVAR = 'QR_LLEVAR';
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-        setTiempoMinimoCarga(false); 
-    }, 2500); 
-    return () => clearTimeout(timer);
-  }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        setTiempoMinimoCarga(false); 
+    }, 2500); 
+    return () => clearTimeout(timer);
+  }, []);
 
-  useEffect(() => {
-    const intervalo = setInterval(() => {
-        const hoy = new Date().toLocaleDateString();
-        setCancelados(prev => prev.filter(item => {
-            const fechaItem = new Date(item.timestamp).toLocaleDateString();
-            return fechaItem === hoy;
-        }));
-    }, 60000); 
-    return () => clearInterval(intervalo);
-  }, []);
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+        const hoy = new Date().toLocaleDateString();
+        setCancelados(prev => prev.filter(item => {
+            const fechaItem = new Date(item.timestamp).toLocaleDateString();
+            return fechaItem === hoy;
+        }));
+    }, 60000); 
+    return () => clearInterval(intervalo);
+  }, []);
 
-  const vaciarPapelera = () => {
-      setCancelados([]);
-      mostrarNotificacion("Papelera vaciada correctamente", "info");
-  };
+  const vaciarPapelera = () => {
+      setCancelados([]);
+      mostrarNotificacion("Papelera vaciada correctamente", "info");
+  };
 
-  const eliminarDePapelera = (id) => {
-      setCancelados(prev => prev.filter(c => c.id !== id));
-      mostrarNotificacion("Elemento eliminado definitivamente", "info");
-  };
+  const eliminarDePapelera = (id) => {
+      setCancelados(prev => prev.filter(c => c.id !== id));
+      mostrarNotificacion("Elemento eliminado definitivamente", "info");
+  };
 
-  // --- NUEVAS FUNCIONES PARA PAPELERA DE PASTELERÍA ---
-  const eliminarPedidoPermanente = async (id) => {
-      try {
-          await deleteDoc(doc(db, "pedidos", id));
-          mostrarNotificacion("Pedido eliminado definitivamente", "info");
-      } catch (e) { 
-          console.error(e);
-          mostrarNotificacion("Error al eliminar", "error"); 
-      }
-  };
+  // --- NUEVAS FUNCIONES PARA PAPELERA DE PASTELERÍA ---
+  const eliminarPedidoPermanente = async (id) => {
+      try {
+          await deleteDoc(doc(db, "pedidos", id));
+          mostrarNotificacion("Pedido eliminado definitivamente", "info");
+      } catch (e) { 
+          console.error(e);
+          mostrarNotificacion("Error al eliminar", "error"); 
+      }
+  };
 
-  const vaciarPapeleraPasteleria = async () => {
-      const cancelados = pedidosPasteleria.filter(p => p.estado === 'Cancelado');
-      if (cancelados.length === 0) return;
+  const vaciarPapeleraPasteleria = async () => {
+      const cancelados = pedidosPasteleria.filter(p => p.estado === 'Cancelado');
+      if (cancelados.length === 0) return;
 
-      const batch = writeBatch(db);
-      cancelados.forEach(p => {
-          const ref = doc(db, "pedidos", p.id);
-          batch.delete(ref);
-      });
+      const batch = writeBatch(db);
+      cancelados.forEach(p => {
+          const ref = doc(db, "pedidos", p.id);
+          batch.delete(ref);
+      });
 
-      try {
-          await batch.commit();
-          mostrarNotificacion("Papelera de pastelería vaciada.", "info");
-      } catch (e) {
-          console.error(e);
-          mostrarNotificacion("Error al vaciar papelera", "error");
-      }
-  };
-  // ----------------------------------------------------
+      try {
+          await batch.commit();
+          mostrarNotificacion("Papelera de pastelería vaciada.", "info");
+      } catch (e) {
+          console.error(e);
+          mostrarNotificacion("Error al vaciar papelera", "error");
+      }
+  };
+  // ----------------------------------------------------
 
-  useEffect(() => {
-      const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
-          const prodData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setProductosCafeteria(prodData);
-      });
-      
-      const unsubscribeMesas = onSnapshot(collection(db, "mesas"), (snapshot) => {
-          const mesaData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setMesas(mesaData.sort((a, b) => a.nombre.localeCompare(b.nombre)));
-          setFirebaseCargando(false); 
-      });
+  useEffect(() => {
+      const unsubscribeProductos = onSnapshot(collection(db, "productos"), (snapshot) => {
+          const prodData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setProductosCafeteria(prodData);
+      });
+      
+      const unsubscribeMesas = onSnapshot(collection(db, "mesas"), (snapshot) => {
+          const mesaData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setMesas(mesaData.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+          setFirebaseCargando(false); 
+      });
 
-      const unsubscribePedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
-          const pedidosData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setPedidosPasteleria(pedidosData);
-      });
-      const unsubscribeVentas = onSnapshot(collection(db, "ventas"), (snapshot) => {
-          const ventasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setVentasCafeteria(ventasData);
-      });
-      const unsubscribeUsuarios = onSnapshot(collection(db, "usuarios"), (snapshot) => {
-          const uData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setUsuariosSistema(uData);
-      });
-      const unsubscribeLlevar = onSnapshot(collection(db, "sesiones_llevar"), (snapshot) => {
-          const llevarData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setSesionesLlevar(llevarData);
-          setCuentaActiva(prev => {
-              if (prev && prev.tipo === 'llevar') {
-                  const actualizada = llevarData.find(s => s.id === prev.id);
-                  return actualizada ? { ...actualizada } : null; 
-              }
-              return prev;
-          });
-      });
+      const unsubscribePedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
+          const pedidosData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setPedidosPasteleria(pedidosData);
+      });
+      const unsubscribeVentas = onSnapshot(collection(db, "ventas"), (snapshot) => {
+          const ventasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setVentasCafeteria(ventasData);
+      });
+      const unsubscribeUsuarios = onSnapshot(collection(db, "usuarios"), (snapshot) => {
+          const uData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setUsuariosSistema(uData);
+      });
+      const unsubscribeLlevar = onSnapshot(collection(db, "sesiones_llevar"), (snapshot) => {
+          const llevarData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+          setSesionesLlevar(llevarData);
+          setCuentaActiva(prev => {
+              if (prev && prev.tipo === 'llevar') {
+                  const actualizada = llevarData.find(s => s.id === prev.id);
+                  return actualizada ? { ...actualizada } : null; 
+              }
+              return prev;
+          });
+      });
 
-      return () => {
-          unsubscribeProductos();
-          unsubscribeMesas();
-          unsubscribePedidos();
-          unsubscribeVentas();
-          unsubscribeUsuarios();
-          unsubscribeLlevar();
-      };
-  }, []);
+      return () => {
+          unsubscribeProductos();
+          unsubscribeMesas();
+          unsubscribePedidos();
+          unsubscribeVentas();
+          unsubscribeUsuarios();
+          unsubscribeLlevar();
+      };
+  }, []);
 
-  const mostrarNotificacion = (mensaje, tipo = 'exito') => { 
-    setNotificacion({ visible: true, mensaje, tipo }); 
-    setTimeout(() => setNotificacion(prev => ({ ...prev, visible: false })), 3000); 
-  };
+  const mostrarNotificacion = (mensaje, tipo = 'exito') => { 
+    setNotificacion({ visible: true, mensaje, tipo }); 
+    setTimeout(() => setNotificacion(prev => ({ ...prev, visible: false })), 3000); 
+  };
 
-  const handleLogin = (usuario) => {
-      localStorage.setItem('lya_session_active', 'true'); 
-      setIsAuthenticated(true);
-      navigate('/admin');
-      const nombreMostrar = usuario.nombre || "ADMINISTRADOR";
-      const rolMostrar = usuario.rol ? usuario.rol.toUpperCase() : "ADMIN";
-      mostrarNotificacion(`Bienvenido ${nombreMostrar}, tienes el Rol de ${rolMostrar}`, "exito");
-  };
+  const handleLogin = (usuario) => {
+      localStorage.setItem('lya_session_active', 'true'); 
+      setIsAuthenticated(true);
+      navigate('/admin');
+      const nombreMostrar = usuario.nombre || "ADMINISTRADOR";
+      const rolMostrar = usuario.rol ? usuario.rol.toUpperCase() : "ADMIN";
+      mostrarNotificacion(`Bienvenido ${nombreMostrar}, tienes el Rol de ${rolMostrar}`, "exito");
+  };
 
-  const handleLogout = () => {
-      localStorage.removeItem('lya_session_active'); 
-      setIsAuthenticated(false);
-      navigate('/login');
-      mostrarNotificacion("Sesión cerrada correctamente", "info");
-  };
+  const handleLogout = () => {
+      localStorage.removeItem('lya_session_active'); 
+      setIsAuthenticated(false);
+      navigate('/login');
+      mostrarNotificacion("Sesión cerrada correctamente", "info");
+  };
 
-  const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
+  const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
 
-  const guardarUsuario = async (usuario) => {
-      try {
-          if (usuario.id) {
-              await updateDoc(doc(db, "usuarios", usuario.id), usuario);
-              mostrarNotificacion(`Usuario ${usuario.nombre} actualizado`, "exito");
-          } else {
-              const existe = usuariosSistema.find(u => u.usuario === usuario.usuario);
-              if (existe) { mostrarNotificacion("El nombre de usuario ya existe.", "error"); return; }
-              await addDoc(collection(db, "usuarios"), usuario);
-              mostrarNotificacion(`Usuario ${usuario.nombre} creado`, "exito");
-          }
-      } catch (e) { mostrarNotificacion("Error al guardar usuario", "error"); }
-  };
+  const guardarUsuario = async (usuario) => {
+      try {
+          if (usuario.id) {
+              await updateDoc(doc(db, "usuarios", usuario.id), usuario);
+              mostrarNotificacion(`Usuario ${usuario.nombre} actualizado`, "exito");
+          } else {
+              const existe = usuariosSistema.find(u => u.usuario === usuario.usuario);
+              if (existe) { mostrarNotificacion("El nombre de usuario ya existe.", "error"); return; }
+              await addDoc(collection(db, "usuarios"), usuario);
+              mostrarNotificacion(`Usuario ${usuario.nombre} creado`, "exito");
+          }
+      } catch (e) { mostrarNotificacion("Error al guardar usuario", "error"); }
+  };
 
-  const eliminarUsuario = async (id) => {
-      try { await deleteDoc(doc(db, "usuarios", id)); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
-  };
+  const eliminarUsuario = async (id) => {
+      try { await deleteDoc(doc(db, "usuarios", id)); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
+  };
 
-  const guardarProductoCafeteria = async (prod) => { 
-    try {
-        if (prod.id) { await updateDoc(doc(db, "productos", prod.id), prod); mostrarNotificacion("Producto actualizado", "exito"); } 
-        else { await addDoc(collection(db, "productos"), prod); mostrarNotificacion("Producto creado", "exito"); }
-    } catch (error) { mostrarNotificacion("Error al guardar: " + error.message, "error"); }
-  };
-  
-  const eliminarProductoCafeteria = async (id) => { 
-    if(!window.confirm("¿Eliminar producto?")) return;
-    try { await deleteDoc(doc(db, "productos", id)); mostrarNotificacion("Producto eliminado", "info"); } catch (error) { mostrarNotificacion("Error al eliminar", "error"); }
-  };
-  
-  const agregarMesa = async () => { 
-    const nuevaId = `M-${Date.now().toString().slice(-5)}`;
-    const nuevaMesa = { id: nuevaId, nombre: `Mesa ${mesas.length + 1}`, tipo: 'mesa', estado: 'Libre', cuentas: [] };
-    try { await setDoc(doc(db, "mesas", nuevaId), nuevaMesa); mostrarNotificacion("Mesa agregada", "exito"); } catch (e) { mostrarNotificacion("Error al crear mesa", "error"); }
-  };
-  
-  const eliminarMesa = async (id) => { 
-    try { await deleteDoc(doc(db, "mesas", id)); mostrarNotificacion("Mesa eliminada", "info"); } catch(e) { mostrarNotificacion("Error al eliminar mesa", "error"); }
-  };
-  
-  const actualizarMesaEnBD = async (mesaObj) => {
-      try { await updateDoc(doc(db, "mesas", mesaObj.id), { cuentas: mesaObj.cuentas }); } catch (e) { console.error("Error actualizando mesa:", e); }
-  };
+  const guardarProductoCafeteria = async (prod) => { 
+    try {
+        if (prod.id) { await updateDoc(doc(db, "productos", prod.id), prod); mostrarNotificacion("Producto actualizado", "exito"); } 
+        else { await addDoc(collection(db, "productos"), prod); mostrarNotificacion("Producto creado", "exito"); }
+    } catch (error) { mostrarNotificacion("Error al guardar: " + error.message, "error"); }
+  };
+  
+  const eliminarProductoCafeteria = async (id) => { 
+    if(!window.confirm("¿Eliminar producto?")) return;
+    try { await deleteDoc(doc(db, "productos", id)); mostrarNotificacion("Producto eliminado", "info"); } catch (error) { mostrarNotificacion("Error al eliminar", "error"); }
+  };
+  
+  const agregarMesa = async () => { 
+    const nuevaId = `M-${Date.now().toString().slice(-5)}`;
+    const nuevaMesa = { id: nuevaId, nombre: `Mesa ${mesas.length + 1}`, tipo: 'mesa', estado: 'Libre', cuentas: [] };
+    try { await setDoc(doc(db, "mesas", nuevaId), nuevaMesa); mostrarNotificacion("Mesa agregada", "exito"); } catch (e) { mostrarNotificacion("Error al crear mesa", "error"); }
+  };
+  
+  const eliminarMesa = async (id) => { 
+    try { await deleteDoc(doc(db, "mesas", id)); mostrarNotificacion("Mesa eliminada", "info"); } catch(e) { mostrarNotificacion("Error al eliminar mesa", "error"); }
+  };
+  
+  const actualizarMesaEnBD = async (mesaObj) => {
+      try { await updateDoc(doc(db, "mesas", mesaObj.id), { cuentas: mesaObj.cuentas }); } catch (e) { console.error("Error actualizando mesa:", e); }
+  };
 
-  const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { 
-    const mesa = mesas.find(m => m.id === idMesa);
-    if (!mesa) return;
-    const totalInicial = itemsIniciales.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0); 
-    const nuevaCuenta = { id: `C-${Date.now().toString().slice(-4)}`, cliente: nombreCliente, cuenta: itemsIniciales, total: totalInicial }; 
-    const mesaActualizada = { ...mesa, cuentas: [...mesa.cuentas, nuevaCuenta] };
-    actualizarMesaEnBD(mesaActualizada);
-    return nuevaCuenta; 
-  };
-  
-  const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
-    // --- 1. DESCONTAR STOCK (LÓGICA NUEVA) ---
-    const batch = writeBatch(db);
-    let hayProductosConStock = false;
+  const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { 
+    const mesa = mesas.find(m => m.id === idMesa);
+    if (!mesa) return;
+    const totalInicial = itemsIniciales.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0); 
+    const nuevaCuenta = { id: `C-${Date.now().toString().slice(-4)}`, cliente: nombreCliente, cuenta: itemsIniciales, total: totalInicial }; 
+    const mesaActualizada = { ...mesa, cuentas: [...mesa.cuentas, nuevaCuenta] };
+    actualizarMesaEnBD(mesaActualizada);
+    return nuevaCuenta; 
+  };
+  
+  const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
+    // --- 1. DESCONTAR STOCK (LÓGICA NUEVA) ---
+    const batch = writeBatch(db);
+    let hayProductosConStock = false;
 
-    carrito.forEach(item => {
-        if (item.controlarStock && item.id) {
-            const productoRef = doc(db, "productos", item.id);
-            // Restamos la cantidad comprada al stock actual de forma atómica
-            batch.update(productoRef, { stock: increment(-item.cantidad) });
-            hayProductosConStock = true;
-        }
-    });
+    carrito.forEach(item => {
+        if (item.controlarStock && item.id) {
+            const productoRef = doc(db, "productos", item.id);
+            // Restamos la cantidad comprada al stock actual de forma atómica
+            batch.update(productoRef, { stock: increment(-item.cantidad) });
+            hayProductosConStock = true;
+        }
+    });
 
-    if (hayProductosConStock) {
-        try {
-            await batch.commit();
-            console.log("Stock actualizado");
-        } catch (e) {
-            console.error("Error al actualizar stock:", e);
-        }
-    }
-    // -----------------------------------------
+    if (hayProductosConStock) {
+        try {
+            await batch.commit();
+            console.log("Stock actualizado");
+        } catch (e) {
+            console.error("Error al actualizar stock:", e);
+        }
+    }
+    // -----------------------------------------
 
-    if (idMesa === ID_QR_LLEVAR) {
-        const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
-        if (sesionExistente) {
-            const nuevosItems = [...sesionExistente.cuenta, ...carrito];
-            const nuevoTotal = nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-            try {
-                await updateDoc(doc(db, "sesiones_llevar", sesionExistente.id), { cuenta: nuevosItems, total: nuevoTotal });
-                mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
-            } catch (e) { mostrarNotificacion("Error al actualizar pedido", "error"); }
-        } else {
-            const totalInicial = carrito.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-            const nuevaId = `L-${Date.now().toString().slice(-4)}`;
-            const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, cuenta: carrito, total: totalInicial, estado: 'Activa' };
-            try {
-                await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
-                mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
-            } catch (e) { mostrarNotificacion("Error al crear pedido", "error"); }
-        }
-    } else {
-        const mesa = mesas.find(m => m.id === idMesa);
-        if(!mesa) return;
-        const cuentaExistente = mesa.cuentas.find(c => c.cliente === nombre);
-        if (cuentaExistente) { 
-            const cuentasActualizadas = mesa.cuentas.map(c => {
-                if(c.id === cuentaExistente.id) {
-                    const nuevosItems = [...c.cuenta, ...carrito];
-                    return { ...c, cuenta: nuevosItems, total: nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0) };
-                }
-                return c;
-            });
-            actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
-            mostrarNotificacion(`Pedido agregado: ${nombre}`, "info"); 
-        } else { 
-            crearCuentaEnMesa(idMesa, nombre, carrito); 
-            mostrarNotificacion(`Nuevo cliente en Mesa: ${nombre}`, "exito"); 
-        }
-    }
-  };
+    if (idMesa === ID_QR_LLEVAR) {
+        const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
+        if (sesionExistente) {
+            const nuevosItems = [...sesionExistente.cuenta, ...carrito];
+            const nuevoTotal = nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesionExistente.id), { cuenta: nuevosItems, total: nuevoTotal });
+                mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
+            } catch (e) { mostrarNotificacion("Error al actualizar pedido", "error"); }
+        } else {
+            const totalInicial = carrito.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+            const nuevaId = `L-${Date.now().toString().slice(-4)}`;
+            const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, cuenta: carrito, total: totalInicial, estado: 'Activa' };
+            try {
+                await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
+                mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
+            } catch (e) { mostrarNotificacion("Error al crear pedido", "error"); }
+        }
+    } else {
+        const mesa = mesas.find(m => m.id === idMesa);
+        if(!mesa) return;
+        const cuentaExistente = mesa.cuentas.find(c => c.cliente === nombre);
+        if (cuentaExistente) { 
+            const cuentasActualizadas = mesa.cuentas.map(c => {
+                if(c.id === cuentaExistente.id) {
+                    const nuevosItems = [...c.cuenta, ...carrito];
+                    return { ...c, cuenta: nuevosItems, total: nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0) };
+                }
+                return c;
+            });
+            actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
+            mostrarNotificacion(`Pedido agregado: ${nombre}`, "info"); 
+        } else { 
+            crearCuentaEnMesa(idMesa, nombre, carrito); 
+            mostrarNotificacion(`Nuevo cliente en Mesa: ${nombre}`, "exito"); 
+        }
+    }
+  };
 
-  const agregarProductoASesion = async (idSesion, producto) => { 
-    if (cuentaActiva.tipo === 'mesa') { 
-        const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
-        if(mesa) {
-            const cuentasNuevas = mesa.cuentas.map(c => {
-                if(c.id === cuentaActiva.id) {
-                    let items = [...c.cuenta];
-                    const itemIndex = items.findIndex(i => i.id === producto.id);
-                    if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-                    else items.push({ ...producto, cantidad: 1 });
-                    const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-                    setCuentaActiva(prev => ({...prev, cuenta: items, total}));
-                    return { ...c, cuenta: items, total };
-                }
-                return c;
-            });
-            actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
-        }
-    } else { 
-        const sesion = sesionesLlevar.find(s => s.id === idSesion);
-        if (sesion) {
-            let items = [...sesion.cuenta];
-            const itemIndex = items.findIndex(i => i.id === producto.id);
-            if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-            else items.push({ ...producto, cantidad: 1 });
-            const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-            try {
-                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
-            } catch (e) { mostrarNotificacion("Error al agregar producto", "error"); }
-        }
-    } 
-    mostrarNotificacion("Producto agregado", "info"); 
-  };
+  const agregarProductoASesion = async (idSesion, producto) => { 
+    if (cuentaActiva.tipo === 'mesa') { 
+        const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
+        if(mesa) {
+            const cuentasNuevas = mesa.cuentas.map(c => {
+                if(c.id === cuentaActiva.id) {
+                    let items = [...c.cuenta];
+                    const itemIndex = items.findIndex(i => i.id === producto.id);
+                    if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+                    else items.push({ ...producto, cantidad: 1 });
+                    const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+                    setCuentaActiva(prev => ({...prev, cuenta: items, total}));
+                    return { ...c, cuenta: items, total };
+                }
+                return c;
+            });
+            actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
+        }
+    } else { 
+        const sesion = sesionesLlevar.find(s => s.id === idSesion);
+        if (sesion) {
+            let items = [...sesion.cuenta];
+            const itemIndex = items.findIndex(i => i.id === producto.id);
+            if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+            else items.push({ ...producto, cantidad: 1 });
+            const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
+            } catch (e) { mostrarNotificacion("Error al agregar producto", "error"); }
+        }
+    } 
+    mostrarNotificacion("Producto agregado", "info"); 
+  };
 
-  const actualizarProductoEnSesion = async (idSesion, idProducto, delta) => {
-    if (cuentaActiva.tipo === 'mesa') {
-        const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
-        if(mesa) {
-            const cuentasNuevas = mesa.cuentas.map(c => {
-                if(c.id === cuentaActiva.id) {
-                    let items = [...c.cuenta];
-                    const itemIndex = items.findIndex(i => i.id === idProducto);
-                    if(itemIndex > -1) {
-                        const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
-                        if(nuevaCant <= 0) items.splice(itemIndex, 1);
-                        else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
-                    }
-                    const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-                    setCuentaActiva(prev => ({...prev, cuenta: items, total}));
-                    return { ...c, cuenta: items, total };
-                }
-                return c;
-            });
-            actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
-        }
-    } else {
-        const sesion = sesionesLlevar.find(s => s.id === idSesion);
-        if (sesion) {
-            let items = [...sesion.cuenta];
-            const itemIndex = items.findIndex(i => i.id === idProducto);
-            if(itemIndex > -1) {
-                const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
-                if(nuevaCant <= 0) items.splice(itemIndex, 1);
-                else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
-            }
-            const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-            try {
-                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
-            } catch (e) { mostrarNotificacion("Error al actualizar producto", "error"); }
-        }
-    }
-  };
+  const actualizarProductoEnSesion = async (idSesion, idProducto, delta) => {
+    if (cuentaActiva.tipo === 'mesa') {
+        const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
+        if(mesa) {
+            const cuentasNuevas = mesa.cuentas.map(c => {
+                if(c.id === cuentaActiva.id) {
+                    let items = [...c.cuenta];
+                    const itemIndex = items.findIndex(i => i.id === idProducto);
+                    if(itemIndex > -1) {
+                        const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
+                        if(nuevaCant <= 0) items.splice(itemIndex, 1);
+                        else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
+                    }
+                    const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+                    setCuentaActiva(prev => ({...prev, cuenta: items, total}));
+                    return { ...c, cuenta: items, total };
+                }
+                return c;
+            });
+            actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
+        }
+    } else {
+        const sesion = sesionesLlevar.find(s => s.id === idSesion);
+        if (sesion) {
+            let items = [...sesion.cuenta];
+            const itemIndex = items.findIndex(i => i.id === idProducto);
+            if(itemIndex > -1) {
+                const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
+                if(nuevaCant <= 0) items.splice(itemIndex, 1);
+                else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
+            }
+            const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
+            } catch (e) { mostrarNotificacion("Error al actualizar producto", "error"); }
+        }
+    }
+  };
 
-  const pagarCuenta = async (sesion) => { 
-    const total = sesion.cuenta.reduce((acc, p) => acc + (p.precio * (p.cantidad || 1)), 0); 
-    const nuevaVenta = { 
-        folioLocal: `T-${Date.now().toString().slice(-6)}`, 
-        fecha: getFechaHoy(), 
-        hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
-        total, 
-        items: sesion.cuenta.length, 
-        cliente: sesion.tipo === 'mesa' ? `${sesion.nombreMesa} - ${sesion.cliente}` : `${sesion.nombreCliente} (Llevar)`, 
-        origen: 'Cafetería',
-        origenMesaId: sesion.tipo === 'mesa' ? sesion.idMesa : null,
-        nombreMesa: sesion.tipo === 'mesa' ? sesion.nombreMesa : null,
-        nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente,
-        cuentaOriginal: sesion.cuenta,
-        telefono: sesion.telefono || '',
-        tipo: sesion.tipo
-    }; 
+  const pagarCuenta = async (sesion) => { 
+    const total = sesion.cuenta.reduce((acc, p) => acc + (p.precio * (p.cantidad || 1)), 0); 
+    const nuevaVenta = { 
+        folioLocal: `T-${Date.now().toString().slice(-6)}`, 
+        fecha: getFechaHoy(), 
+        hora: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
+        total, 
+        items: sesion.cuenta.length, 
+        cliente: sesion.tipo === 'mesa' ? `${sesion.nombreMesa} - ${sesion.cliente}` : `${sesion.nombreCliente} (Llevar)`, 
+        origen: 'Cafetería',
+        origenMesaId: sesion.tipo === 'mesa' ? sesion.idMesa : null,
+        nombreMesa: sesion.tipo === 'mesa' ? sesion.nombreMesa : null,
+        nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente,
+        cuentaOriginal: sesion.cuenta,
+        telefono: sesion.telefono || '',
+        tipo: sesion.tipo
+    }; 
 
-    try {
-        await addDoc(collection(db, "ventas"), nuevaVenta);
-        if (sesion.tipo === 'mesa') { 
-            const mesa = mesas.find(m => m.id === sesion.idMesa);
-            if(mesa) {
-                const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
-                await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
-            }
-        } else { 
-            await deleteDoc(doc(db, "sesiones_llevar", sesion.id));
-        } 
-        setCuentaActiva(null); 
-        mostrarNotificacion("Cuenta pagada y guardada.", "exito");
-    } catch (e) {
-        mostrarNotificacion("Error al guardar venta: " + e.message, "error");
-    }
-  };
+    try {
+        await addDoc(collection(db, "ventas"), nuevaVenta);
+        if (sesion.tipo === 'mesa') { 
+            const mesa = mesas.find(m => m.id === sesion.idMesa);
+            if(mesa) {
+                const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
+                await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
+            }
+        } else { 
+            await deleteDoc(doc(db, "sesiones_llevar", sesion.id));
+        } 
+        setCuentaActiva(null); 
+        mostrarNotificacion("Cuenta pagada y guardada.", "exito");
+    } catch (e) {
+        mostrarNotificacion("Error al guardar venta: " + e.message, "error");
+    }
+  };
 
-  const cancelarCuentaSinPagar = async (sesion) => {
-      const canceladoItem = {
-          ...sesion,
-          timestamp: Date.now(),
-          origenMesaId: sesion.tipo === 'llevar' ? null : sesion.idMesa,
-          nombreMesa: sesion.nombreMesa || null, 
-          cuentaOriginal: sesion.cuenta,
-          nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente
-      };
-      setCancelados([...cancelados, canceladoItem]);
-      
-      if (sesion.tipo === 'mesa') {
-          const mesa = mesas.find(m => m.id === sesion.idMesa);
-          if (mesa) {
-              const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
-              actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
-          }
-      } else {
-          try { await deleteDoc(doc(db, "sesiones_llevar", sesion.id)); } catch(e) { console.error(e); }
-      }
-      setCuentaActiva(null);
-      mostrarNotificacion("Pedido enviado a Papelera", "info");
-  };
+  const cancelarCuentaSinPagar = async (sesion) => {
+      const canceladoItem = {
+          ...sesion,
+          timestamp: Date.now(),
+          origenMesaId: sesion.tipo === 'llevar' ? null : sesion.idMesa,
+          nombreMesa: sesion.nombreMesa || null, 
+          cuentaOriginal: sesion.cuenta,
+          nombreCliente: sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente
+      };
+      setCancelados([...cancelados, canceladoItem]);
+      
+      if (sesion.tipo === 'mesa') {
+          const mesa = mesas.find(m => m.id === sesion.idMesa);
+          if (mesa) {
+              const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
+              actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
+          }
+      } else {
+          try { await deleteDoc(doc(db, "sesiones_llevar", sesion.id)); } catch(e) { console.error(e); }
+      }
+      setCuentaActiva(null);
+      mostrarNotificacion("Pedido enviado a Papelera", "info");
+  };
 
-  const restaurarDeHistorial = async (item) => {
-      const cuentaRestaurada = {
-          id: `R-${Date.now().toString().slice(-4)}`,
-          cliente: item.nombreCliente || item.cliente || 'Cliente',
-          nombreCliente: item.nombreCliente || item.cliente || 'Cliente',
-          cuenta: item.cuentaOriginal || item.cuenta || [],
-          total: item.total || 0,
-          telefono: item.telefono || '',
-          tipo: item.origenMesaId ? 'mesa' : 'llevar',
-          idMesa: item.origenMesaId || null,
-          nombreMesa: item.nombreMesa || null,
-          estado: 'Activa'
-      };
+  const restaurarDeHistorial = async (item) => {
+      const cuentaRestaurada = {
+          id: `R-${Date.now().toString().slice(-4)}`,
+          cliente: item.nombreCliente || item.cliente || 'Cliente',
+          nombreCliente: item.nombreCliente || item.cliente || 'Cliente',
+          cuenta: item.cuentaOriginal || item.cuenta || [],
+          total: item.total || 0,
+          telefono: item.telefono || '',
+          tipo: item.origenMesaId ? 'mesa' : 'llevar',
+          idMesa: item.origenMesaId || null,
+          nombreMesa: item.nombreMesa || null,
+          estado: 'Activa'
+      };
 
-      if (item.origenMesaId) {
-          const existeMesa = mesas.find(m => m.id === item.origenMesaId);
-          if (!existeMesa) {
-              alert("La mesa original ya no existe. Se restaurará como 'Para Llevar'.");
-              const nuevaId = `L-R-${Date.now()}`;
-              await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
-          } else {
-              const cuentasActualizadas = [...existeMesa.cuentas, cuentaRestaurada];
-              actualizarMesaEnBD({ ...existeMesa, cuentas: cuentasActualizadas });
-          }
-      } else {
-          const nuevaId = `L-R-${Date.now()}`;
-          await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
-      }
+      if (item.origenMesaId) {
+          const existeMesa = mesas.find(m => m.id === item.origenMesaId);
+          if (!existeMesa) {
+              alert("La mesa original ya no existe. Se restaurará como 'Para Llevar'.");
+              const nuevaId = `L-R-${Date.now()}`;
+              await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
+          } else {
+              const cuentasActualizadas = [...existeMesa.cuentas, cuentaRestaurada];
+              actualizarMesaEnBD({ ...existeMesa, cuentas: cuentasActualizadas });
+          }
+      } else {
+          const nuevaId = `L-R-${Date.now()}`;
+          await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
+      }
 
-      const ventaEnBD = ventasCafeteria.find(v => v.id === item.id);
-      if (ventaEnBD) {
-          try {
-              await deleteDoc(doc(db, "ventas", item.id));
-              mostrarNotificacion("Venta anulada y pedido restaurado", "exito");
-          } catch (e) { mostrarNotificacion("Error al anular venta", "error"); }
-      } else {
-          setCancelados(prev => prev.filter(c => c.id !== item.id));
-          mostrarNotificacion("Pedido recuperado de papelera", "exito");
-      }
-  };
+      const ventaEnBD = ventasCafeteria.find(v => v.id === item.id);
+      if (ventaEnBD) {
+          try {
+              await deleteDoc(doc(db, "ventas", item.id));
+              mostrarNotificacion("Venta anulada y pedido restaurado", "exito");
+          } catch (e) { mostrarNotificacion("Error al anular venta", "error"); }
+      } else {
+          setCancelados(prev => prev.filter(c => c.id !== item.id));
+          mostrarNotificacion("Pedido recuperado de papelera", "exito");
+      }
+  };
 
-  const generarFolio = () => `FOL-${Date.now().toString().slice(-6)}`;
-  
-  const guardarPedido = async (datos) => { 
-    try {
-        if (pedidoAEditar) {
-            await updateDoc(doc(db, "pedidos", pedidoAEditar.id), datos);
-            mostrarNotificacion("Pedido actualizado", "exito");
-        } else {
-            await addDoc(collection(db, "pedidos"), datos);
-            mostrarNotificacion(`Pedido ${datos.folio} registrado`, "exito");
-        }
-        setVistaActual('inicio'); 
-        setPedidoAEditar(null);
-    } catch (error) { mostrarNotificacion("Error al guardar pedido", "error"); }
-  };
-  
-  const registrarPago = async (folio, esLiquidacion) => { 
-    const pedido = pedidosPasteleria.find(p => p.folio === folio);
-    if (!pedido) return;
-    const nuevosPagos = esLiquidacion ? parseInt(pedido.numPagos) : (parseInt(pedido.pagosRealizados || 0) + 1);
-    
-    try {
-        await updateDoc(doc(db, "pedidos", pedido.id), { 
-            pagosRealizados: nuevosPagos,
-            // AGREGADO: Guardamos la hora exacta del pago
-            horaPago: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        });
-        
-        if (pedidoVerDetalles && pedidoVerDetalles.folio === folio) {
-            setPedidoVerDetalles({ ...pedidoVerDetalles, pagosRealizados: nuevosPagos });
-        }
-        mostrarNotificacion("Pago registrado correctamente", "exito");
-    } catch (e) { mostrarNotificacion("Error al registrar pago", "error"); }
-  };
-  
-  const abrirHubMesa = (idMesa) => setMesaSeleccionadaId(idMesa);
-  
-  const unirCuentas = (idMesa, idCuentaDestino, idsCuentasOrigen) => { 
-      const mesa = mesas.find(m => m.id === idMesa);
-      if(!mesa) return;
-      const destino = mesa.cuentas.find(c => c.id === idCuentaDestino);
-      const origenes = mesa.cuentas.filter(c => idsCuentasOrigen.includes(c.id));
-      let nuevosItems = [...destino.cuenta];
-      origenes.forEach(o => { nuevosItems = [...nuevosItems, ...o.cuenta]; });
-      const nuevoTotal = nuevosItems.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-      const cuentasActualizadas = mesa.cuentas.filter(c => !idsCuentasOrigen.includes(c.id)).map(c => c.id === idCuentaDestino ? { ...c, cuenta: nuevosItems, total: nuevoTotal } : c);
-      actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
-      mostrarNotificacion("Cuentas unificadas"); 
-  };
-  
-  const abrirPOSCuentaMesa = (idMesa, idCuenta) => { 
-    const mesa = mesas.find(m => m.id === idMesa);
-    const cuenta = mesa.cuentas.find(c => c.id === idCuenta);
-    if(cuenta) setCuentaActiva({ tipo: 'mesa', id: idCuenta, idMesa, nombreMesa: mesa.nombre, ...cuenta }); 
-  };
+  const generarFolio = () => `FOL-${Date.now().toString().slice(-6)}`;
+  
+  const guardarPedido = async (datos) => { 
+    try {
+        if (pedidoAEditar) {
+            await updateDoc(doc(db, "pedidos", pedidoAEditar.id), datos);
+            mostrarNotificacion("Pedido actualizado", "exito");
+        } else {
+            await addDoc(collection(db, "pedidos"), datos);
+            mostrarNotificacion(`Pedido ${datos.folio} registrado`, "exito");
+        }
+        setVistaActual('inicio'); 
+        setPedidoAEditar(null);
+    } catch (error) { mostrarNotificacion("Error al guardar pedido", "error"); }
+  };
+  
+  const registrarPago = async (folio, esLiquidacion) => { 
+    const pedido = pedidosPasteleria.find(p => p.folio === folio);
+    if (!pedido) return;
+    const nuevosPagos = esLiquidacion ? parseInt(pedido.numPagos) : (parseInt(pedido.pagosRealizados || 0) + 1);
+    
+    try {
+        await updateDoc(doc(db, "pedidos", pedido.id), { 
+            pagosRealizados: nuevosPagos,
+            // AGREGADO: Guardamos la hora exacta del pago
+            horaPago: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+        });
+        
+        if (pedidoVerDetalles && pedidoVerDetalles.folio === folio) {
+            setPedidoVerDetalles({ ...pedidoVerDetalles, pagosRealizados: nuevosPagos });
+        }
+        mostrarNotificacion("Pago registrado correctamente", "exito");
+    } catch (e) { mostrarNotificacion("Error al registrar pago", "error"); }
+  };
+  
+  const abrirHubMesa = (idMesa) => setMesaSeleccionadaId(idMesa);
+  
+  const unirCuentas = (idMesa, idCuentaDestino, idsCuentasOrigen) => { 
+      const mesa = mesas.find(m => m.id === idMesa);
+      if(!mesa) return;
+      const destino = mesa.cuentas.find(c => c.id === idCuentaDestino);
+      const origenes = mesa.cuentas.filter(c => idsCuentasOrigen.includes(c.id));
+      let nuevosItems = [...destino.cuenta];
+      origenes.forEach(o => { nuevosItems = [...nuevosItems, ...o.cuenta]; });
+      const nuevoTotal = nuevosItems.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+      const cuentasActualizadas = mesa.cuentas.filter(c => !idsCuentasOrigen.includes(c.id)).map(c => c.id === idCuentaDestino ? { ...c, cuenta: nuevosItems, total: nuevoTotal } : c);
+      actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
+      mostrarNotificacion("Cuentas unificadas"); 
+  };
+  
+  const abrirPOSCuentaMesa = (idMesa, idCuenta) => { 
+    const mesa = mesas.find(m => m.id === idMesa);
+    const cuenta = mesa.cuentas.find(c => c.id === idCuenta);
+    if(cuenta) setCuentaActiva({ tipo: 'mesa', id: idCuenta, idMesa, nombreMesa: mesa.nombre, ...cuenta }); 
+  };
 
-  const crearSesionLlevar = async (datos) => { 
-    const nuevaId = `L-${Date.now().toString().slice(-4)}`;
-    const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: datos.nombre, telefono: datos.telefono, cuenta: [], estado: 'Activa' };
-    try {
-        await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
-        setCuentaActiva(nuevaSesion);
-    } catch (e) { mostrarNotificacion("Error al crear sesión", "error"); }
-  };
-  
-  const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
-  
-  const iniciarCancelacion = (f) => setPedidoACancelar(f);
-  
-  const confirmarCancelacion = async () => { 
-      const pedido = pedidosPasteleria.find(p => p.folio === pedidoACancelar);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { 
-                  estado: 'Cancelado', 
-                  fechaCancelacion: new Date().toISOString() 
-              });
-              mostrarNotificacion("Pedido enviado a la papelera");
-          } catch (e) { mostrarNotificacion("Error al cancelar", "error"); }
-      }
-      setPedidoACancelar(null); 
-  };
+  const crearSesionLlevar = async (datos) => { 
+    const nuevaId = `L-${Date.now().toString().slice(-4)}`;
+    const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: datos.nombre, telefono: datos.telefono, cuenta: [], estado: 'Activa' };
+    try {
+        await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
+        setCuentaActiva(nuevaSesion);
+    } catch (e) { mostrarNotificacion("Error al crear sesión", "error"); }
+  };
+  
+  const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
+  
+  const iniciarCancelacion = (f) => setPedidoACancelar(f);
+  
+  const confirmarCancelacion = async () => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoACancelar);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { 
+                  estado: 'Cancelado', 
+                  fechaCancelacion: new Date().toISOString() 
+              });
+              mostrarNotificacion("Pedido enviado a la papelera");
+          } catch (e) { mostrarNotificacion("Error al cancelar", "error"); }
+      }
+      setPedidoACancelar(null); 
+  };
 
-  const iniciarRestauracion = (f) => setPedidoARestaurar(f);
-  
-  const confirmarRestauracion = async () => { 
-      const pedido = pedidosPasteleria.find(p => p.folio === pedidoARestaurar);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
-              mostrarNotificacion("Pedido restaurado");
-          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
-      }
-      setPedidoARestaurar(null); 
-  };
+  const iniciarRestauracion = (f) => setPedidoARestaurar(f);
+  
+  const confirmarRestauracion = async () => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoARestaurar);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
+              mostrarNotificacion("Pedido restaurado");
+          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
+      }
+      setPedidoARestaurar(null); 
+  };
 
-  const restaurarPedidoDirectamente = async (folio) => {
-      const pedido = pedidosPasteleria.find(p => p.folio === folio);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
-              mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
-          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
-      }
-  };
+  const restaurarPedidoDirectamente = async (folio) => {
+      const pedido = pedidosPasteleria.find(p => p.folio === folio);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
+              mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
+          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
+      }
+  };
 
-  // --- FUNCIÓN ACTUALIZADA: INICIAR ENTREGA CON VALIDACIÓN DE PAGO ---
-  const iniciarEntrega = (f) => {
-      const pedido = pedidosPasteleria.find(p => p.folio === f);
-      
-      if (pedido) {
-          const pagado = pedido.pagosRealizados || 0;
-          const totalPagos = parseInt(pedido.numPagos) || 1;
-          
-          if (pagado < totalPagos) {
-              mostrarNotificacion(`⚠️ No se puede entregar: Faltan pagos (${pagado}/${totalPagos})`, "error");
-              return;
-          }
-      }
-      setPedidoAEntregar(f);
-  };
-  
-  const confirmarEntrega = async () => { 
-      const folioParaEntregar = pedidoAEntregar; // 1. Capturar folio antes de borrar estado
-      setPedidoAEntregar(null); // 2. Cerrar modal INMEDIATAMENTE (Optimistic)
+  // --- FUNCIÓN ACTUALIZADA: INICIAR ENTREGA CON VALIDACIÓN DE PAGO ---
+  const iniciarEntrega = (f) => {
+      const pedido = pedidosPasteleria.find(p => p.folio === f);
+      
+      if (pedido) {
+          const pagado = pedido.pagosRealizados || 0;
+          const totalPagos = parseInt(pedido.numPagos) || 1;
+          
+          if (pagado < totalPagos) {
+              mostrarNotificacion(`⚠️ No se puede entregar: Faltan pagos (${pagado}/${totalPagos})`, "error");
+              return;
+          }
+      }
+      setPedidoAEntregar(f);
+  };
+  
+  const confirmarEntrega = async () => { 
+      const folioParaEntregar = pedidoAEntregar; // 1. Capturar folio antes de borrar estado
+      setPedidoAEntregar(null); // 2. Cerrar modal INMEDIATAMENTE (Optimistic)
 
-      const pedido = pedidosPasteleria.find(p => p.folio === folioParaEntregar);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { 
-                  estado: 'Entregado',
-                  fechaEntregaReal: new Date().toISOString()
-              });
-              mostrarNotificacion("Pedido entregado con éxito", "exito");
-          } catch (e) { mostrarNotificacion("Error al entregar", "error"); }
-      }
-  };
+      const pedido = pedidosPasteleria.find(p => p.folio === folioParaEntregar);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { 
+                  estado: 'Entregado',
+                  fechaEntregaReal: new Date().toISOString()
+              });
+              mostrarNotificacion("Pedido entregado con éxito", "exito");
+          } catch (e) { mostrarNotificacion("Error al entregar", "error"); }
+      }
+  };
 
-  const restaurarDeEntregados = async (folio) => { 
-      const pedido = pedidosPasteleria.find(p => p.folio === folio);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
-              mostrarNotificacion("Entrega deshecha", "info");
-          } catch (e) { mostrarNotificacion("Error al deshacer", "error"); }
-      }
-  };
+  const restaurarDeEntregados = async (folio) => { 
+      const pedido = pedidosPasteleria.find(p => p.folio === folio);
+      if (pedido) {
+          try {
+              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
+              mostrarNotificacion("Entrega deshecha", "info");
+          } catch (e) { mostrarNotificacion("Error al deshacer", "error"); }
+      }
+  };
 
-  const mensajeEntrega = useMemo(() => {
-      if (!pedidoAEntregar) return '';
-      const p = pedidosPasteleria.find(x => x.folio === pedidoAEntregar);
-      if (!p) return '';
-      
-      if (p.fechaEntrega !== getFechaHoy()) {
-          return `⚠️ ATENCIÓN: Estás entregando un pedido de ${p.tipoProducto} para ${p.cliente} que estaba programado para el ${formatearFechaLocal(p.fechaEntrega)}. ¿Estás seguro de entregarlo hoy?`;
-      }
-      return `El pedido de ${p.cliente} se marcará como entregado.`;
-  }, [pedidoAEntregar, pedidosPasteleria]);
+  const mensajeEntrega = useMemo(() => {
+      if (!pedidoAEntregar) return '';
+      const p = pedidosPasteleria.find(x => x.folio === pedidoAEntregar);
+      if (!p) return '';
+      
+      if (p.fechaEntrega !== getFechaHoy()) {
+          return `⚠️ ATENCIÓN: Estás entregando un pedido de ${p.tipoProducto} para ${p.cliente} que estaba programado para el ${formatearFechaLocal(p.fechaEntrega)}. ¿Estás seguro de entregarlo hoy?`;
+      }
+      return `El pedido de ${p.cliente} se marcará como entregado.`;
+  }, [pedidoAEntregar, pedidosPasteleria]);
 
-  const renderContenidoProtegido = () => (
-    <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
-      <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
-      
-      {modo === 'admin' && ( 
-        <> 
-            {/* PASAMOS LA FUNCIÓN onVerDetalles AQUÍ */}
-            {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} onVerDetalles={(item) => setPedidoVerDetalles(item)} />} 
-            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
-            {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
-        </> 
-      )}
-      
-      {modo === 'pasteleria' && ( 
-        <> 
-            {vistaActual === 'inicio' && <VistaInicioPasteleria 
-                pedidos={pedidosPasteleria} 
-                onEditar={(p) => { setPedidoAEditar(p); setVistaActual('pedidos'); }} 
-                onVerDetalles={(p) => setPedidoVerDetalles(p)} 
-                onIniciarEntrega={iniciarEntrega} 
-                onCancelar={iniciarCancelacion} 
-                onRestaurar={restaurarPedidoDirectamente} 
-                onDeshacerEntrega={restaurarDeEntregados}
-                onVaciarPapelera={vaciarPapeleraPasteleria}
-                onEliminarDePapelera={eliminarPedidoPermanente}
-            />} 
-            {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} 
-            {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} 
-            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
-        </> 
-      )}
-      
-      {modo === 'cafeteria' && ( 
-        <> 
-            {vistaActual === 'inicio' && (
-                <VistaInicioCafeteria 
-                    mesas={mesas} 
-                    pedidosLlevar={sesionesLlevar} 
-                    ventasHoy={ventasCafeteria}
-                    cancelados={cancelados}
-                    onSeleccionarMesa={abrirHubMesa} 
-                    onCrearLlevar={crearSesionLlevar} 
-                    onAbrirLlevar={abrirPOSLlevar}
-                    onRestaurarVenta={restaurarDeHistorial}
-                    onDeshacerCancelacion={restaurarDeHistorial}
-                    onVaciarPapelera={vaciarPapelera}
-                    onEliminarDePapelera={eliminarDePapelera}
-                />
-            )} 
-            {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
-            {vistaActual === 'mesas' && <VistaGestionMesas mesas={mesas} onAgregarMesa={agregarMesa} onEliminarMesa={eliminarMesa} />} 
-            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
-        </> 
-      )}
-      
-      {mesaSeleccionadaId && !cuentaActiva && <VistaHubMesa mesa={mesaSeleccionadaObj} onVolver={() => setMesaSeleccionadaId(null)} onAbrirCuenta={abrirPOSCuentaMesa} onCrearCuenta={(id, nombre) => crearCuentaEnMesa(id, nombre.toUpperCase())} onUnirCuentas={unirCuentas} />}
-      
-      {cuentaActiva && <VistaDetalleCuenta 
-          sesion={cuentaActiva} 
-          productos={productosCafeteria} 
-          onCerrar={() => setCuentaActiva(null)} 
-          onAgregarProducto={agregarProductoASesion} 
-          onPagarCuenta={pagarCuenta}
-          onActualizarProducto={actualizarProductoEnSesion}
-          onCancelarCuenta={cancelarCuentaSinPagar}
-      />}
-      
-      <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
-      {datosModalDia && <ModalVentasDia dia={datosModalDia.dia} mes={datosModalDia.mes} anio={datosModalDia.anio} ventas={datosModalDia.ventas} cerrar={() => setDatosModalDia(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
-      {fechaAgendaSeleccionada && <ModalAgendaDia fechaIso={fechaAgendaSeleccionada} pedidos={pedidosPasteleria} cerrar={() => setFechaAgendaSeleccionada(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
-      <ModalConfirmacion isOpen={!!pedidoACancelar} onClose={() => setPedidoACancelar(null)} onConfirm={confirmarCancelacion} titulo="¿Cancelar Pedido?" mensaje="El pedido se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
-      <ModalConfirmacion isOpen={!!pedidoARestaurar} onClose={() => setPedidoARestaurar(null)} onConfirm={confirmarRestauracion} titulo="¿Restaurar Pedido?" mensaje="El pedido volverá a Pendientes." />
-      
-      <ModalConfirmacion 
-        isOpen={!!pedidoAEntregar} 
-        onClose={() => setPedidoAEntregar(null)} 
-        onConfirm={confirmarEntrega} 
-        titulo={pedidoAEntregar && pedidosPasteleria.find(p => p.folio === pedidoAEntregar)?.fechaEntrega !== getFechaHoy() ? "¿Entrega Diferida?" : "¿Confirmar Entrega?"} 
-        mensaje={mensajeEntrega} 
-      />
-    </LayoutConSidebar>
-  );
+  const renderContenidoProtegido = () => (
+    <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
+      <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
+      
+      {modo === 'admin' && ( 
+        <> 
+            {/* PASAMOS LA FUNCIÓN onVerDetalles AQUÍ */}
+            {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} onVerDetalles={(item) => setPedidoVerDetalles(item)} />} 
+            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+            {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
+        </> 
+      )}
+      
+      {modo === 'pasteleria' && ( 
+        <> 
+            {vistaActual === 'inicio' && <VistaInicioPasteleria 
+                pedidos={pedidosPasteleria} 
+                onEditar={(p) => { setPedidoAEditar(p); setVistaActual('pedidos'); }} 
+                onVerDetalles={(p) => setPedidoVerDetalles(p)} 
+                onIniciarEntrega={iniciarEntrega} 
+                onCancelar={iniciarCancelacion} 
+                onRestaurar={restaurarPedidoDirectamente} 
+                onDeshacerEntrega={restaurarDeEntregados}
+                onVaciarPapelera={vaciarPapeleraPasteleria}
+                onEliminarDePapelera={eliminarPedidoPermanente}
+            />} 
+            {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} 
+            {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} 
+            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+        </> 
+      )}
+      
+      {modo === 'cafeteria' && ( 
+        <> 
+            {vistaActual === 'inicio' && (
+                <VistaInicioCafeteria 
+                    mesas={mesas} 
+                    pedidosLlevar={sesionesLlevar} 
+                    ventasHoy={ventasCafeteria}
+                    cancelados={cancelados}
+                    onSeleccionarMesa={abrirHubMesa} 
+                    onCrearLlevar={crearSesionLlevar} 
+                    onAbrirLlevar={abrirPOSLlevar}
+                    onRestaurarVenta={restaurarDeHistorial}
+                    onDeshacerCancelacion={restaurarDeHistorial}
+                    onVaciarPapelera={vaciarPapelera}
+                    onEliminarDePapelera={eliminarDePapelera}
+                />
+            )} 
+            {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
+            {vistaActual === 'mesas' && <VistaGestionMesas mesas={mesas} onAgregarMesa={agregarMesa} onEliminarMesa={eliminarMesa} />} 
+            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+        </> 
+      )}
+      
+      {mesaSeleccionadaId && !cuentaActiva && <VistaHubMesa mesa={mesaSeleccionadaObj} onVolver={() => setMesaSeleccionadaId(null)} onAbrirCuenta={abrirPOSCuentaMesa} onCrearCuenta={(id, nombre) => crearCuentaEnMesa(id, nombre.toUpperCase())} onUnirCuentas={unirCuentas} />}
+      
+      {cuentaActiva && <VistaDetalleCuenta 
+          sesion={cuentaActiva} 
+          productos={productosCafeteria} 
+          onCerrar={() => setCuentaActiva(null)} 
+          onAgregarProducto={agregarProductoASesion} 
+          onPagarCuenta={pagarCuenta}
+          onActualizarProducto={actualizarProductoEnSesion}
+          onCancelarCuenta={cancelarCuentaSinPagar}
+      />}
+      
+      <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
+      {datosModalDia && <ModalVentasDia dia={datosModalDia.dia} mes={datosModalDia.mes} anio={datosModalDia.anio} ventas={datosModalDia.ventas} cerrar={() => setDatosModalDia(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
+      {fechaAgendaSeleccionada && <ModalAgendaDia fechaIso={fechaAgendaSeleccionada} pedidos={pedidosPasteleria} cerrar={() => setFechaAgendaSeleccionada(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
+      <ModalConfirmacion isOpen={!!pedidoACancelar} onClose={() => setPedidoACancelar(null)} onConfirm={confirmarCancelacion} titulo="¿Cancelar Pedido?" mensaje="El pedido se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
+      <ModalConfirmacion isOpen={!!pedidoARestaurar} onClose={() => setPedidoARestaurar(null)} onConfirm={confirmarRestauracion} titulo="¿Restaurar Pedido?" mensaje="El pedido volverá a Pendientes." />
+      
+      <ModalConfirmacion 
+        isOpen={!!pedidoAEntregar} 
+        onClose={() => setPedidoAEntregar(null)} 
+        onConfirm={confirmarEntrega} 
+        titulo={pedidoAEntregar && pedidosPasteleria.find(p => p.folio === pedidoAEntregar)?.fechaEntrega !== getFechaHoy() ? "¿Entrega Diferida?" : "¿Confirmar Entrega?"} 
+        mensaje={mensajeEntrega} 
+      />
+    </LayoutConSidebar>
+  );
 
-  return (
-    <Routes>
-        <Route path="/login" element={<VistaLogin onLogin={handleLogin} usuariosDB={usuariosSistema} />} />
-        <Route path="/admin" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
-        <Route path="/pasteleria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
-        <Route path="/cafeteria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
-        <Route path="/" element={<Navigate to="/admin" />} />
-        <Route path="/mesa/:id" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
-            loading={cargandoDatos} />} />
-        <Route path="/llevar" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
-            loading={cargandoDatos} />} />
-        <Route path="*" element={<Navigate to="/login" />} />
-    </Routes>
-  );
+  return (
+    <Routes>
+        <Route path="/login" element={<VistaLogin onLogin={handleLogin} usuariosDB={usuariosSistema} />} />
+        <Route path="/admin" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
+        <Route path="/pasteleria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
+        <Route path="/cafeteria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/admin" />} />
+        <Route path="/mesa/:id" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
+            loading={cargandoDatos} />} />
+        <Route path="/llevar" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
+            loading={cargandoDatos} />} />
+        <Route path="*" element={<Navigate to="/login" />} />
+    </Routes>
+  );
 }
