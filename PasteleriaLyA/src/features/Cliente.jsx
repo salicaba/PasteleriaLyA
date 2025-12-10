@@ -1,18 +1,20 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
-    LogOut, UserCheck, Info, Box, X, Search, Filter
+    LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock
 } from 'lucide-react';
-import { ORDEN_CATEGORIAS } from '../utils/config';
-import { Notificacion } from '../components/Shared';
+// IMPORTAMOS LA NUEVA FUNCIÓN
+import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
+import { Notificacion, ModalConfirmacion } from '../components/Shared';
 
-// ... (PantallaLogin se mantiene igual) ...
+// --- PANTALLA LOGIN (Sin cambios) ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
     const [error, setError] = useState('');
     const [mensajeBienvenida, setMensajeBienvenida] = useState('');
+    const [tieneCuentaActiva, setTieneCuentaActiva] = useState(false);
 
     const esParaLlevar = mesaNombre.toLowerCase().includes('llevar');
 
@@ -23,9 +25,11 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
             if (error) setError('');
             const cuentaExistente = cuentasActivas.find(c => c.cliente === valor);
             if (cuentaExistente) {
-                setMensajeBienvenida(`¡Hola de nuevo! Tienes una cuenta abierta de $${cuentaExistente.total}.`);
+                setMensajeBienvenida(`¡Hola de nuevo! Tienes una cuenta activa.`);
+                setTieneCuentaActiva(true);
             } else {
                 setMensajeBienvenida('');
+                setTieneCuentaActiva(false);
             }
         }
     };
@@ -69,14 +73,26 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                     {esParaLlevar && (<div className="animate-fade-in"><label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono</label><input value={telefono} onChange={handleChangeTelefono} placeholder="10 DÍGITOS" type="tel" inputMode="numeric" className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors" /></div>)}
                 </div>
                 {error && (<div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold flex items-center gap-2 animate-bounce-in"><AlertCircle size={16}/> {error}</div>)}
-                <button type="button" onClick={() => validarYEjecutar(onIngresar)} className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${nombre.length >= 3 && (!esParaLlevar || telefono.length === 10) ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-300 cursor-not-allowed'}`}>{mensajeBienvenida ? 'Continuar con mi pedido' : 'Comenzar a Pedir'}</button>
-                {mensajeBienvenida ? (<button type="button" onClick={() => validarYEjecutar(onVerCuentaDirecta)} className="mt-4 w-full py-3 rounded-xl font-bold text-blue-500 hover:text-white hover:bg-blue-500 bg-blue-50 transition-all flex items-center justify-center gap-2"><Receipt size={18} /> Ver Cuenta</button>) : (<button type="button" onClick={onSalir} className="mt-4 w-full py-3 rounded-xl font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-red-100"><LogOut size={18} /> Ya no quiero pedir</button>)}
+                
+                {!tieneCuentaActiva ? (
+                    <button type="button" onClick={() => validarYEjecutar(onIngresar)} className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${nombre.length >= 3 && (!esParaLlevar || telefono.length === 10) ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-300 cursor-not-allowed'}`}>
+                        Comenzar a Pedir
+                    </button>
+                ) : (
+                    <button type="button" onClick={() => validarYEjecutar(onVerCuentaDirecta)} className="w-full py-4 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-lg animate-pulse">
+                        <Receipt size={20} /> Ver Estatus de mi Pedido
+                    </button>
+                )}
+
+                <button type="button" onClick={onSalir} className="mt-4 w-full py-3 rounded-xl font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-red-100">
+                    <LogOut size={18} /> Salir
+                </button>
             </div>
         </div>
     );
 };
 
-// ... (CarritoFlotante se mantiene igual) ...
+// --- CARRITO FLOTANTE (Sin cambios) ---
 const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) => {
     const [confirmando, setConfirmando] = useState(false);
     const total = cuenta.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
@@ -148,12 +164,18 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// --- VISTA MI CUENTA TOTAL (MODIFICADA: SIN BOTÓN SEGUIR PIDIENDO, CON TARJETAS DE INFO) ---
-const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
+// --- VISTA MI CUENTA TOTAL (CON BOTÓN PDF) ---
+const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) => {
+    // Función para manejar la descarga
+    const descargarPDF = () => {
+        if (!cuentaAcumulada) return;
+        generarTicketPDF(cuentaAcumulada); // USA LA NUEVA FUNCIÓN
+    };
+
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
             <p className="text-gray-500">No hay consumos registrados aún.</p>
-            <button onClick={onVolver} className="mt-4 text-orange-600 font-bold">Volver al menú</button>
+            <button onClick={onVolver} className="mt-4 text-orange-600 font-bold">Volver</button>
         </div>
     );
 
@@ -162,9 +184,15 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
             {/* Header */}
             <div className="bg-gray-900 text-white p-6 pb-12 rounded-b-[2.5rem] shadow-lg relative z-10">
                 <div className="flex justify-between items-center mb-6">
-                    <button onClick={onVolver} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><ArrowLeft size={20}/></button>
+                    <button onClick={onVolver} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition flex items-center gap-1 text-xs font-bold pl-3 pr-4">
+                        <ArrowLeft size={16}/> Volver
+                    </button>
+                    
                     <h2 className="text-xl font-bold">Mi Cuenta</h2>
-                    <div className="w-10"></div>
+                    
+                    <button onClick={onSolicitarSalida} className="p-2 bg-red-500/20 text-red-200 rounded-full hover:bg-red-500/40 transition">
+                        <LogOut size={18} />
+                    </button>
                 </div>
                 <div className="text-center">
                     <p className="text-gray-400 text-sm mb-1">Total a Pagar</p>
@@ -173,32 +201,72 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                 </div>
             </div>
 
-            {/* Contenido (Ajustado padding-bottom ya que no hay footer sticky) */}
+            {/* Contenido */}
             <div className="flex-1 px-6 -mt-8 relative z-20 pb-12 overflow-y-auto">
-                <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
-                    <h3 className="text-gray-800 font-bold border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
-                        <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
-                    </h3>
+                <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
+                    
+                    <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                        <h3 className="text-gray-800 font-bold flex items-center gap-2">
+                            <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
+                        </h3>
+                        
+                        {/* --- BOTÓN DESCARGAR PDF --- */}
+                        <button 
+                            onClick={descargarPDF}
+                            className="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-orange-100 transition"
+                        >
+                            <Download size={12} /> Guardar PDF
+                        </button>
+                    </div>
                     
                     {cuentaAcumulada.cuenta.length === 0 ? (
                         <p className="text-gray-400 text-center text-sm py-4">Aún no has pedido nada.</p>
                     ) : (
-                        cuentaAcumulada.cuenta.map((item, i) => {
-                            const cantidad = item.cantidad || 1;
-                            const totalItem = item.precio * cantidad;
-                            return (
-                                <div key={i} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                                    <div className="flex items-center gap-3">
-                                        <span className="bg-orange-100 text-orange-700 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">{cantidad}</span>
-                                        <div className="flex flex-col">
-                                            <span className="text-gray-700 font-medium">{item.nombre}</span>
-                                            {cantidad > 1 && (<span className="text-[12px] text-gray-500">(${item.precio} c/u)</span>)}
-                                        </div>
+                        <>
+                            {/* SECCIÓN 1: LO QUE EL CLIENTE PIDIÓ */}
+                            {cuentaAcumulada.cuenta.some(i => i.origen !== 'personal') && (
+                                <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-widest flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Tu Pedido Confirmado
+                                    </p>
+                                    <div className="space-y-3">
+                                        {cuentaAcumulada.cuenta.filter(i => i.origen !== 'personal').map((item, i) => (
+                                            <div key={i} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="bg-orange-100 text-orange-700 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">{item.cantidad || 1}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-gray-700 font-medium">{item.nombre}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="font-bold text-gray-900">${(item.precio * (item.cantidad || 1))}</span>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <span className="font-bold text-gray-900">${totalItem}</span>
                                 </div>
-                            );
-                        })
+                            )}
+
+                            {/* SECCIÓN 2: LO QUE SE AGREGÓ DESPUÉS */}
+                            {cuentaAcumulada.cuenta.some(i => i.origen === 'personal') && (
+                                <div className="bg-blue-50/50 -mx-2 p-3 rounded-xl border border-blue-50">
+                                    <p className="text-[10px] font-bold text-blue-400 uppercase mb-3 tracking-widest flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Agregado por Personal
+                                    </p>
+                                    <div className="space-y-3">
+                                        {cuentaAcumulada.cuenta.filter(i => i.origen === 'personal').map((item, i) => (
+                                            <div key={i} className="flex justify-between items-center text-sm border-b border-blue-100 pb-2 last:border-0 last:pb-0">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="bg-blue-100 text-blue-700 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">{item.cantidad || 1}</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-gray-700 font-medium">{item.nombre}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="font-bold text-gray-900">${(item.precio * (item.cantidad || 1))}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
                 
@@ -212,20 +280,59 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                         </p>
                     </div>
 
-                    {/* INFO PEDIR MÁS (Reemplaza al botón) */}
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-4 items-start shadow-sm animate-fade-in-up delay-75">
-                        <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0">
-                            <Info size={20} />
+                    {/* INFO PEDIR MÁS (CENTRADO Y REEMPLAZANDO BOTÓN) */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col gap-3 items-center justify-center text-center shadow-sm animate-fade-in-up delay-75">
+                        <div className="bg-blue-100 p-3 rounded-full text-blue-600">
+                            <Info size={24} />
                         </div>
                         <div>
-                            <h4 className="font-bold text-blue-900 text-sm mb-1">¿Deseas algo más?</h4>
-                            <p className="text-xs text-blue-700 leading-relaxed">
+                            <h4 className="font-bold text-blue-900 text-base mb-1">¿Deseas algo más?</h4>
+                            <p className="text-sm text-blue-700 leading-relaxed px-4">
                                 Si quieres agregar más productos a tu orden, por favor <strong>coméntalo a nuestro personal</strong>.
                             </p>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    );
+};
+
+// --- PANTALLA DE DESPEDIDA CON DESCARGA (NUEVO) ---
+const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
+    return (
+        <div className="min-h-screen bg-green-600 flex flex-col items-center justify-center p-8 text-center text-white animate-fade-in-up">
+            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
+                <CheckCircle size={60} className="text-white" />
+            </div>
+            
+            <h2 className="text-4xl font-bold mb-2">¡Gracias por tu visita!</h2>
+            <p className="text-green-100 text-lg mb-8 max-w-xs mx-auto">Tu cuenta ha sido cerrada correctamente. Esperamos verte pronto.</p>
+            
+            {/* Tarjeta de Resumen Final */}
+            <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm mb-8">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pagado</p>
+                <p className="text-4xl font-bold text-green-600 mb-4">${cuentaCerrada.total}</p>
+                
+                <button 
+                    onClick={() => generarTicketPDF(cuentaCerrada)} // USA LA NUEVA FUNCIÓN
+                    className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition"
+                >
+                    <Download size={20} /> Descargar Ticket Final
+                </button>
+            </div>
+
+            <div className="flex flex-col items-center gap-2 text-green-200 text-sm">
+                <Clock size={20} className="animate-pulse"/>
+                <p>Cerrando sesión en {tiempoRestante} segundos...</p>
+            </div>
+
+            <button 
+                onClick={onFinalizar}
+                className="mt-8 text-white/60 hover:text-white font-bold underline decoration-white/30 hover:decoration-white transition"
+            >
+                Salir ahora
+            </button>
         </div>
     );
 };
@@ -238,18 +345,58 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
     const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'info' });
+    const [confirmarSalida, setConfirmarSalida] = useState(false);
     
-    // --- NUEVOS ESTADOS PARA BÚSQUEDA Y FILTROS ---
+    // --- ESTADOS PARA EL CIERRE DE CUENTA ---
+    const [ultimoEstadoCuenta, setUltimoEstadoCuenta] = useState(null);
+    const [mostrarDespedida, setMostrarDespedida] = useState(false);
+    const [tiempoDespedida, setTiempoDespedida] = useState(10); // 10 segundos
+
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
 
     const esParaLlevar = useMemo(() => mesa?.nombre.toLowerCase().includes('llevar'), [mesa]);
+    
     const miCuentaAcumulada = useMemo(() => {
         if (!mesa || !nombreCliente) return null;
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
 
-    // --- EFECTO: LIMPIAR CARRITO SI SE PAUSA UN PRODUCTO EN TIEMPO REAL ---
+    // --- EFECTO: DETECTAR CIERRE DE CUENTA (PAGO) ---
+    useEffect(() => {
+        if (miCuentaAcumulada) {
+            setUltimoEstadoCuenta(miCuentaAcumulada);
+        } 
+        else if (nombreCliente && ultimoEstadoCuenta && !mostrarDespedida && !confirmarSalida) {
+            setMostrarDespedida(true);
+        }
+    }, [miCuentaAcumulada, nombreCliente, ultimoEstadoCuenta, mostrarDespedida, confirmarSalida]);
+
+    // --- EFECTO: CONTADOR DE DESPEDIDA ---
+    useEffect(() => {
+        let intervalo;
+        if (mostrarDespedida && tiempoDespedida > 0) {
+            intervalo = setInterval(() => {
+                setTiempoDespedida(prev => prev - 1);
+            }, 1000);
+        } else if (tiempoDespedida === 0) {
+            handleSalidaCompleta();
+        }
+        return () => clearInterval(intervalo);
+    }, [mostrarDespedida, tiempoDespedida]);
+
+    const handleSalidaCompleta = () => {
+        setNombreCliente(null);
+        setTelefonoCliente(null);
+        setUltimoEstadoCuenta(null);
+        setPedidoEnviado(false);
+        setViendoCuentaTotal(false);
+        setMostrarDespedida(false);
+        setTiempoDespedida(10);
+        onSalir();
+    };
+
+    // --- EFECTO: LIMPIAR CARRITO SI SE PAUSA UN PRODUCTO ---
     useEffect(() => {
         if (carrito.length > 0) {
             const itemsValidos = carrito.filter(itemCarrito => {
@@ -265,7 +412,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         }
     }, [productos, carrito]); 
 
-    // --- LÓGICA DE FILTRADO ---
     const productosFiltrados = useMemo(() => {
         const filtrados = productos.filter(p => {
             const matchNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
@@ -282,7 +428,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
 
     const agregarAlCarrito = (producto) => {
         if (producto.pausado) return;
-
         setCarrito(prev => {
             const itemEnCarrito = prev.find(item => item.id === producto.id);
             if (itemEnCarrito) { return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item); }
@@ -301,17 +446,75 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     };
 
     const eliminarItem = (tempId) => { setCarrito(prev => prev.filter(item => item.tempId !== tempId)); };
-    const confirmarPedido = () => { onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); setPedidoEnviado(true); setCarrito([]); };
-    const handleVerCuentaDirecta = (n, t) => { setNombreCliente(n); setTelefonoCliente(t); setViendoCuentaTotal(true); };
+    
+    const confirmarPedido = () => { 
+        onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); 
+        setPedidoEnviado(true); 
+        setCarrito([]); 
+    };
+    
+    const handleIngresoConCuentaExistente = (n, t) => {
+        setNombreCliente(n);
+        setTelefonoCliente(t);
+        setPedidoEnviado(true);
+    };
 
-    if (!nombreCliente) { return <PantallaLogin mesaNombre={mesa.nombre} onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} onVerCuentaDirecta={handleVerCuentaDirecta} onSalir={onSalir} cuentasActivas={mesa.cuentas} />; }
-    if (viendoCuentaTotal) { return <VistaMiCuentaTotal cuentaAcumulada={miCuentaAcumulada} onVolver={() => { setViendoCuentaTotal(false); setPedidoEnviado(false); }} />; }
+    // --- RENDERIZADO CONDICIONAL ---
+
+    // 1. Si se cerró la cuenta, mostrar PANTALLA DE DESPEDIDA (Prioridad máxima)
+    if (mostrarDespedida && ultimoEstadoCuenta) {
+        return (
+            <PantallaDespedida 
+                cuentaCerrada={ultimoEstadoCuenta} 
+                tiempoRestante={tiempoDespedida}
+                onFinalizar={handleSalidaCompleta}
+            />
+        );
+    }
+
+    // 2. Si no hay cliente logueado, mostrar LOGIN
+    if (!nombreCliente) { 
+        return <PantallaLogin 
+            mesaNombre={mesa.nombre} 
+            onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} 
+            onVerCuentaDirecta={handleIngresoConCuentaExistente} 
+            onSalir={onSalir} 
+            cuentasActivas={mesa.cuentas} 
+        />; 
+    }
+
+    // 3. Si está viendo el total de la cuenta
+    if (viendoCuentaTotal) { 
+        return (
+            <>
+                <VistaMiCuentaTotal 
+                    cuentaAcumulada={miCuentaAcumulada} 
+                    onVolver={() => setViendoCuentaTotal(false)}
+                    onSolicitarSalida={() => setConfirmarSalida(true)}
+                />
+                <ModalConfirmacion 
+                    isOpen={confirmarSalida}
+                    onClose={() => setConfirmarSalida(false)}
+                    onConfirm={handleSalidaCompleta} // Salida manual
+                    titulo="¿Cerrar Sesión?"
+                    mensaje="Tu cuenta seguirá abierta y activa en el sistema. Puedes volver a ingresar con tu nombre."
+                    tipo="eliminar" 
+                />
+            </>
+        ); 
+    }
+
+    // 4. Si ya envió pedido (Pantalla de estado)
     if (pedidoEnviado) { 
         return (
-            <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up">
+            <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up relative">
+                <button onClick={() => setConfirmarSalida(true)} className="absolute top-6 right-6 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition">
+                    <LogOut size={20} />
+                </button>
+
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={60} className="text-green-600" /></div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Recibido!</h2>
-                <p className="text-gray-600 mb-6">Gracias <strong>{nombreCliente}</strong>.</p>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Activo!</h2>
+                <p className="text-gray-600 mb-6">Hola <strong>{nombreCliente}</strong>.</p>
                 {esParaLlevar ? (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left space-y-4">
                         <div className="flex items-start gap-3"><ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600">Estamos preparando tus alimentos para llevar.</p></div>
@@ -326,10 +529,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                     </div>
                 )}
                 
-                {/* --- SECCIÓN MODIFICADA: MENSAJE AMABLE Y BOTÓN ÚNICO --- */}
                 <div className="flex flex-col gap-4 w-full max-w-xs">
-                    
-                    {/* Mensaje de cortesía */}
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center shadow-sm">
                         <div className="flex justify-center mb-2 text-blue-500"><Info size={24} /></div>
                         <p className="text-blue-800 text-sm font-bold mb-1">
@@ -343,22 +543,28 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                         </p>
                     </div>
 
-                    {/* Botón único */}
                     <button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
                         <Receipt size={18}/> Ver mi Cuenta
                     </button>
                 </div>
-                {/* -------------------------------------------------------- */}
 
+                <ModalConfirmacion 
+                    isOpen={confirmarSalida}
+                    onClose={() => setConfirmarSalida(false)}
+                    onConfirm={handleSalidaCompleta}
+                    titulo="¿Cerrar Sesión?"
+                    mensaje="Tu cuenta seguirá abierta y activa en el sistema para que nuestro personal la atienda. Puedes volver a ingresar con tu nombre."
+                    tipo="eliminar" 
+                />
             </div>
         ); 
     }
 
+    // 5. Vista de Menú (Para agregar productos)
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
             <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
             
-            {/* HEADER FIJO */}
             <div className="bg-white p-4 sticky top-0 z-20 shadow-sm flex justify-between items-center border-b border-gray-100">
                 <div>
                     <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
@@ -366,11 +572,10 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 </div>
                 <div className="flex items-center gap-2">
                     {miCuentaAcumulada && (<button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100"><DollarSign size={14}/> {miCuentaAcumulada.total}</button>)}
-                    <button onClick={onSalir} className="text-xs bg-gray-100 p-2 rounded text-gray-500">Salir</button>
+                    <button onClick={() => setConfirmarSalida(true)} className="text-xs bg-gray-100 p-2 rounded text-gray-500 hover:bg-red-50 hover:text-red-500 transition">Salir</button>
                 </div>
             </div>
 
-            {/* --- SECCIÓN BUSCADOR Y FILTROS (STICKY) --- */}
             <div className="bg-white/95 backdrop-blur-sm sticky top-[73px] z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
                 <div className="relative mb-3">
                     <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
@@ -393,7 +598,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 </div>
             </div>
 
-            {/* --- LISTA DE PRODUCTOS --- */}
             <div className="p-4">
                 {ORDEN_CATEGORIAS.map(cat => {
                     if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null;
@@ -469,6 +673,15 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
             </div>
 
             <CarritoFlotante cuenta={carrito} onUpdateCantidad={actualizarCantidad} onEliminar={eliminarItem} onConfirmar={confirmarPedido} />
+            
+            <ModalConfirmacion 
+                isOpen={confirmarSalida}
+                onClose={() => setConfirmarSalida(false)}
+                onConfirm={handleSalidaCompleta}
+                titulo="¿Cerrar Sesión?"
+                mensaje="Tu cuenta seguirá abierta y activa en el sistema para que nuestro personal la atienda. Puedes volver a ingresar con tu nombre."
+                tipo="eliminar" 
+            />
         </div>
     );
 };

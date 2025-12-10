@@ -1,3 +1,5 @@
+import { jsPDF } from "jspdf";
+
 export const getFechaHoy = () => {
     const d = new Date();
     const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
@@ -17,14 +19,13 @@ export const ORDEN_CATEGORIAS = [
     'Bebidas Calientes', 'Bebidas Frías', 'Pasteles', 'Cheesecakes', 'Rosca', 'Cupcakes', 'Brownies', 'Postres', 'Otros'
 ];
   
-// DEJAMOS ESTOS ARRAYS VACÍOS PARA EMPEZAR DE CERO
 export const PRODUCTOS_CAFETERIA_INIT = [];
 export const MESAS_FISICAS_INIT = [];
 export const SESIONES_LLEVAR_INIT = [];
 export const VENTAS_CAFETERIA_INIT = [];
 export const PEDIDOS_PASTELERIA_INIT = [];
 
-// --- FUNCIÓN DE IMPRESIÓN (ACTUALIZADA CON TOTAL EN COMANDA) ---
+// --- FUNCIÓN DE IMPRESIÓN CLÁSICA (NAVEGADOR) ---
 export const imprimirTicket = (datos, tipo = 'ticket') => {
     const ventana = window.open('', 'PRINT', 'height=600,width=400');
     if (!ventana) { alert("Por favor, permite las ventanas emergentes para imprimir."); return; }
@@ -82,7 +83,6 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
             <div class="footer">¡Gracias por su compra!<br/>Vuelva pronto</div>
         `;
     } else if (tipo === 'comanda') {
-        // --- AQUÍ HE AGREGADO EL TOTAL AL FINAL DEL BLOQUE ---
         contenido = `
             <div class="header">
                 <span class="title">LyA</span>
@@ -125,4 +125,90 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
         ventana.print();
         ventana.close();
     }, 250);
+};
+
+// --- NUEVA FUNCIÓN: GENERAR Y DESCARGAR PDF (CLIENTE) ---
+export const generarTicketPDF = (datos) => {
+    // 80mm de ancho para simular ticket
+    const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: [80, 200]
+    });
+
+    let y = 10; // Posición Y inicial
+
+    // Helper para centrar texto horizontalmente
+    const centerText = (text, yPos) => {
+        const fontSize = doc.getFontSize();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const textWidth = doc.getStringUnitWidth(text) * fontSize / doc.internal.scaleFactor;
+        const x = (pageWidth - textWidth) / 2;
+        doc.text(text, x, yPos);
+    };
+
+    // --- ENCABEZADO ---
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    centerText("LyA", y);
+    y += 6;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    centerText("Ticket de Compra", y);
+    y += 6;
+    
+    // --- INFO GENERAL ---
+    doc.setFontSize(9);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 5, y);
+    y += 5;
+    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 5, y);
+    y += 5;
+    
+    const clienteNombre = datos.cliente || datos.nombreCliente || 'Mostrador';
+    doc.text(`Cliente: ${clienteNombre}`, 5, y);
+    y += 6;
+
+    // Línea separadora
+    doc.line(5, y, 75, y); 
+    y += 5;
+
+    // --- LISTA DE PRODUCTOS ---
+    const items = datos.items || datos.cuenta || [];
+    items.forEach(item => {
+        const cantidad = item.cantidad || 1;
+        const totalItem = (item.precio * cantidad).toFixed(2);
+        
+        // Cortar nombre si es muy largo para que no se salga del ticket
+        let nombre = item.nombre;
+        if (nombre.length > 20) {
+            nombre = nombre.substring(0, 20) + "...";
+        }
+
+        doc.text(`${cantidad}x ${nombre}`, 5, y);
+        doc.text(`$${totalItem}`, 75, y, { align: "right" });
+        y += 5;
+    });
+
+    // Línea separadora final
+    y += 2;
+    doc.line(5, y, 75, y);
+    y += 6;
+
+    // --- TOTALES ---
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("TOTAL", 5, y);
+    doc.text(`$${parseFloat(datos.total).toFixed(2)}`, 75, y, { align: "right" });
+    y += 10;
+
+    // --- PIE DE PÁGINA ---
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    centerText("¡Gracias por su preferencia!", y);
+    y += 5;
+    centerText("Pastelería y Cafetería LyA", y);
+
+    // Guardar archivo
+    doc.save(`Ticket_LyA_${Date.now()}.pdf`);
 };

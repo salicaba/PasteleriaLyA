@@ -400,6 +400,47 @@ export default function PasteleriaApp() {
     }
     // -----------------------------------------
 
+    const carritoMarcado = carrito.map(item => ({ ...item, origen: 'cliente' }));
+
+    if (idMesa === ID_QR_LLEVAR) {
+        const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
+        if (sesionExistente) {
+            const nuevosItems = [...sesionExistente.cuenta, ...carritoMarcado]; // Usamos carritoMarcado
+            const nuevoTotal = nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
+            try {
+                await updateDoc(doc(db, "sesiones_llevar", sesionExistente.id), { cuenta: nuevosItems, total: nuevoTotal });
+                mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
+            } catch (e) { mostrarNotificacion("Error al actualizar pedido", "error"); }
+        } else {
+            const totalInicial = carritoMarcado.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+            const nuevaId = `L-${Date.now().toString().slice(-4)}`;
+            // Usamos carritoMarcado
+            const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, cuenta: carritoMarcado, total: totalInicial, estado: 'Activa' };
+            try {
+                await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
+                mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
+            } catch (e) { mostrarNotificacion("Error al crear pedido", "error"); }
+        }
+    } else {
+        const mesa = mesas.find(m => m.id === idMesa);
+        if(!mesa) return;
+        const cuentaExistente = mesa.cuentas.find(c => c.cliente === nombre);
+        if (cuentaExistente) { 
+            const cuentasActualizadas = mesa.cuentas.map(c => {
+                if(c.id === cuentaExistente.id) {
+                    const nuevosItems = [...c.cuenta, ...carritoMarcado]; // Usamos carritoMarcado
+                    return { ...c, cuenta: nuevosItems, total: nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0) };
+                }
+                return c;
+            });
+            actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
+            mostrarNotificacion(`Pedido agregado: ${nombre}`, "info"); 
+        } else { 
+            crearCuentaEnMesa(idMesa, nombre, carritoMarcado); // Usamos carritoMarcado
+            mostrarNotificacion(`Nuevo cliente en Mesa: ${nombre}`, "exito"); 
+        }
+    }
+
     if (idMesa === ID_QR_LLEVAR) {
         const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
         if (sesionExistente) {
@@ -440,15 +481,24 @@ export default function PasteleriaApp() {
   };
 
   const agregarProductoASesion = async (idSesion, producto) => { 
+    // Item nuevo con marca de personal
+    const itemNuevo = { ...producto, cantidad: 1, origen: 'personal' };
+
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
-                    const itemIndex = items.findIndex(i => i.id === producto.id);
-                    if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-                    else items.push({ ...producto, cantidad: 1 });
+                    // Buscamos si ya existe el producto Y si tiene el mismo origen 'personal' para agruparlo
+                    const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
+                    
+                    if (itemIndex > -1) {
+                        items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+                    } else {
+                        items.push(itemNuevo);
+                    }
+                    
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -461,9 +511,14 @@ export default function PasteleriaApp() {
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
-            const itemIndex = items.findIndex(i => i.id === producto.id);
-            if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-            else items.push({ ...producto, cantidad: 1 });
+            const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
+            
+            if (itemIndex > -1) {
+                items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+            } else {
+                items.push(itemNuevo);
+            }
+
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
             try {
                 await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
