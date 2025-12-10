@@ -56,7 +56,7 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
     );
 };
 
-// --- COMPONENTE 2: MODAL HISTORIAL ---
+// --- COMPONENTE 2: MODAL HISTORIAL (OPTIMIZADO UI INSTANTÁNEA) ---
 const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [itemParaRestaurar, setItemParaRestaurar] = useState(null);
@@ -139,9 +139,43 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPap
                     </div>
                 </div>
             </div>
-            <ModalConfirmacion isOpen={!!itemParaRestaurar} onClose={() => setItemParaRestaurar(null)} onConfirm={() => { if (itemParaRestaurar) { onRestaurar(itemParaRestaurar); setItemParaRestaurar(null); onClose(); } }} titulo={esVenta ? "¿Deshacer Venta?" : "¿Recuperar Cuenta?"} mensaje={itemParaRestaurar ? `La cuenta de ${itemParaRestaurar.cliente || itemParaRestaurar.nombreCliente} volverá a estar activo en ${itemParaRestaurar.origenMesaId ? 'su mesa original' : 'Para Llevar'}.` : ''} />
-            <ModalConfirmacion isOpen={!!itemParaEliminar} onClose={() => setItemParaEliminar(null)} onConfirm={() => { if (itemParaEliminar) { onEliminarDePapelera(itemParaEliminar.id); setItemParaEliminar(null); } }} titulo="¿Eliminar definitivamente?" mensaje="Esta acción no se puede deshacer. El pedido desaparecerá para siempre." />
-            <ModalConfirmacion isOpen={confirmarVaciar} onClose={() => setConfirmarVaciar(false)} onConfirm={() => { onVaciarPapelera(); setConfirmarVaciar(false); }} titulo="¿Vaciar Papelera?" mensaje="Se eliminarán TODOS los pedidos cancelados de hoy. Esta acción es irreversible." />
+            
+            {/* MODALES DE CONFIRMACIÓN CON CIERRE RÁPIDO */}
+            <ModalConfirmacion 
+                isOpen={!!itemParaRestaurar} 
+                onClose={() => setItemParaRestaurar(null)} 
+                onConfirm={() => { 
+                    const item = itemParaRestaurar; 
+                    setItemParaRestaurar(null); // CIERRE RÁPIDO
+                    onClose(); // Cerrar modal principal también
+                    if (item) onRestaurar(item); 
+                }} 
+                titulo={esVenta ? "¿Deshacer Venta?" : "¿Recuperar Cuenta?"} 
+                mensaje={itemParaRestaurar ? `La cuenta de ${itemParaRestaurar.cliente || itemParaRestaurar.nombreCliente} volverá a estar activo en ${itemParaRestaurar.origenMesaId ? 'su mesa original' : 'Para Llevar'}.` : ''} 
+            />
+            
+            <ModalConfirmacion 
+                isOpen={!!itemParaEliminar} 
+                onClose={() => setItemParaEliminar(null)} 
+                onConfirm={() => { 
+                    const item = itemParaEliminar;
+                    setItemParaEliminar(null); // CIERRE RÁPIDO
+                    if (item) onEliminarDePapelera(item.id); 
+                }} 
+                titulo="¿Eliminar definitivamente?" 
+                mensaje="Esta acción no se puede deshacer. El pedido desaparecerá para siempre." 
+            />
+            
+            <ModalConfirmacion 
+                isOpen={confirmarVaciar} 
+                onClose={() => setConfirmarVaciar(false)} 
+                onConfirm={() => { 
+                    setConfirmarVaciar(false); // CIERRE RÁPIDO
+                    onVaciarPapelera(); 
+                }} 
+                titulo="¿Vaciar Papelera?" 
+                mensaje="Se eliminarán TODOS los pedidos cancelados de hoy. Esta acción es irreversible." 
+            />
         </>
     );
 };
@@ -747,8 +781,29 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 </div>
             </div>
 
-            <ModalConfirmacion isOpen={confirmacionPagoOpen} onClose={() => setConfirmacionPagoOpen(false)} onConfirm={() => { onPagarCuenta(sesion); setConfirmacionPagoOpen(false); }} titulo="¿Confirmar Cobro?" mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`} tipo="pago" />
-            <ModalConfirmacion isOpen={confirmacionCancelarOpen} onClose={() => setConfirmacionCancelarOpen(false)} onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }} titulo="¿Cancelar Cuenta?" mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
+            {/* CONFIRMACIONES CON CIERRE RÁPIDO */}
+            <ModalConfirmacion 
+                isOpen={confirmacionPagoOpen} 
+                onClose={() => setConfirmacionPagoOpen(false)} 
+                onConfirm={() => { 
+                    setConfirmacionPagoOpen(false); // CIERRE RÁPIDO
+                    onPagarCuenta(sesion); 
+                }} 
+                titulo="¿Confirmar Cobro?" 
+                mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`} 
+                tipo="pago" 
+            />
+            
+            <ModalConfirmacion 
+                isOpen={confirmacionCancelarOpen} 
+                onClose={() => setConfirmacionCancelarOpen(false)} 
+                onConfirm={() => { 
+                    setConfirmacionCancelarOpen(false); // CIERRE RÁPIDO
+                    onCancelarCuenta(sesion); 
+                }} 
+                titulo="¿Cancelar Cuenta?" 
+                mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." 
+            />
         </div>
     );
 };
@@ -1133,7 +1188,7 @@ export const VistaInicioCafeteria = ({
                 <div className="w-full xl:w-96 bg-white p-6 rounded-2xl shadow-sm border border-gray-200 h-fit">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-gray-700 flex items-center"><ShoppingBag className="mr-2"/> Para Llevar</h3>
-                        <button onClick={() => setModalLlevarOpen(true)} className="bg-gray-900 text-white p-2 rounded-lg hover:bg-gray-700 shadow-md transition-transform active:scale-95"><PlusCircle size={20}/></button>
+                        <button onClick={() => setModalLLlevarOpen(true)} className="bg-gray-900 text-white p-2 rounded-lg hover:bg-gray-700 shadow-md transition-transform active:scale-95"><PlusCircle size={20}/></button>
                     </div>
                     {pedidosLlevar.length === 0 ? (
                         <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200"><p>No hay pedidos activos.</p></div>

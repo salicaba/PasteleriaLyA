@@ -375,6 +375,12 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
     const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Pastel');
     const [otroTexto, setOtroTexto] = useState('');
 
+    // --- NUEVO: CALCULAR FECHA MÍNIMA (HOY) PARA EL INPUT ---
+    const fechaHoy = new Date();
+    // Formato YYYY-MM-DD local
+    const fechaMinima = `${fechaHoy.getFullYear()}-${String(fechaHoy.getMonth() + 1).padStart(2, '0')}-${String(fechaHoy.getDate()).padStart(2, '0')}`;
+    // --------------------------------------------------------
+
     useEffect(() => {
         if (pedidoAEditar) {
             setFormulario({ ...pedidoAEditar, horaEntrega: pedidoAEditar.horaEntrega || '' });
@@ -437,7 +443,11 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
                         {categoriaSeleccionada === 'Otro' && (<input type="text" placeholder="Especifique..." className="w-full p-3 mt-2 border rounded-lg bg-pink-50" value={otroTexto} onChange={e => setOtroTexto(e.target.value)} required />)}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label><input required type="date" min="2025-12-01" className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario, fechaEntrega: e.target.value })} /></div>
+                        <div className="space-y-2">
+                            <label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label>
+                            {/* --- CAMBIO AQUÍ: min={fechaMinima} --- */}
+                            <input required type="date" min={fechaMinima} className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario, fechaEntrega: e.target.value })} />
+                        </div>
                         <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><Clock size={16} className="mr-2 text-pink-500" /> Hora Entrega</label><input required type="time" className="w-full p-3 border rounded-lg" value={formulario.horaEntrega} onChange={e => setFormulario({ ...formulario, horaEntrega: e.target.value })} /></div>
                     </div>
                     <div className="space-y-2 md:col-span-2"><label className="flex items-center text-sm font-medium text-gray-700"><ShoppingBag size={16} className="mr-2 text-pink-500" /> Detalles</label><textarea placeholder="Sabor, dedicatoria, decoración especial..." className="w-full p-3 border rounded-lg h-24" value={formulario.detalles} onChange={e => setFormulario({ ...formulario, detalles: e.target.value })} /></div>
