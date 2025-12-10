@@ -12,6 +12,7 @@ import { VistaLogin } from './components/Login';
 
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from './firebase';
+// AGREGADO 'increment' A LAS IMPORTACIONES
 import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, writeBatch, increment } from 'firebase/firestore';
 
 // --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
@@ -649,17 +650,184 @@ export default function PasteleriaApp() {
   
   const abrirHubMesa = (idMesa) => setMesaSeleccionadaId(idMesa);
   
+  // --- FUNCIÓN UNIR CUENTAS ACTUALIZADA (AGREGA BANDERA fueFusionada) ---
   const unirCuentas = (idMesa, idCuentaDestino, idsCuentasOrigen) => { 
       const mesa = mesas.find(m => m.id === idMesa);
       if(!mesa) return;
       const destino = mesa.cuentas.find(c => c.id === idCuentaDestino);
       const origenes = mesa.cuentas.filter(c => idsCuentasOrigen.includes(c.id));
+      
       let nuevosItems = [...destino.cuenta];
-      origenes.forEach(o => { nuevosItems = [...nuevosItems, ...o.cuenta]; });
+      
+      // Creamos el registro de qué cuentas se unieron para poder desunirlas luego
+      const historialNuevo = origenes.map(o => ({
+          idOriginal: o.id,
+          clienteOriginal: o.cliente,
+          items: o.cuenta // Guardamos copia de sus items
+      }));
+
+      origenes.forEach(o => { 
+          // Al unir, marcamos los items para saber de qué cuenta vinieron (IMPORTANTE PARA DESUNIR)
+          const itemsMarcados = o.cuenta.map(item => ({
+              ...item,
+              _origenFusionId: o.id // Marca invisible para el usuario
+          }));
+          nuevosItems = [...nuevosItems, ...itemsMarcados]; 
+      });
+
       const nuevoTotal = nuevosItems.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-      const cuentasActualizadas = mesa.cuentas.filter(c => !idsCuentasOrigen.includes(c.id)).map(c => c.id === idCuentaDestino ? { ...c, cuenta: nuevosItems, total: nuevoTotal } : c);
+      
+      // Combinamos el historial existente con el nuevo
+      const historialCompleto = [...(destino.historicoFusion || []), ...historialNuevo];
+
+      const cuentasActualizadas = mesa.cuentas
+        .filter(c => !idsCuentasOrigen.includes(c.id))
+        .map(c => c.id === idCuentaDestino ? { 
+            ...c, 
+            cuenta: nuevosItems, 
+            total: nuevoTotal, 
+            historicoFusion: historialCompleto, // Guardamos el historial en la cuenta destino
+            fueFusionada: true // <--- Bandera para mostrar botón "Desunir"
+        } : c);
+      
       actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
-      mostrarNotificacion("Cuentas unificadas"); 
+      mostrarNotificacion("Cuentas unificadas correctamente"); 
+  };
+
+  // --- NUEVA LÓGICA: DESUNIR CUENTAS (HISTÓRICO) ---
+  const desunirCuentas = async (idMesa, idCuentaMadre, idsOriginalesADesunir) => {
+      const mesa = mesas.find(m => m.id === idMesa);
+      if (!mesa) return;
+      const cuentaMadre = mesa.cuentas.find(c => c.id === idCuentaMadre);
+      if (!cuentaMadre || !cuentaMadre.historicoFusion) return;
+
+      let itemsMadre = [...cuentaMadre.cuenta];
+      const cuentasRestauradas = [];
+      let nuevoHistorico = [...cuentaMadre.historicoFusion];
+
+      // Iteramos sobre los IDs que el usuario quiere separar
+      idsOriginalesADesunir.forEach(idARestaurar => {
+          // 1. Buscar la info original en el historial
+          const infoOriginal = cuentaMadre.historicoFusion.find(h => h.idOriginal === idARestaurar);
+          if (infoOriginal) {
+              // 2. Crear la cuenta independiente de nuevo
+              // Filtramos los items actuales de la madre que tengan la marca de este origen
+              const itemsDeEstaCuenta = itemsMadre.filter(item => item._origenFusionId === idARestaurar);
+              
+              if (itemsDeEstaCuenta.length > 0) {
+                  const totalRestaurado = itemsDeEstaCuenta.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+                  
+                  // Limpiamos la marca interna antes de soltarla
+                  const itemsLimpios = itemsDeEstaCuenta.map(i => {
+                      const { _origenFusionId, ...resto } = i;
+                      return resto;
+                  });
+
+                  cuentasRestauradas.push({
+                      id: infoOriginal.idOriginal, 
+                      cliente: infoOriginal.clienteOriginal,
+                      cuenta: itemsLimpios,
+                      total: totalRestaurado
+                  });
+
+                  // 3. Quitar estos items de la cuenta madre
+                  itemsMadre = itemsMadre.filter(item => item._origenFusionId !== idARestaurar);
+                  
+                  // 4. Quitar del historial
+                  nuevoHistorico = nuevoHistorico.filter(h => h.idOriginal !== idARestaurar);
+              }
+          }
+      });
+
+      // Recalcular total madre
+      const totalMadre = itemsMadre.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+
+      // Actualizar cuenta madre
+      const cuentaMadreActualizada = {
+          ...cuentaMadre,
+          cuenta: itemsMadre,
+          total: totalMadre,
+          historicoFusion: nuevoHistorico.length > 0 ? nuevoHistorico : null,
+          fueFusionada: nuevoHistorico.length > 0 // Si ya no tiene historial, ya no está fusionada
+      };
+
+      // Guardar todo en la mesa
+      const nuevasCuentasMesa = mesa.cuentas.map(c => c.id === idCuentaMadre ? cuentaMadreActualizada : c);
+      cuentasRestauradas.forEach(c => nuevasCuentasMesa.push(c));
+
+      await actualizarMesaEnBD({ ...mesa, cuentas: nuevasCuentasMesa });
+      
+      // Actualizar vista activa si es la que estamos viendo
+      if (cuentaActiva && cuentaActiva.id === idCuentaMadre) {
+          setCuentaActiva({ ...cuentaActiva, ...cuentaMadreActualizada });
+      }
+
+      mostrarNotificacion("Cuentas separadas exitosamente", "exito");
+  };
+
+  // --- LÓGICA ANTERIOR: DIVIDIR POR ITEMS (MANUAL) ---
+  const dividirCuentaManual = async (idSesionOriginal, nombreNuevoCliente, itemsIndicesAMover) => {
+      // 1. Identificar la sesión
+      let sesionOriginal = null;
+      let esMesa = false;
+      let mesaObj = null;
+
+      if (cuentaActiva.tipo === 'mesa') {
+          mesaObj = mesas.find(m => m.id === cuentaActiva.idMesa);
+          if (mesaObj) {
+              sesionOriginal = mesaObj.cuentas.find(c => c.id === idSesionOriginal);
+              esMesa = true;
+          }
+      } else {
+          // Bloqueo por seguridad (aunque el botón no debería aparecer)
+          return; 
+      }
+
+      if (!sesionOriginal) return;
+
+      // 2. Separar los items
+      const itemsOriginales = [...sesionOriginal.cuenta];
+      const itemsParaNueva = [];
+      const itemsParaVieja = [];
+
+      itemsOriginales.forEach((item, index) => {
+          if (itemsIndicesAMover.includes(index)) {
+              itemsParaNueva.push(item);
+          } else {
+              itemsParaVieja.push(item);
+          }
+      });
+
+      // 3. Crear nueva cuenta/sesión
+      const totalNueva = itemsParaNueva.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+      const totalVieja = itemsParaVieja.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
+
+      if (esMesa) {
+          // Actualizar mesa: Modificar original y Agregar nueva
+          const nuevaCuenta = {
+              id: `C-${Date.now().toString().slice(-4)}-DIV`,
+              cliente: nombreNuevoCliente,
+              cuenta: itemsParaNueva,
+              total: totalNueva
+          };
+
+          const cuentasActualizadas = mesaObj.cuentas.map(c => {
+              if (c.id === idSesionOriginal) {
+                  return { ...c, cuenta: itemsParaVieja, total: totalVieja };
+              }
+              return c;
+          });
+          cuentasActualizadas.push(nuevaCuenta);
+
+          await actualizarMesaEnBD({ ...mesaObj, cuentas: cuentasActualizadas });
+          
+          // Actualizar vista activa si estamos viendo la cuenta vieja
+          if (cuentaActiva.id === idSesionOriginal) {
+              setCuentaActiva({ ...cuentaActiva, cuenta: itemsParaVieja, total: totalVieja });
+          }
+
+      }
+      mostrarNotificacion(`Items movidos a "${nombreNuevoCliente}"`, "exito");
   };
   
   const abrirPOSCuentaMesa = (idMesa, idCuenta) => { 
@@ -681,12 +849,8 @@ export default function PasteleriaApp() {
   
   const iniciarCancelacion = (f) => setPedidoACancelar(f);
   
-  // --- FUNCIÓN CORREGIDA: Optimistic UI (Cierra al instante) ---
   const confirmarCancelacion = async () => { 
-      const folioParaCancelar = pedidoACancelar; // Guardar ID
-      setPedidoACancelar(null); // <--- CERRAR MODAL INMEDIATAMENTE
-
-      const pedido = pedidosPasteleria.find(p => p.folio === folioParaCancelar);
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoACancelar);
       if (pedido) {
           try {
               await updateDoc(doc(db, "pedidos", pedido.id), { 
@@ -694,28 +858,22 @@ export default function PasteleriaApp() {
                   fechaCancelacion: new Date().toISOString() 
               });
               mostrarNotificacion("Pedido enviado a la papelera");
-          } catch (e) { 
-              mostrarNotificacion("Error al cancelar", "error"); 
-          }
+          } catch (e) { mostrarNotificacion("Error al cancelar", "error"); }
       }
+      setPedidoACancelar(null); 
   };
 
   const iniciarRestauracion = (f) => setPedidoARestaurar(f);
   
-  // --- FUNCIÓN CORREGIDA: Optimistic UI (Cierra al instante) ---
   const confirmarRestauracion = async () => { 
-      const folioParaRestaurar = pedidoARestaurar; // Guardar ID
-      setPedidoARestaurar(null); // <--- CERRAR MODAL INMEDIATAMENTE
-
-      const pedido = pedidosPasteleria.find(p => p.folio === folioParaRestaurar);
+      const pedido = pedidosPasteleria.find(p => p.folio === pedidoARestaurar);
       if (pedido) {
           try {
               await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
               mostrarNotificacion("Pedido restaurado");
-          } catch (e) { 
-              mostrarNotificacion("Error al restaurar", "error"); 
-          }
+          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
       }
+      setPedidoARestaurar(null); 
   };
 
   const restaurarPedidoDirectamente = async (folio) => {
@@ -728,6 +886,7 @@ export default function PasteleriaApp() {
       }
   };
 
+  // --- FUNCIÓN ACTUALIZADA: INICIAR ENTREGA CON VALIDACIÓN DE PAGO ---
   const iniciarEntrega = (f) => {
       const pedido = pedidosPasteleria.find(p => p.folio === f);
       
@@ -744,8 +903,8 @@ export default function PasteleriaApp() {
   };
   
   const confirmarEntrega = async () => { 
-      const folioParaEntregar = pedidoAEntregar; 
-      setPedidoAEntregar(null); 
+      const folioParaEntregar = pedidoAEntregar; // 1. Capturar folio antes de borrar estado
+      setPedidoAEntregar(null); // 2. Cerrar modal INMEDIATAMENTE (Optimistic)
 
       const pedido = pedidosPasteleria.find(p => p.folio === folioParaEntregar);
       if (pedido) {
@@ -845,6 +1004,8 @@ export default function PasteleriaApp() {
           onPagarCuenta={pagarCuenta}
           onActualizarProducto={actualizarProductoEnSesion}
           onCancelarCuenta={cancelarCuentaSinPagar}
+          onDividirCuentaManual={dividirCuentaManual} // Función Manual
+          onDesunirCuentas={desunirCuentas} // Función Histórica
       />}
       
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
