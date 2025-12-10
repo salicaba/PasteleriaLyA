@@ -148,7 +148,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// ... (VistaMiCuentaTotal se mantiene igual) ...
+// --- VISTA MI CUENTA TOTAL (MODIFICADA: SIN BOTÓN SEGUIR PIDIENDO, CON TARJETAS DE INFO) ---
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
@@ -159,6 +159,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
+            {/* Header */}
             <div className="bg-gray-900 text-white p-6 pb-12 rounded-b-[2.5rem] shadow-lg relative z-10">
                 <div className="flex justify-between items-center mb-6">
                     <button onClick={onVolver} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition"><ArrowLeft size={20}/></button>
@@ -172,7 +173,8 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                 </div>
             </div>
 
-            <div className="flex-1 px-6 -mt-8 relative z-20 pb-24 overflow-y-auto">
+            {/* Contenido (Ajustado padding-bottom ya que no hay footer sticky) */}
+            <div className="flex-1 px-6 -mt-8 relative z-20 pb-12 overflow-y-auto">
                 <div className="bg-white rounded-2xl shadow-md p-6 space-y-4">
                     <h3 className="text-gray-800 font-bold border-b border-gray-100 pb-2 mb-2 flex items-center gap-2">
                         <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
@@ -200,16 +202,29 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver }) => {
                     )}
                 </div>
                 
-                <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center shadow-sm animate-fade-in-up">
-                    <p className="text-yellow-800 font-bold text-sm flex flex-col items-center gap-1">
-                        <span>💁‍♂️</span>
-                        * Si deseas pagar, solicita la cuenta al mesero o acércate a caja.
-                    </p>
-                </div>
-            </div>
+                {/* TARJETAS DE INFORMACIÓN */}
+                <div className="space-y-4 mt-6">
+                    {/* INFO PAGO */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center shadow-sm animate-fade-in-up">
+                        <p className="text-yellow-800 font-bold text-sm flex flex-col items-center gap-1">
+                            <span>💁‍♂️</span>
+                            Para pagar, solicita la cuenta al mesero o acércate a caja.
+                        </p>
+                    </div>
 
-            <div className="p-4 bg-white border-t border-gray-200 sticky bottom-0">
-                <button onClick={onVolver} className="w-full py-4 bg-orange-600 text-white rounded-xl font-bold shadow-lg">Seguir Pidiendo</button>
+                    {/* INFO PEDIR MÁS (Reemplaza al botón) */}
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-4 items-start shadow-sm animate-fade-in-up delay-75">
+                        <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0">
+                            <Info size={20} />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-blue-900 text-sm mb-1">¿Deseas algo más?</h4>
+                            <p className="text-xs text-blue-700 leading-relaxed">
+                                Si quieres agregar más productos a tu orden, por favor <strong>coméntalo a nuestro personal</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -238,9 +253,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     useEffect(() => {
         if (carrito.length > 0) {
             const itemsValidos = carrito.filter(itemCarrito => {
-                // Buscamos el producto en la lista actualizada de productos (que viene de Firebase)
                 const productoReal = productos.find(p => p.id === itemCarrito.id);
-                // Si el producto existe Y NO ESTÁ PAUSADO, se queda. Si está pausado, se va.
                 return productoReal && !productoReal.pausado;
             });
 
@@ -252,28 +265,22 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         }
     }, [productos, carrito]); 
 
-    // --- LÓGICA DE FILTRADO (Productos pausados AL FINAL y mostrados como agotados) ---
+    // --- LÓGICA DE FILTRADO ---
     const productosFiltrados = useMemo(() => {
         const filtrados = productos.filter(p => {
             const matchNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
             const matchCategoria = categoriaFiltro === 'Todas' || p.categoria === categoriaFiltro;
-            // Mostramos TODOS (incluso pausados) para que el cliente vea que existen pero están agotados
             return matchNombre && matchCategoria;
         });
 
-        // ORDENAMIENTO: Primero activos (A-Z), luego pausados (A-Z)
         return filtrados.sort((a, b) => {
-            // 1. Prioridad por estado (Activo primero, Pausado al final)
             if (a.pausado && !b.pausado) return 1; 
             if (!a.pausado && b.pausado) return -1;
-            
-            // 2. Orden alfabético
             return a.nombre.localeCompare(b.nombre);
         });
     }, [productos, busqueda, categoriaFiltro]);
 
     const agregarAlCarrito = (producto) => {
-        // Doble verificación: No agregar si está pausado
         if (producto.pausado) return;
 
         setCarrito(prev => {
@@ -318,7 +325,31 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                         <div className="flex items-start gap-3"><Package className="text-orange-500 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-500 italic">¿Deseas llevar algo a casa? Si necesitas empaquetar algún producto o pedir algo extra para llevar, por favor coméntalo a nuestro personal o en caja.</p></div>
                     </div>
                 )}
-                <div className="flex flex-col gap-3 w-full max-w-xs"><button onClick={() => setPedidoEnviado(false)} className="bg-green-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-green-700 transition">Pedir más cosas</button><button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2"><Receipt size={18}/> Ver mi Cuenta</button></div>
+                
+                {/* --- SECCIÓN MODIFICADA: MENSAJE AMABLE Y BOTÓN ÚNICO --- */}
+                <div className="flex flex-col gap-4 w-full max-w-xs">
+                    
+                    {/* Mensaje de cortesía */}
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center shadow-sm">
+                        <div className="flex justify-center mb-2 text-blue-500"><Info size={24} /></div>
+                        <p className="text-blue-800 text-sm font-bold mb-1">
+                            ¿Olvidaste algo?
+                        </p>
+                        <p className="text-blue-700 text-xs font-medium leading-relaxed">
+                            Si deseas agregar más productos, por favor <strong>avisa a nuestro personal</strong> o <strong>acércate a caja</strong> para sumarlo a tu comanda actual.
+                        </p>
+                        <p className="text-blue-600 text-[10px] mt-2 italic">
+                            ¡Estaremos encantados de atenderte!
+                        </p>
+                    </div>
+
+                    {/* Botón único */}
+                    <button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                        <Receipt size={18}/> Ver mi Cuenta
+                    </button>
+                </div>
+                {/* -------------------------------------------------------- */}
+
             </div>
         ); 
     }
@@ -362,7 +393,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 </div>
             </div>
 
-            {/* --- LISTA DE PRODUCTOS (CORREGIDA) --- */}
+            {/* --- LISTA DE PRODUCTOS --- */}
             <div className="p-4">
                 {ORDEN_CATEGORIAS.map(cat => {
                     if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null;
@@ -377,7 +408,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                             
                             <div className="flex gap-4 overflow-x-auto pb-6 snap-x lg:grid lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:pb-0 lg:overflow-visible no-scrollbar">
                                 {prods.map(prod => {
-                                    // --- CORRECCIÓN: Renderizado manual sin 'require' ---
                                     const agotado = prod.pausado === true;
                                     const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
 

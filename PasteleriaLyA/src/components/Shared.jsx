@@ -4,8 +4,7 @@ import {
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
     Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle
 } from 'lucide-react';
-import { imprimirTicket } from '../utils/config';
-import { formatearFechaLocal } from '../utils/config';
+import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
 // --- NOTIFICACIÓN FLOTANTE (RESPONSIVE) ---
 export const Notificacion = ({ data, onClose }) => {
@@ -14,7 +13,7 @@ export const Notificacion = ({ data, onClose }) => {
         exito: "bg-green-600 border-green-700 text-white",
         error: "bg-red-500 border-red-600 text-white",
         info: "bg-blue-600 border-blue-700 text-white",
-        warning: "bg-yellow-500 border-yellow-600 text-white" // Agregué estilo warning
+        warning: "bg-yellow-500 border-yellow-600 text-white"
     };
     return (
         <div className={`fixed top-4 md:top-6 left-1/2 transform -translate-x-1/2 z-[300] flex items-center gap-3 px-4 md:px-6 py-3 md:py-4 rounded-xl shadow-2xl border-b-4 animate-bounce-in transition-all duration-300 max-w-[90vw] md:max-w-md ${estilos[data.tipo] || estilos.info}`}>
@@ -39,8 +38,6 @@ export const CardStat = ({ titulo, valor, color, icon }) => (
 // --- TARJETA DE PRODUCTO (ACTUALIZADA: PAUSADO = AGOTADO) ---
 export const CardProducto = ({ producto, onClick }) => {
     const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
-
-    // Si está pausado, visualmente se comporta como AGOTADO para el cliente
     const estaPausado = producto.pausado === true;
 
     return (
@@ -48,7 +45,6 @@ export const CardProducto = ({ producto, onClick }) => {
             onClick={!estaPausado ? onClick : undefined} 
             className={`bg-white rounded-xl shadow-sm transition-all duration-300 overflow-hidden group border flex flex-col w-full min-w-[130px] sm:min-w-[150px] md:w-48 flex-shrink-0 md:flex-shrink relative ${estaPausado ? 'border-red-100 bg-gray-50 cursor-not-allowed opacity-80' : 'border-orange-100 hover:shadow-lg cursor-pointer'}`}
         >
-            {/* Contenedor de imagen */}
             <div className="h-24 sm:h-28 bg-orange-50/50 flex items-center justify-center overflow-hidden relative p-3">
                 <div 
                     style={{ transform: `scale(${producto.zoom ? producto.zoom / 100 : 1})` }} 
@@ -66,8 +62,6 @@ export const CardProducto = ({ producto, onClick }) => {
                         </span>
                     )}
                 </div>
-
-                {/* ETIQUETA FLOTANTE "AGOTADO" (Si está pausado) */}
                 {estaPausado && (
                     <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
                         <span className="bg-red-600 text-white text-[10px] font-bold px-3 py-1 rounded shadow-lg transform -rotate-12 border border-white/30 tracking-wider flex items-center gap-1">
@@ -77,13 +71,11 @@ export const CardProducto = ({ producto, onClick }) => {
                 )}
             </div>
             
-            {/* Contenido de texto */}
             <div className="p-3 flex-1 flex flex-col justify-between">
                 <div>
                     <h4 className={`font-bold text-sm leading-tight mb-1 line-clamp-2 min-h-[2.5em] ${estaPausado ? 'text-gray-400' : 'text-gray-800'}`}>
                         {producto.nombre}
                     </h4>
-                    
                     <p className="text-[10px] text-gray-400 mb-2 line-clamp-2 hidden sm:block">
                         {producto.descripcion}
                     </p>
@@ -105,7 +97,8 @@ export const CardProducto = ({ producto, onClick }) => {
     );
 };
 
-// ... (El resto del archivo Shared.jsx: Sidebar, Layout, Modales, etc. se queda IGUAL) ...
+// --- COMPONENTES DE NAVEGACIÓN Y LAYOUT ---
+
 const BotonNav = ({ icon, label, active, onClick, colorTheme = "pink" }) => {
     let activeClass, hoverClass;
     if (colorTheme === "orange") {
@@ -158,11 +151,37 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
     );
 };
 
+// --- LAYOUT PRINCIPAL (MODIFICADO PARA GUARDAR PREFERENCIA) ---
 export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, setModo, onLogout }) => {
     const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
-    const [escala, setEscala] = useState('grande'); 
-    const zoom = useMemo(() => { switch(escala) { case 'mediano': return 0.88; case 'pequeno': return 0.78; default: return 1; } }, [escala]);
-    useEffect(() => { const handleResize = () => { if (window.innerWidth < 768) { setSidebarOpen(false); } else { setSidebarOpen(true); } }; window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }, []);
+    
+    // --- LÓGICA DE ESCALA: Lee de localStorage o usa 'pequeno' por defecto ---
+    const [escala, setEscala] = useState(() => {
+        const guardado = localStorage.getItem('lya_escala_pref');
+        return guardado || 'pequeno'; // Si no hay nada guardado, usa 'pequeno'
+    });
+
+    // Efecto para guardar la preferencia cada vez que cambie
+    useEffect(() => {
+        localStorage.setItem('lya_escala_pref', escala);
+    }, [escala]);
+
+    const zoom = useMemo(() => { 
+        switch(escala) { 
+            case 'mediano': return 0.88; 
+            case 'pequeno': return 0.78; 
+            default: return 1; 
+        } 
+    }, [escala]);
+
+    useEffect(() => { 
+        const handleResize = () => { 
+            if (window.innerWidth < 768) { setSidebarOpen(false); } else { setSidebarOpen(true); } 
+        }; 
+        window.addEventListener('resize', handleResize); 
+        return () => window.removeEventListener('resize', handleResize); 
+    }, []);
+
     return (
         <div className="flex bg-gray-50 overflow-hidden transition-all duration-300" style={{ zoom: zoom, height: `${100 / zoom}vh`, width: '100%', }}>
             <Sidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={setModo} isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} onLogout={onLogout} escala={escala} setEscala={setEscala} />
@@ -174,6 +193,8 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
         </div>
     );
 };
+
+// --- MODALES ---
 
 export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Estás seguro?", mensaje = "Esta acción no se puede deshacer.", tipo = "eliminar" }) => {
     if (!isOpen) return null;
