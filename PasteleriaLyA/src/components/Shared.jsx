@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
-    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle
+    Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle, Shield
 } from 'lucide-react';
 import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
@@ -118,6 +118,7 @@ const BotonNav = ({ icon, label, active, onClick, colorTheme = "pink" }) => {
     );
 };
 
+// --- SIDEBAR MODIFICADO PARA NAVEGACIÓN DIRECTA ENTRE MÓDULOS ---
 export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, toggleSidebar, onLogout, escala, setEscala }) => {
     let colorBg, colorText, themeBtn;
     if (modo === 'cafeteria') { colorBg = "bg-orange-900"; colorText = "text-orange-200"; themeBtn = "orange"; } 
@@ -130,21 +131,85 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
         <>
             {isOpen && (<div className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300" onClick={toggleSidebar} />)}
             <aside className={`${isOpen ? 'translate-x-0 w-64 md:w-64 lg:w-72' : '-translate-x-full w-0 md:w-0'} ${colorBg} text-white h-full flex flex-col shadow-2xl transition-all duration-300 overflow-hidden fixed md:relative z-50 md:z-auto`}>
+                
+                {/* HEADER SIDEBAR */}
                 <div className="p-4 md:p-6 text-center flex-shrink-0 relative group">
                     <h1 className="text-4xl md:text-5xl font-bold text-white mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>LyA</h1>
                     <p className={`text-xs ${colorText} uppercase tracking-widest font-bold`}>{modo === 'admin' ? 'Administración' : modo === 'pasteleria' ? 'Modo Pastelería' : 'Modo Cafetería'}</p>
                     <button onClick={toggleSidebar} className="absolute top-4 right-2 p-2 hover:bg-white/10 rounded-full hidden md:block text-white/50 hover:text-white transition"><PanelLeftClose size={20} /></button>
                 </div>
                 {isOpen && (<button onClick={toggleSidebar} className="absolute top-4 right-4 p-1 hover:bg-white/20 rounded-full md:hidden"><X size={20} className="text-white" /></button>)}
+                
+                {/* NAVEGACIÓN PRINCIPAL */}
                 <nav className="flex-1 overflow-y-auto px-3 md:px-4 py-2 space-y-1 custom-scrollbar no-scrollbar">
-                    {modo === 'admin' && (<><BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/><BotonNav icon={<BarChart3 size={18}/>} label="Reporte Comparativo" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/><BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/><div className="my-4 border-t border-white/20"></div><p className="text-xs text-white/60 uppercase font-bold mb-2 px-2">Accesos Rápidos</p><button onClick={() => handleNavClick(() => { setModo('pasteleria'); setVistaActual('inicio'); })} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-pink-200 hover:text-white"><Cake size={18}/><span className="text-sm truncate">Ir a Pastelería</span></button><button onClick={() => handleNavClick(() => { setModo('cafeteria'); setVistaActual('inicio'); })} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-orange-200 hover:text-white"><Coffee size={18}/><span className="text-sm truncate">Ir a Cafetería</span></button></>)}
-                    {modo === 'pasteleria' && (<><BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/><BotonNav icon={<PlusCircle size={18}/>} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => handleNavClick(() => setVistaActual('pedidos'))} colorTheme={themeBtn}/><BotonNav icon={<CalendarRange size={18}/>} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => handleNavClick(() => setVistaActual('agenda'))} colorTheme={themeBtn}/><BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/></>)}
-                    {modo === 'cafeteria' && (<><BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/><BotonNav icon={<Grid size={18}/>} label="Punto de Venta (QR)" active={vistaActual === 'mesas'} onClick={() => handleNavClick(() => setVistaActual('mesas'))} colorTheme={themeBtn}/><BotonNav icon={<UtensilsCrossed size={18}/>} label="Menú y Productos" active={vistaActual === 'menu'} onClick={() => handleNavClick(() => setVistaActual('menu'))} colorTheme={themeBtn}/><BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/></>)}
+                    
+                    {/* MENÚ ESPECÍFICO SEGÚN EL MODO ACTUAL */}
+                    {modo === 'admin' && (
+                        <>
+                            <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Comparativo" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/>
+                        </>
+                    )}
+                    
+                    {modo === 'pasteleria' && (
+                        <>
+                            <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<PlusCircle size={18}/>} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => handleNavClick(() => setVistaActual('pedidos'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<CalendarRange size={18}/>} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => handleNavClick(() => setVistaActual('agenda'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/>
+                        </>
+                    )}
+                    
+                    {modo === 'cafeteria' && (
+                        <>
+                            <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<Grid size={18}/>} label="Punto de Venta (QR)" active={vistaActual === 'mesas'} onClick={() => handleNavClick(() => setVistaActual('mesas'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<UtensilsCrossed size={18}/>} label="Gestión de Menú" active={vistaActual === 'menu'} onClick={() => handleNavClick(() => setVistaActual('menu'))} colorTheme={themeBtn}/>
+                            <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/>
+                        </>
+                    )}
+
+                    {/* SEPARATOR & QUICK ACCESS LINKS (VISIBLES EN TODOS LOS MODOS) */}
+                    <div className="my-4 border-t border-white/20"></div>
+                    <p className="text-[10px] text-white/50 uppercase font-bold mb-2 px-2 tracking-wider">Cambiar de Área</p>
+
+                    {modo !== 'admin' && (
+                        <button onClick={() => handleNavClick(() => { setModo('admin'); setVistaActual('inicio'); })} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-gray-300 hover:text-white group">
+                            <Shield size={18} className="group-hover:text-gray-200"/>
+                            <span className="text-sm truncate">Administración</span>
+                        </button>
+                    )}
+
+                    {modo !== 'pasteleria' && (
+                        <button onClick={() => handleNavClick(() => { setModo('pasteleria'); setVistaActual('inicio'); })} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-pink-300 hover:text-white group">
+                            <Cake size={18} className="group-hover:text-pink-200"/>
+                            <span className="text-sm truncate">Pastelería</span>
+                        </button>
+                    )}
+
+                    {modo !== 'cafeteria' && (
+                        <button onClick={() => handleNavClick(() => { setModo('cafeteria'); setVistaActual('inicio'); })} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-orange-300 hover:text-white group">
+                            <Coffee size={18} className="group-hover:text-orange-200"/>
+                            <span className="text-sm truncate">Cafetería</span>
+                        </button>
+                    )}
+
                 </nav>
+
+                {/* FOOTER SIDEBAR */}
                 <div className="mt-auto px-3 md:px-4 py-4 space-y-2 border-t border-white/10">
-                    {modo !== 'admin' && (<button onClick={() => handleNavClick(() => { setModo('admin'); setVistaActual('inicio'); })} className="w-full flex items-center justify-center space-x-2 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition text-sm mb-2"><ArrowLeft size={14}/><span className="truncate">Volver al Admin</span></button>)}
-                    <div className="bg-black/20 rounded-xl p-3 mb-2"><p className="text-[10px] uppercase font-bold text-white/60 mb-2 flex items-center gap-1"><Monitor size={10} /> Tamaño de Vista</p><div className="flex gap-1"><button onClick={() => setEscala('grande')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'grande' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>G</button><button onClick={() => setEscala('mediano')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'mediano' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>M</button><button onClick={() => setEscala('pequeno')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>P</button></div></div>
-                    <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-red-200 hover:text-red-100"><LogOut size={18}/><span className="font-medium text-sm truncate">Cerrar Sesión</span></button>
+                    <div className="bg-black/20 rounded-xl p-3 mb-2">
+                        <p className="text-[10px] uppercase font-bold text-white/60 mb-2 flex items-center gap-1"><Monitor size={10} /> Tamaño de Vista</p>
+                        <div className="flex gap-1">
+                            <button onClick={() => setEscala('grande')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'grande' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>G</button>
+                            <button onClick={() => setEscala('mediano')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'mediano' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>M</button>
+                            <button onClick={() => setEscala('pequeno')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>P</button>
+                        </div>
+                    </div>
+                    <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-red-200 hover:text-red-100">
+                        <LogOut size={18}/><span className="font-medium text-sm truncate">Cerrar Sesión</span>
+                    </button>
                 </div>
             </aside>
         </>
