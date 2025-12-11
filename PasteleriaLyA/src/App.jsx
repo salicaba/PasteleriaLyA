@@ -10,13 +10,13 @@ import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios } from '.
 import { VistaCliente } from './features/Cliente';
 import { VistaLogin } from './components/Login';
 
-// --- IMPORTACIONES DE SERVICIOS (NUEVO) ---
-import { saveProduct, deleteProduct, subscribeToProducts } from './services/products.service';
+// --- IMPORTACIONES DE SERVICIOS (TODO CENTRALIZADO) ---
+import { saveProduct, deleteProduct, subscribeToProducts, updateProductStock } from './services/products.service';
 import { createMesa, updateMesa, removeMesa, subscribeToMesas } from './services/mesas.service';
-
-// --- IMPORTACIONES DE FIREBASE (MANTENEMOS PARA LO NO REFACTORIZADO AÚN) ---
-import { db } from './firebase';
-import { collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc, setDoc, writeBatch, increment } from 'firebase/firestore';
+import { subscribeToOrders, saveOrder, updateOrderStatus, deleteOrder, emptyOrdersTrash } from './services/orders.service';
+import { subscribeToSales, createSale, deleteSale } from './services/sales.service';
+import { subscribeToUsers, saveUser, deleteUser } from './services/users.service';
+import { subscribeToSessions, createSession, updateSession, deleteSession, saveSession } from './services/sessions.service';
 
 // --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
 const TextoCargandoAnimado = () => {
@@ -36,7 +36,7 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE MODIFICADO ---
+// --- COMPONENTE RUTA CLIENTE ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading }) => {
     const { id } = useParams(); 
     const location = useLocation();
@@ -71,75 +71,37 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         
         if (esLlevar) {
             if (mesas.length === 0 && sesionesLlevar.length === 0) return null;
-
             const cuentasAdaptadas = sesionesLlevar.map(s => ({ ...s, cliente: s.nombreCliente }));
             return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
         }
         return mesas.find(m => m.id === id);
     }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    // 1. PANTALLA DE CARGA
     if ((loading || !online) && !tiempoExcedido) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 transition-opacity duration-500 text-center">
                 <div className="relative mb-6">
                     <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <Coffee size={24} className="text-orange-600 opacity-80" />
-                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center"><Coffee size={24} className="text-orange-600 opacity-80" /></div>
                 </div>
-                
-                <div className="text-orange-800 font-bold text-lg animate-pulse">
-                    <TextoCargandoAnimado />
-                </div>
+                <div className="text-orange-800 font-bold text-lg animate-pulse"><TextoCargandoAnimado /></div>
                 <p className="text-xs text-orange-400 mt-2 text-center">Conectando con el sistema...</p>
             </div>
         );
     }
 
-    // 2. PANTALLA DE ERROR
     if (!mesaObj || tiempoExcedido || !online) {
         const titulo = esLlevar ? "Sin Conexión" : "Mesa no encontrada";
-        const mensaje = esLlevar 
-            ? "No se pudo conectar con el servidor. Verifica tu internet para realizar pedidos desde el mostrador."
-            : "El código QR parece ser inválido o la mesa no existe.";
-        
+        const mensaje = esLlevar ? "No se pudo conectar con el servidor." : "El código QR parece ser inválido.";
         const Icono = !online ? WifiOff : AlertCircle;
 
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center animate-fade-in-up">
                 <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
-                    <div className="mx-auto bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
-                        <Icono size={48} className="text-red-400"/>
-                    </div>
-                    
-                    <h1 className="text-3xl font-bold text-gray-800 mb-3 leading-tight">
-                        {titulo}
-                    </h1>
-                    
-                    <p className="text-gray-600 font-medium mb-2 px-2">
-                        {mensaje}
-                    </p>
-                    
-                    <p className="text-sm text-gray-400 mb-6">
-                        Verifica tu conexión e intenta de nuevo.
-                    </p>
-
-                    <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 text-left flex gap-3">
-                        <div className="bg-orange-100 p-2 rounded-full h-fit text-orange-600 shrink-0">
-                            <Info size={20} />
-                        </div>
-                        <p className="text-xs text-orange-800 leading-relaxed font-medium">
-                            Si el problema persiste, por favor <strong>acérquese a caja</strong> o solicite ayuda a nuestro personal para atenderle.
-                        </p>
-                    </div>
-
-                    <button 
-                        onClick={() => window.location.reload()} 
-                        className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95"
-                    >
-                        Intentar de nuevo
-                    </button>
+                    <div className="mx-auto bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce-in"><Icono size={48} className="text-red-400"/></div>
+                    <h1 className="text-3xl font-bold text-gray-800 mb-3 leading-tight">{titulo}</h1>
+                    <p className="text-gray-600 font-medium mb-2 px-2">{mensaje}</p>
+                    <button onClick={() => window.location.reload()} className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95">Intentar de nuevo</button>
                 </div>
             </div>
         );
@@ -151,11 +113,7 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 export default function PasteleriaApp() {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-      return localStorage.getItem('lya_session_active') === 'true';
-  });
-  
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('lya_session_active') === 'true');
   const [vistaActual, setVistaActual] = useState('inicio');
 
   const modo = useMemo(() => {
@@ -165,6 +123,7 @@ export default function PasteleriaApp() {
       return 'admin';
   }, [location]);
 
+  // ESTADOS DE DATOS
   const [productosCafeteria, setProductosCafeteria] = useState([]);
   const [mesas, setMesas] = useState([]);
   const [pedidosPasteleria, setPedidosPasteleria] = useState([]); 
@@ -174,18 +133,15 @@ export default function PasteleriaApp() {
 
   const [firebaseCargando, setFirebaseCargando] = useState(true);
   const [tiempoMinimoCarga, setTiempoMinimoCarga] = useState(true);
-
   const cargandoDatos = firebaseCargando || tiempoMinimoCarga;
 
+  // ESTADOS UI
   const [cancelados, setCancelados] = useState([]); 
-
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
   const [cuentaActiva, setCuentaActiva] = useState(null); 
   const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
   
-  const mesaSeleccionadaObj = useMemo(() => {
-      return mesas.find(m => m.id === mesaSeleccionadaId);
-  }, [mesas, mesaSeleccionadaId]);
+  const mesaSeleccionadaObj = useMemo(() => mesas.find(m => m.id === mesaSeleccionadaId), [mesas, mesaSeleccionadaId]);
 
   const [pedidoAEditar, setPedidoAEditar] = useState(null);
   const [pedidoVerDetalles, setPedidoVerDetalles] = useState(null);
@@ -198,93 +154,36 @@ export default function PasteleriaApp() {
   const ID_QR_LLEVAR = 'QR_LLEVAR';
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-        setTiempoMinimoCarga(false); 
-    }, 2500); 
+    const timer = setTimeout(() => setTiempoMinimoCarga(false), 2500); 
     return () => clearTimeout(timer);
   }, []);
 
+  // Limpieza automática de papelera local (UI)
   useEffect(() => {
     const intervalo = setInterval(() => {
         const hoy = new Date().toLocaleDateString();
-        setCancelados(prev => prev.filter(item => {
-            const fechaItem = new Date(item.timestamp).toLocaleDateString();
-            return fechaItem === hoy;
-        }));
+        setCancelados(prev => prev.filter(item => new Date(item.timestamp).toLocaleDateString() === hoy));
     }, 60000); 
     return () => clearInterval(intervalo);
   }, []);
 
-  const vaciarPapelera = () => {
-      setCancelados([]);
-      mostrarNotificacion("Papelera vaciada correctamente", "info");
-  };
+  const vaciarPapelera = () => { setCancelados([]); mostrarNotificacion("Papelera vaciada correctamente", "info"); };
+  const eliminarDePapelera = (id) => { setCancelados(prev => prev.filter(c => c.id !== id)); mostrarNotificacion("Eliminado definitivamente", "info"); };
 
-  const eliminarDePapelera = (id) => {
-      setCancelados(prev => prev.filter(c => c.id !== id));
-      mostrarNotificacion("Elemento eliminado definitivamente", "info");
-  };
-
-  const eliminarPedidoPermanente = async (id) => {
-      try {
-          await deleteDoc(doc(db, "pedidos", id));
-          mostrarNotificacion("Pedido eliminado definitivamente", "info");
-      } catch (e) { 
-          console.error(e);
-          mostrarNotificacion("Error al eliminar", "error"); 
-      }
-  };
-
-  const vaciarPapeleraPasteleria = async () => {
-      const cancelados = pedidosPasteleria.filter(p => p.estado === 'Cancelado');
-      if (cancelados.length === 0) return;
-
-      const batch = writeBatch(db);
-      cancelados.forEach(p => {
-          const ref = doc(db, "pedidos", p.id);
-          batch.delete(ref);
-      });
-
-      try {
-          await batch.commit();
-          mostrarNotificacion("Papelera de pastelería vaciada.", "info");
-      } catch (e) {
-          console.error(e);
-          mostrarNotificacion("Error al vaciar papelera", "error");
-      }
-  };
-
+  // --- SUSCRIPCIONES A SERVICIOS ---
   useEffect(() => {
-      // --- REFACTORIZADO: SUSCRIPCIÓN A PRODUCTOS (Usando Servicio) ---
-      const unsubscribeProductos = subscribeToProducts((data) => {
-          setProductosCafeteria(data);
-      });
+      const unsubProductos = subscribeToProducts(setProductosCafeteria);
+      const unsubMesas = subscribeToMesas((data) => { setMesas(data); setFirebaseCargando(false); });
+      const unsubPedidos = subscribeToOrders(setPedidosPasteleria);
+      const unsubVentas = subscribeToSales(setVentasCafeteria);
+      const unsubUsuarios = subscribeToUsers(setUsuariosSistema);
       
-      // --- REFACTORIZADO: SUSCRIPCIÓN A MESAS (Usando Servicio) ---
-      const unsubscribeMesas = subscribeToMesas((data) => {
-          setMesas(data);
-          setFirebaseCargando(false); 
-      });
-
-      // --- MANTENIDO: SUSCRIPCIONES ORIGINALES (Aún no refactorizadas) ---
-      const unsubscribePedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
-          const pedidosData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setPedidosPasteleria(pedidosData);
-      });
-      const unsubscribeVentas = onSnapshot(collection(db, "ventas"), (snapshot) => {
-          const ventasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setVentasCafeteria(ventasData);
-      });
-      const unsubscribeUsuarios = onSnapshot(collection(db, "usuarios"), (snapshot) => {
-          const uData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setUsuariosSistema(uData);
-      });
-      const unsubscribeLlevar = onSnapshot(collection(db, "sesiones_llevar"), (snapshot) => {
-          const llevarData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-          setSesionesLlevar(llevarData);
+      const unsubLlevar = subscribeToSessions((data) => {
+          setSesionesLlevar(data);
+          // Actualizar cuenta activa si es "llevar"
           setCuentaActiva(prev => {
               if (prev && prev.tipo === 'llevar') {
-                  const actualizada = llevarData.find(s => s.id === prev.id);
+                  const actualizada = data.find(s => s.id === prev.id);
                   return actualizada ? { ...actualizada } : null; 
               }
               return prev;
@@ -292,12 +191,8 @@ export default function PasteleriaApp() {
       });
 
       return () => {
-          unsubscribeProductos();
-          unsubscribeMesas();
-          unsubscribePedidos();
-          unsubscribeVentas();
-          unsubscribeUsuarios();
-          unsubscribeLlevar();
+          unsubProductos(); unsubMesas(); unsubPedidos();
+          unsubVentas(); unsubUsuarios(); unsubLlevar();
       };
   }, []);
 
@@ -310,87 +205,53 @@ export default function PasteleriaApp() {
       localStorage.setItem('lya_session_active', 'true'); 
       setIsAuthenticated(true);
       navigate('/admin');
-      const nombreMostrar = usuario.nombre || "ADMINISTRADOR";
-      const rolMostrar = usuario.rol ? usuario.rol.toUpperCase() : "ADMIN";
-      mostrarNotificacion(`Bienvenido ${nombreMostrar}, tienes el Rol de ${rolMostrar}`, "exito");
+      mostrarNotificacion(`Bienvenido ${usuario.nombre || "ADMINISTRADOR"}`, "exito");
   };
 
   const handleLogout = () => {
       localStorage.removeItem('lya_session_active'); 
       setIsAuthenticated(false);
       navigate('/login');
-      mostrarNotificacion("Sesión cerrada correctamente", "info");
+      mostrarNotificacion("Sesión cerrada", "info");
   };
 
   const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
 
+  // --- MANEJO DE USUARIOS ---
   const guardarUsuario = async (usuario) => {
       try {
-          if (usuario.id) {
-              await updateDoc(doc(db, "usuarios", usuario.id), usuario);
-              mostrarNotificacion(`Usuario ${usuario.nombre} actualizado`, "exito");
-          } else {
-              const existe = usuariosSistema.find(u => u.usuario === usuario.usuario);
-              if (existe) { mostrarNotificacion("El nombre de usuario ya existe.", "error"); return; }
-              await addDoc(collection(db, "usuarios"), usuario);
-              mostrarNotificacion(`Usuario ${usuario.nombre} creado`, "exito");
-          }
-      } catch (e) { mostrarNotificacion("Error al guardar usuario", "error"); }
+          const res = await saveUser(usuario, usuariosSistema);
+          mostrarNotificacion(res.message, "exito");
+      } catch (e) { mostrarNotificacion("Error: " + e.message, "error"); }
   };
 
   const eliminarUsuario = async (id) => {
-      try { await deleteDoc(doc(db, "usuarios", id)); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
+      try { await deleteUser(id); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
   };
 
-  // --- REFACTORIZADO: GUARDAR PRODUCTO ---
+  // --- MANEJO DE PRODUCTOS ---
   const guardarProductoCafeteria = async (prod) => { 
-    try {
-        const resultado = await saveProduct(prod);
-        mostrarNotificacion(resultado.message, "exito");
-    } catch (error) { 
-        mostrarNotificacion("Error al guardar: " + error.message, "error"); 
-    }
+    try { const res = await saveProduct(prod); mostrarNotificacion(res.message, "exito"); } catch (e) { mostrarNotificacion("Error: " + e.message, "error"); }
   };
   
-  // --- REFACTORIZADO: ELIMINAR PRODUCTO ---
-  const eliminarProductoCafeteria = async (id) => {
-    try { 
-        await deleteProduct(id); 
-        mostrarNotificacion("Producto eliminado", "info"); 
-    } catch (error) { 
-        mostrarNotificacion("Error al eliminar", "error"); 
-    }
+  const eliminarProductoCafeteria = async (id) => { 
+    try { await deleteProduct(id); mostrarNotificacion("Producto eliminado", "info"); } catch (e) { mostrarNotificacion("Error", "error"); }
   };
   
-  // --- REFACTORIZADO: AGREGAR MESA ---
+  // --- MANEJO DE MESAS ---
   const agregarMesa = async () => { 
-    try { 
-        await createMesa(mesas.length); 
-        mostrarNotificacion("Mesa agregada", "exito"); 
-    } catch (e) { 
-        mostrarNotificacion("Error al crear mesa", "error"); 
-    }
+    try { await createMesa(mesas.length); mostrarNotificacion("Mesa agregada", "exito"); } catch (e) { mostrarNotificacion("Error", "error"); }
   };
   
-  // --- REFACTORIZADO: ELIMINAR MESA ---
   const eliminarMesa = async (id) => { 
-    try { 
-        await removeMesa(id); 
-        mostrarNotificacion("Mesa eliminada", "info"); 
-    } catch(e) { 
-        mostrarNotificacion("Error al eliminar mesa", "error"); 
-    }
+    try { await removeMesa(id); mostrarNotificacion("Mesa eliminada", "info"); } catch(e) { mostrarNotificacion("Error", "error"); }
   };
   
-  // --- REFACTORIZADO: ACTUALIZAR MESA ---
   const actualizarMesaEnBD = async (mesaObj) => {
-      try { 
-          await updateMesa(mesaObj.id, { cuentas: mesaObj.cuentas }); 
-      } catch (e) { 
-          console.error("Error actualizando mesa:", e); 
-      }
+      try { await updateMesa(mesaObj.id, { cuentas: mesaObj.cuentas }); } catch (e) { console.error("Error mesa:", e); }
   };
 
+  // --- LÓGICA DE PEDIDOS (MESA Y LLEVAR) ---
   const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { 
     const mesa = mesas.find(m => m.id === idMesa);
     if (!mesa) return;
@@ -402,47 +263,32 @@ export default function PasteleriaApp() {
   };
   
   const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
-    const batch = writeBatch(db);
-    let hayProductosConStock = false;
-
-    carrito.forEach(item => {
-        if (item.controlarStock && item.id) {
-            const productoRef = doc(db, "productos", item.id);
-            batch.update(productoRef, { stock: increment(-item.cantidad) });
-            hayProductosConStock = true;
-        }
-    });
-
-    if (hayProductosConStock) {
-        try {
-            await batch.commit();
-            console.log("Stock actualizado");
-        } catch (e) {
-            console.error("Error al actualizar stock:", e);
-        }
-    }
+    // 1. Actualizar Stock
+    await updateProductStock(carrito);
 
     const carritoMarcado = carrito.map(item => ({ ...item, origen: 'cliente' }));
 
     if (idMesa === ID_QR_LLEVAR) {
+        // Pedido Para Llevar (Mostrador/QR)
         const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
         if (sesionExistente) {
-            const nuevosItems = [...sesionExistente.cuenta, ...carritoMarcado]; 
+            const nuevosItems = [...sesionExistente.cuenta, ...carritoMarcado];
             const nuevoTotal = nuevosItems.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-            try {
-                await updateDoc(doc(db, "sesiones_llevar", sesionExistente.id), { cuenta: nuevosItems, total: nuevoTotal });
-                mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
-            } catch (e) { mostrarNotificacion("Error al actualizar pedido", "error"); }
+            await updateSession(sesionExistente.id, { cuenta: nuevosItems, total: nuevoTotal });
+            mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
         } else {
+            // Crear nueva sesión con items iniciales
             const totalInicial = carritoMarcado.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
             const nuevaId = `L-${Date.now().toString().slice(-4)}`;
-            const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, cuenta: carritoMarcado, total: totalInicial, estado: 'Activa' };
-            try {
-                await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
-                mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
-            } catch (e) { mostrarNotificacion("Error al crear pedido", "error"); }
+            // Usamos saveSession (upsert) para poder pasarle los items de una vez
+            await saveSession({ 
+                id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, 
+                cuenta: carritoMarcado, total: totalInicial, estado: 'Activa' 
+            });
+            mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
         }
     } else {
+        // Pedido en Mesa
         const mesa = mesas.find(m => m.id === idMesa);
         if(!mesa) return;
         const cuentaExistente = mesa.cuentas.find(c => c.cliente === nombre);
@@ -473,13 +319,8 @@ export default function PasteleriaApp() {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
                     const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
-                    
-                    if (itemIndex > -1) {
-                        items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-                    } else {
-                        items.push(itemNuevo);
-                    }
-                    
+                    if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+                    else items.push(itemNuevo);
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -493,17 +334,10 @@ export default function PasteleriaApp() {
         if (sesion) {
             let items = [...sesion.cuenta];
             const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
-            
-            if (itemIndex > -1) {
-                items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
-            } else {
-                items.push(itemNuevo);
-            }
-
+            if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+            else items.push(itemNuevo);
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-            try {
-                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
-            } catch (e) { mostrarNotificacion("Error al agregar producto", "error"); }
+            await updateSession(sesion.id, { cuenta: items, total });
         }
     } 
     mostrarNotificacion("Producto agregado", "info"); 
@@ -541,9 +375,7 @@ export default function PasteleriaApp() {
                 else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
             }
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
-            try {
-                await updateDoc(doc(db, "sesiones_llevar", sesion.id), { cuenta: items, total });
-            } catch (e) { mostrarNotificacion("Error al actualizar producto", "error"); }
+            await updateSession(sesion.id, { cuenta: items, total });
         }
     }
   };
@@ -567,7 +399,7 @@ export default function PasteleriaApp() {
     }; 
 
     try {
-        await addDoc(collection(db, "ventas"), nuevaVenta);
+        await createSale(nuevaVenta);
         if (sesion.tipo === 'mesa') { 
             const mesa = mesas.find(m => m.id === sesion.idMesa);
             if(mesa) {
@@ -575,12 +407,12 @@ export default function PasteleriaApp() {
                 await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
             }
         } else { 
-            await deleteDoc(doc(db, "sesiones_llevar", sesion.id));
+            await deleteSession(sesion.id);
         } 
         setCuentaActiva(null); 
         mostrarNotificacion("Cuenta pagada y guardada.", "exito");
     } catch (e) {
-        mostrarNotificacion("Error al guardar venta: " + e.message, "error");
+        mostrarNotificacion("Error: " + e.message, "error");
     }
   };
 
@@ -602,7 +434,7 @@ export default function PasteleriaApp() {
               actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
           }
       } else {
-          try { await deleteDoc(doc(db, "sesiones_llevar", sesion.id)); } catch(e) { console.error(e); }
+          try { await deleteSession(sesion.id); } catch(e) { console.error(e); }
       }
       setCuentaActiva(null);
       mostrarNotificacion("Pedido enviado a Papelera", "info");
@@ -627,25 +459,22 @@ export default function PasteleriaApp() {
           if (!existeMesa) {
               alert("La mesa original ya no existe. Se restaurará como 'Para Llevar'.");
               const nuevaId = `L-R-${Date.now()}`;
-              await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
+              await saveSession({ ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
           } else {
               const cuentasActualizadas = [...existeMesa.cuentas, cuentaRestaurada];
               actualizarMesaEnBD({ ...existeMesa, cuentas: cuentasActualizadas });
           }
       } else {
           const nuevaId = `L-R-${Date.now()}`;
-          await setDoc(doc(db, "sesiones_llevar", nuevaId), { ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
+          await saveSession({ ...cuentaRestaurada, tipo: 'llevar', id: nuevaId });
       }
 
       const ventaEnBD = ventasCafeteria.find(v => v.id === item.id);
       if (ventaEnBD) {
-          try {
-              await deleteDoc(doc(db, "ventas", item.id));
-              mostrarNotificacion("Venta anulada y pedido restaurado", "exito");
-          } catch (e) { mostrarNotificacion("Error al anular venta", "error"); }
+          try { await deleteSale(item.id); mostrarNotificacion("Venta anulada y restaurada", "exito"); } catch (e) { mostrarNotificacion("Error", "error"); }
       } else {
           setCancelados(prev => prev.filter(c => c.id !== item.id));
-          mostrarNotificacion("Pedido recuperado de papelera", "exito");
+          mostrarNotificacion("Recuperado de papelera", "exito");
       }
   };
 
@@ -653,34 +482,22 @@ export default function PasteleriaApp() {
   
   const guardarPedido = async (datos) => { 
     try {
-        if (pedidoAEditar) {
-            await updateDoc(doc(db, "pedidos", pedidoAEditar.id), datos);
-            mostrarNotificacion("Pedido actualizado", "exito");
-        } else {
-            await addDoc(collection(db, "pedidos"), datos);
-            mostrarNotificacion(`Pedido ${datos.folio} registrado`, "exito");
-        }
+        const res = await saveOrder(datos);
+        mostrarNotificacion(res.message, "exito");
         setVistaActual('inicio'); 
         setPedidoAEditar(null);
-    } catch (error) { mostrarNotificacion("Error al guardar pedido", "error"); }
+    } catch (error) { mostrarNotificacion("Error al guardar", "error"); }
   };
   
   const registrarPago = async (folio, esLiquidacion) => { 
     const pedido = pedidosPasteleria.find(p => p.folio === folio);
     if (!pedido) return;
     const nuevosPagos = esLiquidacion ? parseInt(pedido.numPagos) : (parseInt(pedido.pagosRealizados || 0) + 1);
-    
     try {
-        await updateDoc(doc(db, "pedidos", pedido.id), { 
-            pagosRealizados: nuevosPagos,
-            horaPago: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-        });
-        
-        if (pedidoVerDetalles && pedidoVerDetalles.folio === folio) {
-            setPedidoVerDetalles({ ...pedidoVerDetalles, pagosRealizados: nuevosPagos });
-        }
-        mostrarNotificacion("Pago registrado correctamente", "exito");
-    } catch (e) { mostrarNotificacion("Error al registrar pago", "error"); }
+        await updateOrderStatus(pedido.id, { pagosRealizados: nuevosPagos, horaPago: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+        if (pedidoVerDetalles && pedidoVerDetalles.folio === folio) setPedidoVerDetalles({ ...pedidoVerDetalles, pagosRealizados: nuevosPagos });
+        mostrarNotificacion("Pago registrado", "exito");
+    } catch (e) { mostrarNotificacion("Error al registrar", "error"); }
   };
   
   const abrirHubMesa = (idMesa) => setMesaSeleccionadaId(idMesa);
@@ -690,39 +507,17 @@ export default function PasteleriaApp() {
       if(!mesa) return;
       const destino = mesa.cuentas.find(c => c.id === idCuentaDestino);
       const origenes = mesa.cuentas.filter(c => idsCuentasOrigen.includes(c.id));
-      
       let nuevosItems = [...destino.cuenta];
-      
-      const historialNuevo = origenes.map(o => ({
-          idOriginal: o.id,
-          clienteOriginal: o.cliente,
-          items: o.cuenta 
-      }));
-
+      const historialNuevo = origenes.map(o => ({ idOriginal: o.id, clienteOriginal: o.cliente, items: o.cuenta }));
       origenes.forEach(o => { 
-          const itemsMarcados = o.cuenta.map(item => ({
-              ...item,
-              _origenFusionId: o.id 
-          }));
+          const itemsMarcados = o.cuenta.map(item => ({ ...item, _origenFusionId: o.id }));
           nuevosItems = [...nuevosItems, ...itemsMarcados]; 
       });
-
       const nuevoTotal = nuevosItems.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-      
       const historialCompleto = [...(destino.historicoFusion || []), ...historialNuevo];
-
-      const cuentasActualizadas = mesa.cuentas
-        .filter(c => !idsCuentasOrigen.includes(c.id))
-        .map(c => c.id === idCuentaDestino ? { 
-            ...c, 
-            cuenta: nuevosItems, 
-            total: nuevoTotal, 
-            historicoFusion: historialCompleto, 
-            fueFusionada: true 
-        } : c);
-      
+      const cuentasActualizadas = mesa.cuentas.filter(c => !idsCuentasOrigen.includes(c.id)).map(c => c.id === idCuentaDestino ? { ...c, cuenta: nuevosItems, total: nuevoTotal, historicoFusion: historialCompleto, fueFusionada: true } : c);
       actualizarMesaEnBD({ ...mesa, cuentas: cuentasActualizadas });
-      mostrarNotificacion("Cuentas unificadas correctamente"); 
+      mostrarNotificacion("Cuentas unificadas"); 
   };
 
   const desunirCuentas = async (idMesa, idCuentaMadre, idsOriginalesADesunir) => {
@@ -730,223 +525,107 @@ export default function PasteleriaApp() {
       if (!mesa) return;
       const cuentaMadre = mesa.cuentas.find(c => c.id === idCuentaMadre);
       if (!cuentaMadre || !cuentaMadre.historicoFusion) return;
-
       let itemsMadre = [...cuentaMadre.cuenta];
       const cuentasRestauradas = [];
       let nuevoHistorico = [...cuentaMadre.historicoFusion];
-
       idsOriginalesADesunir.forEach(idARestaurar => {
           const infoOriginal = cuentaMadre.historicoFusion.find(h => h.idOriginal === idARestaurar);
           if (infoOriginal) {
               const itemsDeEstaCuenta = itemsMadre.filter(item => item._origenFusionId === idARestaurar);
-              
               if (itemsDeEstaCuenta.length > 0) {
                   const totalRestaurado = itemsDeEstaCuenta.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-                  
-                  const itemsLimpios = itemsDeEstaCuenta.map(i => {
-                      const { _origenFusionId, ...resto } = i;
-                      return resto;
-                  });
-
-                  cuentasRestauradas.push({
-                      id: infoOriginal.idOriginal, 
-                      cliente: infoOriginal.clienteOriginal,
-                      cuenta: itemsLimpios,
-                      total: totalRestaurado
-                  });
-
+                  const itemsLimpios = itemsDeEstaCuenta.map(i => { const { _origenFusionId, ...resto } = i; return resto; });
+                  cuentasRestauradas.push({ id: infoOriginal.idOriginal, cliente: infoOriginal.clienteOriginal, cuenta: itemsLimpios, total: totalRestaurado });
                   itemsMadre = itemsMadre.filter(item => item._origenFusionId !== idARestaurar);
-                  
                   nuevoHistorico = nuevoHistorico.filter(h => h.idOriginal !== idARestaurar);
               }
           }
       });
-
       const totalMadre = itemsMadre.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-
-      const cuentaMadreActualizada = {
-          ...cuentaMadre,
-          cuenta: itemsMadre,
-          total: totalMadre,
-          historicoFusion: nuevoHistorico.length > 0 ? nuevoHistorico : null,
-          fueFusionada: nuevoHistorico.length > 0 
-      };
-
+      const cuentaMadreActualizada = { ...cuentaMadre, cuenta: itemsMadre, total: totalMadre, historicoFusion: nuevoHistorico.length > 0 ? nuevoHistorico : null, fueFusionada: nuevoHistorico.length > 0 };
       const nuevasCuentasMesa = mesa.cuentas.map(c => c.id === idCuentaMadre ? cuentaMadreActualizada : c);
       cuentasRestauradas.forEach(c => nuevasCuentasMesa.push(c));
-
       await actualizarMesaEnBD({ ...mesa, cuentas: nuevasCuentasMesa });
-      
-      if (cuentaActiva && cuentaActiva.id === idCuentaMadre) {
-          setCuentaActiva({ ...cuentaActiva, ...cuentaMadreActualizada });
-      }
-
-      mostrarNotificacion("Cuentas separadas exitosamente", "exito");
+      if (cuentaActiva && cuentaActiva.id === idCuentaMadre) setCuentaActiva({ ...cuentaActiva, ...cuentaMadreActualizada });
+      mostrarNotificacion("Cuentas separadas", "exito");
   };
 
   const dividirCuentaManual = async (idSesionOriginal, nombreNuevoCliente, itemsIndicesAMover) => {
-      let sesionOriginal = null;
-      let esMesa = false;
-      let mesaObj = null;
-
-      if (cuentaActiva.tipo === 'mesa') {
-          mesaObj = mesas.find(m => m.id === cuentaActiva.idMesa);
-          if (mesaObj) {
-              sesionOriginal = mesaObj.cuentas.find(c => c.id === idSesionOriginal);
-              esMesa = true;
-          }
-      } else {
-          return; 
-      }
-
+      let mesaObj = mesas.find(m => m.id === cuentaActiva.idMesa);
+      if (!mesaObj) return;
+      let sesionOriginal = mesaObj.cuentas.find(c => c.id === idSesionOriginal);
       if (!sesionOriginal) return;
-
       const itemsOriginales = [...sesionOriginal.cuenta];
       const itemsParaNueva = [];
       const itemsParaVieja = [];
-
-      itemsOriginales.forEach((item, index) => {
-          if (itemsIndicesAMover.includes(index)) {
-              itemsParaNueva.push(item);
-          } else {
-              itemsParaVieja.push(item);
-          }
-      });
-
+      itemsOriginales.forEach((item, index) => itemsIndicesAMover.includes(index) ? itemsParaNueva.push(item) : itemsParaVieja.push(item));
       const totalNueva = itemsParaNueva.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
       const totalVieja = itemsParaVieja.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
-
-      if (esMesa) {
-          const nuevaCuenta = {
-              id: `C-${Date.now().toString().slice(-4)}-DIV`,
-              cliente: nombreNuevoCliente,
-              cuenta: itemsParaNueva,
-              total: totalNueva
-          };
-
-          const cuentasActualizadas = mesaObj.cuentas.map(c => {
-              if (c.id === idSesionOriginal) {
-                  return { ...c, cuenta: itemsParaVieja, total: totalVieja };
-              }
-              return c;
-          });
-          cuentasActualizadas.push(nuevaCuenta);
-
-          await actualizarMesaEnBD({ ...mesaObj, cuentas: cuentasActualizadas });
-          
-          if (cuentaActiva.id === idSesionOriginal) {
-              setCuentaActiva({ ...cuentaActiva, cuenta: itemsParaVieja, total: totalVieja });
-          }
-
-      }
+      const nuevaCuenta = { id: `C-${Date.now().toString().slice(-4)}-DIV`, cliente: nombreNuevoCliente, cuenta: itemsParaNueva, total: totalNueva };
+      const cuentasActualizadas = mesaObj.cuentas.map(c => c.id === idSesionOriginal ? { ...c, cuenta: itemsParaVieja, total: totalVieja } : c);
+      cuentasActualizadas.push(nuevaCuenta);
+      await actualizarMesaEnBD({ ...mesaObj, cuentas: cuentasActualizadas });
+      if (cuentaActiva.id === idSesionOriginal) setCuentaActiva({ ...cuentaActiva, cuenta: itemsParaVieja, total: totalVieja });
       mostrarNotificacion(`Items movidos a "${nombreNuevoCliente}"`, "exito");
   };
   
-  const abrirPOSCuentaMesa = (idMesa, idCuenta) => { 
-    const mesa = mesas.find(m => m.id === idMesa);
-    const cuenta = mesa.cuentas.find(c => c.id === idCuenta);
-    if(cuenta) setCuentaActiva({ tipo: 'mesa', id: idCuenta, idMesa, nombreMesa: mesa.nombre, ...cuenta }); 
-  };
-
+  const abrirPOSCuentaMesa = (idMesa, idCuenta) => { const mesa = mesas.find(m => m.id === idMesa); const cuenta = mesa.cuentas.find(c => c.id === idCuenta); if(cuenta) setCuentaActiva({ tipo: 'mesa', id: idCuenta, idMesa, nombreMesa: mesa.nombre, ...cuenta }); };
+  
   const crearSesionLlevar = async (datos) => { 
-    const nuevaId = `L-${Date.now().toString().slice(-4)}`;
-    const nuevaSesion = { id: nuevaId, tipo: 'llevar', nombreCliente: datos.nombre, telefono: datos.telefono, cuenta: [], estado: 'Activa' };
-    try {
-        await setDoc(doc(db, "sesiones_llevar", nuevaId), nuevaSesion);
-        setCuentaActiva(nuevaSesion);
-    } catch (e) { mostrarNotificacion("Error al crear sesión", "error"); }
+    try { const res = await createSession(datos); setCuentaActiva(res.session); } catch (e) { mostrarNotificacion("Error al crear sesión", "error"); }
   };
   
   const abrirPOSLlevar = (id) => { const p = sesionesLlevar.find(s => s.id === id); if(p) setCuentaActiva(p); };
   
   const iniciarCancelacion = (f) => setPedidoACancelar(f);
-  
   const confirmarCancelacion = async () => { 
       const pedido = pedidosPasteleria.find(p => p.folio === pedidoACancelar);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { 
-                  estado: 'Cancelado', 
-                  fechaCancelacion: new Date().toISOString() 
-              });
-              mostrarNotificacion("Pedido enviado a la papelera");
-          } catch (e) { mostrarNotificacion("Error al cancelar", "error"); }
-      }
+      if (pedido) { try { await updateOrderStatus(pedido.id, { estado: 'Cancelado', fechaCancelacion: new Date().toISOString() }); mostrarNotificacion("Pedido enviado a la papelera"); } catch (e) { mostrarNotificacion("Error al cancelar", "error"); } }
       setPedidoACancelar(null); 
   };
 
   const iniciarRestauracion = (f) => setPedidoARestaurar(f);
-  
   const confirmarRestauracion = async () => { 
       const pedido = pedidosPasteleria.find(p => p.folio === pedidoARestaurar);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
-              mostrarNotificacion("Pedido restaurado");
-          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
-      }
+      if (pedido) { try { await updateOrderStatus(pedido.id, { estado: 'Pendiente' }); mostrarNotificacion("Pedido restaurado"); } catch (e) { mostrarNotificacion("Error al restaurar", "error"); } }
       setPedidoARestaurar(null); 
   };
 
   const restaurarPedidoDirectamente = async (folio) => {
       const pedido = pedidosPasteleria.find(p => p.folio === folio);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
-              mostrarNotificacion("Pedido restaurado a Pendientes", "exito");
-          } catch (e) { mostrarNotificacion("Error al restaurar", "error"); }
-      }
+      if (pedido) { try { await updateOrderStatus(pedido.id, { estado: 'Pendiente' }); mostrarNotificacion("Pedido restaurado a Pendientes", "exito"); } catch (e) { mostrarNotificacion("Error", "error"); } }
   };
 
   const iniciarEntrega = (f) => {
       const pedido = pedidosPasteleria.find(p => p.folio === f);
-      
-      if (pedido) {
-          const pagado = pedido.pagosRealizados || 0;
-          const totalPagos = parseInt(pedido.numPagos) || 1;
-          
-          if (pagado < totalPagos) {
-              mostrarNotificacion(`⚠️ No se puede entregar: Faltan pagos (${pagado}/${totalPagos})`, "error");
-              return;
-          }
-      }
+      if (pedido) { const pagado = pedido.pagosRealizados || 0; const totalPagos = parseInt(pedido.numPagos) || 1; if (pagado < totalPagos) { mostrarNotificacion(`⚠️ Falta pago (${pagado}/${totalPagos})`, "error"); return; } }
       setPedidoAEntregar(f);
   };
   
   const confirmarEntrega = async () => { 
-      const folioParaEntregar = pedidoAEntregar; 
-      setPedidoAEntregar(null); 
-
+      const folioParaEntregar = pedidoAEntregar; setPedidoAEntregar(null); 
       const pedido = pedidosPasteleria.find(p => p.folio === folioParaEntregar);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { 
-                  estado: 'Entregado',
-                  fechaEntregaReal: new Date().toISOString()
-              });
-              mostrarNotificacion("Pedido entregado con éxito", "exito");
-          } catch (e) { mostrarNotificacion("Error al entregar", "error"); }
-      }
+      if (pedido) { try { await updateOrderStatus(pedido.id, { estado: 'Entregado', fechaEntregaReal: new Date().toISOString() }); mostrarNotificacion("Pedido entregado", "exito"); } catch (e) { mostrarNotificacion("Error", "error"); } }
   };
 
   const restaurarDeEntregados = async (folio) => { 
       const pedido = pedidosPasteleria.find(p => p.folio === folio);
-      if (pedido) {
-          try {
-              await updateDoc(doc(db, "pedidos", pedido.id), { estado: 'Pendiente' });
-              mostrarNotificacion("Entrega deshecha", "info");
-          } catch (e) { mostrarNotificacion("Error al deshacer", "error"); }
-      }
+      if (pedido) { try { await updateOrderStatus(pedido.id, { estado: 'Pendiente' }); mostrarNotificacion("Entrega deshecha", "info"); } catch (e) { mostrarNotificacion("Error", "error"); } }
+  };
+
+  const eliminarPedidoPermanente = async (id) => { try { await deleteOrder(id); mostrarNotificacion("Eliminado permanentemente", "info"); } catch (e) { mostrarNotificacion("Error", "error"); } };
+  
+  const vaciarPapeleraPasteleria = async () => {
+      const cancelados = pedidosPasteleria.filter(p => p.estado === 'Cancelado');
+      if (cancelados.length === 0) return;
+      try { const res = await emptyOrdersTrash(cancelados); mostrarNotificacion(res.message, "info"); } catch (e) { mostrarNotificacion("Error", "error"); }
   };
 
   const mensajeEntrega = useMemo(() => {
       if (!pedidoAEntregar) return '';
       const p = pedidosPasteleria.find(x => x.folio === pedidoAEntregar);
       if (!p) return '';
-      
-      if (p.fechaEntrega !== getFechaHoy()) {
-          return `⚠️ ATENCIÓN: Estás entregando un pedido de ${p.tipoProducto} para ${p.cliente} que estaba programado para el ${formatearFechaLocal(p.fechaEntrega)}. ¿Estás seguro de entregarlo hoy?`;
-      }
+      if (p.fechaEntrega !== getFechaHoy()) return `⚠️ ATENCIÓN: Estás entregando un pedido programado para el ${formatearFechaLocal(p.fechaEntrega)}. ¿Confirmar?`;
       return `El pedido de ${p.cliente} se marcará como entregado.`;
   }, [pedidoAEntregar, pedidosPasteleria]);
 

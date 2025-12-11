@@ -1,6 +1,7 @@
 // src/services/products.service.js
 import { db } from '../firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+import { writeBatch, increment } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'productos';
 
@@ -40,4 +41,22 @@ export const subscribeToProducts = (callback) => {
         const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         callback(data);
     });
+};
+
+export const updateProductStock = async (items) => {
+    const batch = writeBatch(db);
+    let hayCambios = false;
+
+    items.forEach(item => {
+        if (item.controlarStock && item.id) {
+            const productoRef = doc(db, COLLECTION_NAME, item.id);
+            batch.update(productoRef, { stock: increment(-item.cantidad) });
+            hayCambios = true;
+        }
+    });
+
+    if (hayCambios) {
+        await batch.commit();
+        console.log("Stock actualizado correctamente");
+    }
 };
