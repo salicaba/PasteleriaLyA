@@ -343,14 +343,18 @@ export default function PasteleriaApp() {
     mostrarNotificacion("Producto agregado", "info"); 
   };
 
-  const actualizarProductoEnSesion = async (idSesion, idProducto, delta) => {
+  const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObjetivo) => {
     if (cuentaActiva.tipo === 'mesa') {
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
-                    const itemIndex = items.findIndex(i => i.id === idProducto);
+                    
+                    // CAMBIO CLAVE: Buscamos por ID *Y* por ORIGEN
+                    // Así el sistema no confunde el café del cliente con el tuyo.
+                    const itemIndex = items.findIndex(i => i.id === idProducto && i.origen === origenObjetivo);
+                    
                     if(itemIndex > -1) {
                         const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
                         if(nuevaCant <= 0) items.splice(itemIndex, 1);
@@ -365,10 +369,14 @@ export default function PasteleriaApp() {
             actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
         }
     } else {
+        // Lógica para 'Llevar' (Mismo cambio aquí)
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
-            const itemIndex = items.findIndex(i => i.id === idProducto);
+            
+            // CAMBIO CLAVE AQUÍ TAMBIÉN
+            const itemIndex = items.findIndex(i => i.id === idProducto && i.origen === origenObjetivo);
+            
             if(itemIndex > -1) {
                 const nuevaCant = (items[itemIndex].cantidad || 1) + delta;
                 if(nuevaCant <= 0) items.splice(itemIndex, 1);
@@ -629,6 +637,11 @@ export default function PasteleriaApp() {
       return `El pedido de ${p.cliente} se marcará como entregado.`;
   }, [pedidoAEntregar, pedidosPasteleria]);
 
+  const ventasCafeteriaHoy = useMemo(() => {
+      const hoy = getFechaHoy();
+      return ventasCafeteria.filter(v => v.fecha === hoy);
+  }, [ventasCafeteria]);
+
   const renderContenidoProtegido = () => (
     <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
@@ -666,7 +679,7 @@ export default function PasteleriaApp() {
                 <VistaInicioCafeteria 
                     mesas={mesas} 
                     pedidosLlevar={sesionesLlevar} 
-                    ventasHoy={ventasCafeteria}
+                    ventasHoy={ventasCafeteriaHoy}
                     cancelados={cancelados}
                     onSeleccionarMesa={abrirHubMesa} 
                     onCrearLlevar={crearSesionLlevar} 
