@@ -164,13 +164,10 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// --- VISTA MI CUENTA TOTAL (CON BOTÓN PDF) ---
+// --- VISTA MI CUENTA TOTAL (MODIFICADO: SIN BOTÓN PDF) ---
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) => {
-    // Función para manejar la descarga
-    const descargarPDF = () => {
-        if (!cuentaAcumulada) return;
-        generarTicketPDF(cuentaAcumulada); // USA LA NUEVA FUNCIÓN
-    };
+    
+    // NOTA: Se eliminó la función de descargar PDF aquí para que solo aparezca al final.
 
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
@@ -210,13 +207,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                             <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
                         </h3>
                         
-                        {/* --- BOTÓN DESCARGAR PDF --- */}
-                        <button 
-                            onClick={descargarPDF}
-                            className="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-orange-100 transition"
-                        >
-                            <Download size={12} /> Guardar PDF
-                        </button>
+                        {/* (El botón de descarga se ha quitado de aquí) */}
                     </div>
                     
                     {cuentaAcumulada.cuenta.length === 0 ? (
@@ -280,7 +271,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                         </p>
                     </div>
 
-                    {/* INFO PEDIR MÁS (CENTRADO Y REEMPLAZANDO BOTÓN) */}
+                    {/* INFO PEDIR MÁS */}
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col gap-3 items-center justify-center text-center shadow-sm animate-fade-in-up delay-75">
                         <div className="bg-blue-100 p-3 rounded-full text-blue-600">
                             <Info size={24} />

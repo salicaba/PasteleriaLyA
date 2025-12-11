@@ -357,8 +357,9 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
 
-    // --- FUNCIÓN SEGURA PARA ACTUALIZAR (Aquí está el arreglo lógico) ---
-    const handleUpdate = (e, idItem, cantidad) => {
+    // --- FUNCIÓN SEGURA PARA ACTUALIZAR (CORREGIDA) ---
+    // Ahora recibe 'origenItem' como 4to argumento
+    const handleUpdate = (e, idItem, cantidad, origenItem) => {
         // Detiene cualquier click que venga de atrás
         if (e && e.stopPropagation) e.stopPropagation();
         
@@ -368,8 +369,8 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             return;
         }
 
-        console.log(`Actualizando: Sesion ${sesion.id}, Item ${idItem}, Cantidad ${cantidad}`);
-        onActualizarProducto(sesion.id, idItem, cantidad);
+        // CORRECCIÓN: Pasamos el 4to argumento (origen) a la función principal
+        onActualizarProducto(sesion.id, idItem, cantidad, origenItem);
     };
 
     const handleImprimir = () => { 
@@ -415,6 +416,9 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             const productoReal = productos.find(p => p.id === item.id); 
             const estaPausado = productoReal?.pausado;
 
+            // CORRECCIÓN: Definimos el origen para pasarlo a los botones
+            const origenItem = item.origen || (esPersonal ? 'personal' : 'cliente');
+
             return (
                 <div key={`${esPersonal ? 'personal' : 'cliente'}-${idx}-${item.id}`} className={`flex justify-between items-start border-b ${esPersonal ? 'border-blue-100' : 'border-gray-100'} py-3 last:border-0`}>
                     
@@ -434,10 +438,10 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                         {/* Contenedor de Botones (Z-Index alto para asegurar click) */}
                         <div className={`flex items-center gap-1 p-1 rounded-lg z-10 relative ${esPersonal ? 'bg-white border border-blue-100' : 'bg-gray-50 border border-gray-100'}`}>
                             
-                            {/* Botón MENOS */}
+                            {/* Botón MENOS (CORREGIDO: Pasamos origenItem) */}
                             <button 
                                 type="button"
-                                onClick={(e) => handleUpdate(e, item.id, -1)} 
+                                onClick={(e) => handleUpdate(e, item.id, -1, origenItem)} 
                                 className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-white rounded-full transition border border-transparent hover:border-gray-200"
                             >
                                 <MinusCircle size={18}/>
@@ -445,10 +449,10 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
 
                             <span className="font-bold text-gray-700 text-sm w-6 text-center select-none">{cantidad}</span>
 
-                            {/* Botón MÁS */}
+                            {/* Botón MÁS (CORREGIDO: Pasamos origenItem) */}
                             <button 
                                 type="button"
-                                onClick={(e) => !estaPausado && handleUpdate(e, item.id, 1)} 
+                                onClick={(e) => !estaPausado && handleUpdate(e, item.id, 1, origenItem)} 
                                 className={`w-7 h-7 flex items-center justify-center rounded-full transition border border-transparent hover:border-gray-200 ${estaPausado ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-orange-600 hover:bg-white'}`}
                             >
                                 <PlusCircle size={18}/>
@@ -456,10 +460,10 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
 
                             <div className="w-px h-4 bg-gray-300 mx-1"></div>
 
-                            {/* Botón BORRAR */}
+                            {/* Botón BORRAR (CORREGIDO: Pasamos origenItem) */}
                             <button 
                                 type="button"
-                                onClick={(e) => handleUpdate(e, item.id, -cantidad)} 
+                                onClick={(e) => handleUpdate(e, item.id, -cantidad, origenItem)} 
                                 className="w-7 h-7 flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"
                             >
                                 <Trash2 size={18}/>
@@ -476,7 +480,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             {/* IZQUIERDA: MENÚ */}
             <div className={`${comandaVisible ? 'hidden md:flex' : 'flex'} flex-1 flex-col h-full overflow-hidden border-r border-gray-300 relative`}>
                 <div className="bg-white p-4 shadow-sm z-20 flex justify-between items-center border-b border-gray-100">
-                    <div><h2 className="text-2xl font-bold text-gray-800">Comanda</h2><p className="text-sm text-gray-500">{identificador} • <span className="font-bold text-orange-600">{nombreCliente}</span></p></div>
+                    <div><h2 className="text-2xl font-bold text-gray-800">Menú Comanda</h2><p className="text-sm text-gray-500">{identificador} • <span className="font-bold text-orange-600">{nombreCliente}</span></p></div>
                     <button onClick={onCerrar} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-bold"><ArrowLeft size={20} /> Volver</button>
                 </div>
                 <div className="bg-white/95 backdrop-blur-sm z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
