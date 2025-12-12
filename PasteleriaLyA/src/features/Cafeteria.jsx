@@ -718,26 +718,31 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
             {/* GRID DE PRODUCTOS */}
             <div className="space-y-8 relative z-0">
                 {verPausados ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-fade-in">
+                    <div className="flex flex-wrap gap-4 justify-start animate-fade-in">
                         {productosFiltrados.length === 0 ? (
-                            <div className="col-span-full text-center py-12 opacity-60"><CheckCircle size={48} className="mx-auto mb-3 text-green-500"/><p className="text-gray-500 font-medium">¡Excelente! No hay productos pausados.</p><button onClick={() => setVerPausados(false)} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Volver al menú</button></div>
+                            <div className="w-full text-center py-12 opacity-60"><CheckCircle size={48} className="mx-auto mb-3 text-green-500"/><p className="text-gray-500 font-medium">¡Excelente! No hay productos pausados.</p><button onClick={() => setVerPausados(false)} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Volver al menú</button></div>
                         ) : (
                             productosFiltrados.map(producto => (
-                                <div key={producto.id} className="relative group">
+                                <div key={producto.id} className="relative group overflow-hidden rounded-xl w-full min-w-[150px] sm:w-48 flex-shrink-0"> 
                                     <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
-                                    <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-2 rounded-full shadow-sm border border-gray-200 transition-colors ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>{producto.pausado ? <PlayCircle size={16} /> : <PauseCircle size={16} />}</button>
+                                    
+                                    {/* --- NUEVO OVERLAY CENTRADO --- */}
+                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all z-10">
+                                        <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-3 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
+                                            {producto.pausado ? <PlayCircle size={20} /> : <PauseCircle size={20} />}
+                                        </button>
                                         
-                                        {/* CORRECCIÓN: BOTÓN EDITAR CON 'e' AGREGADA */}
                                         <button onClick={(e) => { 
                                             e.stopPropagation(); 
                                             setProductoAEditar(producto); 
                                             setModalProductoOpen(true); 
-                                        }} className="p-2 bg-white text-blue-600 rounded-full shadow-sm hover:bg-blue-50 border border-gray-200" title="Editar">
-                                            <Edit size={16} />
+                                        }} className="p-3 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50 border border-gray-200 transform hover:scale-110 transition-all" title="Editar">
+                                            <Edit size={20} />
                                         </button>
 
-                                        <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-sm hover:bg-red-50 border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-3 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50 border border-gray-200 transform hover:scale-110 transition-all" title="Eliminar">
+                                            <Trash2 size={20} />
+                                        </button>
                                     </div>
                                 </div>
                             ))
@@ -754,23 +759,28 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
                                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Tag size={20} className="text-orange-500"/> {categoria} <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{productosCat.length}</span></h3>
                                     <button onClick={() => setModalCategoriasOpen(true)} className="text-gray-400 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition" title="Editar Categoría"><Edit size={16}/></button>
                                 </div>
-                                <div className="flex gap-4 overflow-x-auto pb-4 snap-x lg:grid lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:pb-0 lg:overflow-visible no-scrollbar">
+                                <div className="flex gap-4 overflow-x-auto pb-4 snap-x lg:flex-wrap lg:justify-start lg:pb-0 lg:overflow-visible no-scrollbar">
                                     {productosCat.map(producto => (
-                                        <div key={producto.id} className="relative group shrink-0 min-w-[85%] sm:min-w-[45%] lg:min-w-0 snap-center">
+                                        <div key={producto.id} className="relative group shrink-0 min-w-[85%] sm:min-w-[45%] lg:min-w-[150px] lg:w-48 snap-center overflow-hidden rounded-xl"> 
                                             <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
-                                            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-2 rounded-full shadow-sm border border-gray-200 transition-colors ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>{producto.pausado ? <PlayCircle size={16} /> : <PauseCircle size={16} />}</button>
+                                            
+                                            {/* --- NUEVO OVERLAY CENTRADO --- */}
+                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-3 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
+                                                    {producto.pausado ? <PlayCircle size={20} /> : <PauseCircle size={20} />}
+                                                </button>
                                                 
-                                                {/* CORRECCIÓN: BOTÓN EDITAR CON 'e' AGREGADA */}
                                                 <button onClick={(e) => { 
                                                     e.stopPropagation(); 
                                                     setProductoAEditar(producto); 
                                                     setModalProductoOpen(true); 
-                                                }} className="p-2 bg-white text-blue-600 rounded-full shadow-sm hover:bg-blue-50 border border-gray-200" title="Editar">
-                                                    <Edit size={16} />
+                                                }} className="p-3 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50 border border-gray-200 transform hover:scale-110 transition-all" title="Editar">
+                                                    <Edit size={20} />
                                                 </button>
 
-                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-sm hover:bg-red-50 border border-gray-200" title="Eliminar"><Trash2 size={16} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-3 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50 border border-gray-200 transform hover:scale-110 transition-all" title="Eliminar">
+                                                    <Trash2 size={20} />
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
