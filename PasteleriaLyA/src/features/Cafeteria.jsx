@@ -8,7 +8,8 @@ import {
     CheckCircle, XCircle, Clock, Info, ArchiveRestore, Box, PauseCircle, PlayCircle, Lock, EyeOff, Loader, Split, CheckCheck, Undo2,
     ChevronDown, ChevronUp 
 } from 'lucide-react';
-import { Notificacion, CardStat, CardProducto, ModalConfirmacion } from '../components/Shared';
+// IMPORTANTE: Asegúrate de importar CardProducto y ModalInfoProducto aquí
+import { Notificacion, CardStat, CardProducto, ModalConfirmacion, ModalInfoProducto } from '../components/Shared';
 import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
 
 const CATEGORIAS_INICIALES = ['Bebidas Calientes', 'Bebidas Frías', 'Pastelería', 'Bocadillos', 'Otros'];
@@ -57,7 +58,7 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
     );
 };
 
-// --- COMPONENTE 2: MODAL HISTORIAL (MODIFICADO PARA ORDENAR POR HORA) ---
+// --- COMPONENTE 2: MODAL HISTORIAL ---
 const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [itemParaRestaurar, setItemParaRestaurar] = useState(null);
@@ -66,15 +67,12 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPap
 
     useEffect(() => { if (isOpen) { setBusqueda(''); setConfirmarVaciar(false); } }, [isOpen]);
 
-    // --- LÓGICA DE ORDENAMIENTO ---
     const itemsOrdenados = useMemo(() => {
         if (!items) return [];
         return [...items].sort((a, b) => {
-            // Para ventas: Ordenar por hora (Ascendente: Mañana -> Noche)
             if (a.hora && b.hora) {
                 return a.hora.localeCompare(b.hora);
             }
-            // Para cancelados u otros: Ordenar por timestamp (Ascendente)
             if (a.timestamp && b.timestamp) {
                 return a.timestamp - b.timestamp;
             }
@@ -91,7 +89,7 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPap
     const iconoHeader = esVenta ? <CheckCircle size={24} className="text-green-600 mr-2"/> : <ArchiveRestore size={24} className="text-red-600 mr-2"/>;
     const iconoVacio = esVenta ? <CheckCircle size={48} className="mx-auto mb-2 text-green-300"/> : <Trash2 size={48} className="mx-auto mb-2 text-red-300"/>;
 
-    const itemsFiltrados = itemsOrdenados.filter(item => { // Usamos itemsOrdenados
+    const itemsFiltrados = itemsOrdenados.filter(item => {
         const texto = (item.cliente || item.nombreCliente || '') + (item.folioLocal || item.id || '');
         return texto.toLowerCase().includes(busqueda.toLowerCase());
     });
@@ -356,20 +354,15 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
     const [comandaVisible, setComandaVisible] = useState(window.innerWidth >= 768);
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
+    const [productoVerDetalles, setProductoVerDetalles] = useState(null); // NUEVO ESTADO
 
-    // --- FUNCIÓN SEGURA PARA ACTUALIZAR (CORREGIDA) ---
-    // Ahora recibe 'origenItem' como 4to argumento
+    // --- FUNCIÓN SEGURA PARA ACTUALIZAR ---
     const handleUpdate = (e, idItem, cantidad, origenItem) => {
-        // Detiene cualquier click que venga de atrás
         if (e && e.stopPropagation) e.stopPropagation();
-        
-        // Verificación de seguridad
         if (!sesion.id || !idItem) {
             console.error("Error: Falta ID de sesión o de producto", { sesionId: sesion.id, idItem });
             return;
         }
-
-        // CORRECCIÓN: Pasamos el 4to argumento (origen) a la función principal
         onActualizarProducto(sesion.id, idItem, cantidad, origenItem);
     };
 
@@ -408,21 +401,17 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
         });
     }, [productos, busqueda, categoriaFiltro]);
 
-    // Renderizado de items de la lista (Lógica corregida)
+    // Renderizado de items de la lista
     const renderListaItems = (itemsOrigen, esPersonal) => {
         return itemsOrigen.map((item, idx) => {
             const cantidad = item.cantidad || 1; 
             const subtotalItem = item.precio * cantidad; 
             const productoReal = productos.find(p => p.id === item.id); 
             const estaPausado = productoReal?.pausado;
-
-            // CORRECCIÓN: Definimos el origen para pasarlo a los botones
             const origenItem = item.origen || (esPersonal ? 'personal' : 'cliente');
 
             return (
                 <div key={`${esPersonal ? 'personal' : 'cliente'}-${idx}-${item.id}`} className={`flex justify-between items-start border-b ${esPersonal ? 'border-blue-100' : 'border-gray-100'} py-3 last:border-0`}>
-                    
-                    {/* IZQUIERDA: Textos */}
                     <div className="flex flex-col pr-2 flex-1 justify-center">
                         <div className="flex items-center gap-2">
                             <p className="font-bold text-gray-800 text-sm uppercase leading-tight">{item.nombre}</p>
@@ -430,44 +419,14 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                         </div>
                         <p className={`text-xs mt-1 ${esPersonal ? 'text-blue-400' : 'text-gray-400'}`}>{item.categoria || 'General'}</p>
                     </div>
-
-                    {/* DERECHA: Precio y Botones */}
                     <div className="flex flex-col items-end gap-1">
                         <span className={`font-bold text-lg ${esPersonal ? 'text-blue-900' : 'text-gray-900'}`}>${subtotalItem.toFixed(2)}</span>
-                        
-                        {/* Contenedor de Botones (Z-Index alto para asegurar click) */}
                         <div className={`flex items-center gap-1 p-1 rounded-lg z-10 relative ${esPersonal ? 'bg-white border border-blue-100' : 'bg-gray-50 border border-gray-100'}`}>
-                            
-                            {/* Botón MENOS (CORREGIDO: Pasamos origenItem) */}
-                            <button 
-                                type="button"
-                                onClick={(e) => handleUpdate(e, item.id, -1, origenItem)} 
-                                className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-white rounded-full transition border border-transparent hover:border-gray-200"
-                            >
-                                <MinusCircle size={18}/>
-                            </button>
-
+                            <button type="button" onClick={(e) => handleUpdate(e, item.id, -1, origenItem)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-white rounded-full transition border border-transparent hover:border-gray-200"><MinusCircle size={18}/></button>
                             <span className="font-bold text-gray-700 text-sm w-6 text-center select-none">{cantidad}</span>
-
-                            {/* Botón MÁS (CORREGIDO: Pasamos origenItem) */}
-                            <button 
-                                type="button"
-                                onClick={(e) => !estaPausado && handleUpdate(e, item.id, 1, origenItem)} 
-                                className={`w-7 h-7 flex items-center justify-center rounded-full transition border border-transparent hover:border-gray-200 ${estaPausado ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-orange-600 hover:bg-white'}`}
-                            >
-                                <PlusCircle size={18}/>
-                            </button>
-
+                            <button type="button" onClick={(e) => !estaPausado && handleUpdate(e, item.id, 1, origenItem)} className={`w-7 h-7 flex items-center justify-center rounded-full transition border border-transparent hover:border-gray-200 ${estaPausado ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-orange-600 hover:bg-white'}`}><PlusCircle size={18}/></button>
                             <div className="w-px h-4 bg-gray-300 mx-1"></div>
-
-                            {/* Botón BORRAR (CORREGIDO: Pasamos origenItem) */}
-                            <button 
-                                type="button"
-                                onClick={(e) => handleUpdate(e, item.id, -cantidad, origenItem)} 
-                                className="w-7 h-7 flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"
-                            >
-                                <Trash2 size={18}/>
-                            </button>
+                            <button type="button" onClick={(e) => handleUpdate(e, item.id, -cantidad, origenItem)} className="w-7 h-7 flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"><Trash2 size={18}/></button>
                         </div>
                     </div>
                 </div>
@@ -487,28 +446,36 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     <div className="relative mb-3"><Search className="absolute left-3 top-2.5 text-gray-400" size={18} /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} autoFocus />{busqueda && (<button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>)}</div>
                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1"><button onClick={() => setCategoriaFiltro('Todas')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>Todas</button>{ORDEN_CATEGORIAS.map(cat => (<button key={cat} onClick={() => setCategoriaFiltro(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}>{cat}</button>))}</div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 bg-orange-50/30">
-                    {ORDEN_CATEGORIAS.map(cat => { if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null; const prods = productosFiltrados.filter(p => p.categoria === cat); if (prods.length === 0) return null; 
+                
+                {/* LISTA DE PRODUCTOS (GRID RESPONSIVO) */}
+                <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                    {ORDEN_CATEGORIAS.map(cat => { 
+                        if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null; 
+                        const prods = productosFiltrados.filter(p => p.categoria === cat); 
+                        if (prods.length === 0) return null; 
+                        
                         return (
-                            <div key={cat} className="mb-6 animate-fade-in-up">
-                                <h3 className="font-bold text-orange-800 text-lg border-b border-orange-200 mb-3 pb-1 flex items-center gap-2">{cat} <span className="text-xs font-normal text-orange-600 bg-orange-100 px-2 rounded-full">{prods.length}</span></h3>
-                                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                    {prods.map(prod => { const agotado = prod.pausado === true; return (
-                                            <div key={prod.id} onClick={() => !agotado && onAgregarProducto(sesion.id, prod)} className={`bg-white p-3 rounded-xl shadow-sm border transition-all active:scale-95 flex flex-col items-center text-center relative overflow-hidden group ${agotado ? 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-75' : 'border-transparent hover:shadow-md hover:border-orange-300 cursor-pointer'}`}>
-                                                <div className="h-20 w-20 bg-gray-100 rounded-lg flex items-center justify-center text-3xl mb-2 overflow-hidden relative">
-                                                    {prod.imagen && (prod.imagen.startsWith('http') || prod.imagen.startsWith('data:image')) ? ( <img src={prod.imagen} className={`w-full h-full object-contain ${agotado ? 'grayscale opacity-50' : ''}`} alt={prod.nombre}/> ) : ( <span className="truncate w-full text-center select-none">{prod.imagen || '☕'}</span> )}
-                                                    {agotado && (<div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]"><span className="bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-sm transform -rotate-12 tracking-wider border border-white/20">AGOTADO</span></div>)}
-                                                </div>
-                                                <h4 className={`font-bold text-sm leading-tight mb-1 line-clamp-2 ${agotado ? 'text-gray-500' : 'text-gray-800'}`}>{prod.nombre}</h4>
-                                                <span className={`font-bold ${agotado ? 'text-gray-400 line-through' : 'text-orange-600'}`}>${prod.precio}</span>
-                                                {!agotado && (<div className="absolute top-2 right-2 bg-orange-100 text-orange-600 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><PlusCircle size={14} /></div>)}
-                                            </div>
-                                    ); })}
+                            <div key={cat} className="mb-8 animate-fade-in-up">
+                                <h3 className="font-bold text-gray-800 text-xl border-b border-gray-200 mb-4 pb-2 flex items-center gap-2">
+                                    {cat} <span className="text-xs font-normal text-white bg-orange-500 px-2 py-0.5 rounded-full shadow-sm">{prods.length}</span>
+                                </h3>
+                                
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    {prods.map(prod => (
+                                        <div key={prod.id} className="h-full">
+                                            <CardProducto 
+                                                producto={prod} 
+                                                onClick={() => setProductoVerDetalles(prod)} // Abre modal
+                                                onAdd={(p) => onAgregarProducto(sesion.id, p, 1)}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
-                        ) 
+                        );
                     })}
                 </div>
+
                 {!comandaVisible && (
                     <div className="absolute bottom-6 right-6 z-50 animate-bounce-in">
                         <button onClick={() => setComandaVisible(true)} className="bg-gray-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg hover:bg-gray-800 transition transform hover:scale-105 border-2 border-orange-500">
@@ -537,7 +504,6 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                             <div className="text-center text-gray-400 py-10 italic">Cuenta vacía.<br />Selecciona productos.</div> 
                         ) : ( 
                             <>
-                                {/* ITEMS DEL CLIENTE */}
                                 {sesion.cuenta.some(i => i.origen !== 'personal') && (
                                     <div className="mb-4">
                                         <div className="flex items-center gap-2 mb-2 pb-1 border-b border-gray-100">
@@ -549,8 +515,6 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                                         </div>
                                     </div>
                                 )}
-
-                                {/* ITEMS DEL PERSONAL */}
                                 {sesion.cuenta.some(i => i.origen === 'personal') && (
                                     <div className="mb-2 mt-4">
                                         <div className="flex items-center gap-2 mb-2 pb-1 border-b border-blue-100 bg-blue-50/50 p-1 rounded-t">
@@ -567,7 +531,6 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     </div>
 
                     <div className="p-6 bg-gray-50 border-t border-gray-200 transition-all duration-300">
-                        {/* FOOTER TOTAL */}
                         <div className="flex justify-between items-center mb-4">
                             <span className="text-lg font-bold text-gray-600">Total</span>
                             <div className="flex items-center gap-3">
@@ -597,6 +560,14 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 </div>
             )}
 
+            {/* MODALES */}
+            <ModalInfoProducto 
+                isOpen={!!productoVerDetalles} 
+                onClose={() => setProductoVerDetalles(null)} 
+                producto={productoVerDetalles} 
+                onAgregar={(prod, cant) => onAgregarProducto(sesion.id, prod, cant)} 
+            />
+            
             <ModalConfirmacion isOpen={confirmacionPagoOpen} onClose={() => !procesandoPago && setConfirmacionPagoOpen(false)} onConfirm={handleConfirmarPago} titulo="¿Confirmar Cobro?" mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`} tipo="pago" />
             <ModalConfirmacion isOpen={confirmacionCancelarOpen} onClose={() => setConfirmacionCancelarOpen(false)} onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }} titulo="¿Cancelar Cuenta?" mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
             
@@ -607,6 +578,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
 };
 
 export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa }) => { const [qrData, setQrData] = useState(null); const [mesaAEliminar, setMesaAEliminar] = useState(null); return ( <div className="p-8 h-screen overflow-y-auto relative"> <h2 className="text-3xl font-bold text-gray-800 mb-6">Configuración de Mesas</h2> <div className="mb-10"> <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas</h3><button onClick={onAgregarMesa} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-200 flex items-center gap-2"><PlusCircle size={18} /> Agregar Mesa</button></div> <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"> {mesas.map(mesa => ( <div key={mesa.id} className="relative p-6 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[160px] bg-white border-gray-200 hover:border-orange-300 transition group"> <QrCode size={40} className="text-gray-300 mb-2 group-hover:text-orange-500 transition-colors" /> <h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3> <div className="flex gap-2 mt-3 w-full"><button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver/Imprimir QR</button></div> <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button> </div> ))} </div> </div> <div className="mt-8 border-t pt-8"> <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3> <div className="bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between"> <div><h4 className="font-bold text-orange-900">QR General para Mostrador</h4><p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p></div> <button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: "https://app.lya.com/llevar" })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><QrCode size={20} /> Ver/Imprimir QR</button> </div> </div> <div className="fixed bottom-6 right-6 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 z-50 w-72 animate-fade-in-up"> <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2"><p className="text-xs font-bold uppercase text-orange-600 flex items-center gap-2"><Smartphone size={16}/> Simulador QR</p><span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">MODO DEV</span></div> <p className="text-[11px] text-gray-400 mb-3">Haz clic abajo para abrir la vista del cliente en una nueva pestaña (como si escanearan el QR).</p> <div className="space-y-2 mb-3 max-h-40 overflow-y-auto custom-scrollbar pr-1">{mesas.map(m => (<button key={m.id} onClick={() => window.open(`/mesa/${m.id}`, '_blank')} className="w-full bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 text-xs font-bold py-2 px-3 rounded-lg border border-gray-200 hover:border-blue-200 transition text-left flex items-center gap-2"><QrCode size={14} className="opacity-50"/> Simular {m.nombre}</button>))}</div> <button onClick={() => window.open('/llevar', '_blank')} className="w-full bg-gray-900 text-white text-xs font-bold py-3 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition shadow-lg border border-gray-900"><ShoppingBag size={14}/> Simular "Para Llevar"</button> </div> <ModalQR isOpen={!!qrData} onClose={() => setQrData(null)} titulo={qrData?.titulo} subtitulo={qrData?.sub} valorQR={qrData?.val} /> <ModalConfirmacion isOpen={!!mesaAEliminar} onClose={() => setMesaAEliminar(null)} onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" /> </div> ); };
+
 export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarProducto }) => {
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
@@ -654,18 +626,14 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
         setVerPausados(!verPausados);
     };
 
-    // --- CORRECCIÓN: QUITAMOS NOTIFICACIÓN DUPLICADA ---
     const handleGuardarWrapper = (prod) => {
         onGuardarProducto(prod);
-        // (Se eliminó la notificación local porque App.jsx ya muestra una global)
     };
 
-    // --- CORRECCIÓN: WRAPPER PARA ABRIR MODAL BONITO ---
     const handleEliminarProductoWrapper = (id) => {
         setProductoParaEliminar(id);
     };
 
-    // --- FUNCIÓN QUE SE EJECUTA AL DAR "SÍ" EN EL MODAL ---
     const confirmarEliminacionDefinitiva = () => {
         if (productoParaEliminar) {
             onEliminarProducto(productoParaEliminar);
@@ -718,30 +686,30 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
             {/* GRID DE PRODUCTOS */}
             <div className="space-y-8 relative z-0">
                 {verPausados ? (
-                    <div className="flex flex-wrap gap-4 justify-start animate-fade-in">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 animate-fade-in">
                         {productosFiltrados.length === 0 ? (
-                            <div className="w-full text-center py-12 opacity-60"><CheckCircle size={48} className="mx-auto mb-3 text-green-500"/><p className="text-gray-500 font-medium">¡Excelente! No hay productos pausados.</p><button onClick={() => setVerPausados(false)} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Volver al menú</button></div>
+                            <div className="col-span-full w-full text-center py-12 opacity-60"><CheckCircle size={48} className="mx-auto mb-3 text-green-500"/><p className="text-gray-500 font-medium">¡Excelente! No hay productos pausados.</p><button onClick={() => setVerPausados(false)} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Volver al menú</button></div>
                         ) : (
                             productosFiltrados.map(producto => (
-                                <div key={producto.id} className="relative group overflow-hidden rounded-xl w-full min-w-[150px] sm:w-48 flex-shrink-0"> 
+                                <div key={producto.id} className="relative group overflow-hidden rounded-xl shadow-sm border border-gray-100"> 
                                     <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
                                     
-                                    {/* --- NUEVO OVERLAY CENTRADO --- */}
-                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all z-10">
-                                        <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-3 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
-                                            {producto.pausado ? <PlayCircle size={20} /> : <PauseCircle size={20} />}
+                                    {/* Overlay Botones Compactos */}
+                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10">
+                                        <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-2 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
+                                            {producto.pausado ? <PlayCircle size={18} /> : <PauseCircle size={18} />}
                                         </button>
                                         
                                         <button onClick={(e) => { 
                                             e.stopPropagation(); 
                                             setProductoAEditar(producto); 
                                             setModalProductoOpen(true); 
-                                        }} className="p-3 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50 border border-gray-200 transform hover:scale-110 transition-all" title="Editar">
-                                            <Edit size={20} />
+                                        }} className="p-2 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50 border border-gray-200 transform hover:scale-110 transition-all" title="Editar">
+                                            <Edit size={18} />
                                         </button>
 
-                                        <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-3 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50 border border-gray-200 transform hover:scale-110 transition-all" title="Eliminar">
-                                            <Trash2 size={20} />
+                                        <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50 border border-gray-200 transform hover:scale-110 transition-all" title="Eliminar">
+                                            <Trash2 size={18} />
                                         </button>
                                     </div>
                                 </div>
@@ -759,27 +727,28 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
                                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Tag size={20} className="text-orange-500"/> {categoria} <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{productosCat.length}</span></h3>
                                     <button onClick={() => setModalCategoriasOpen(true)} className="text-gray-400 hover:text-orange-600 p-2 rounded-full hover:bg-orange-50 transition" title="Editar Categoría"><Edit size={16}/></button>
                                 </div>
-                                <div className="flex gap-4 overflow-x-auto pb-4 snap-x lg:flex-wrap lg:justify-start lg:pb-0 lg:overflow-visible no-scrollbar">
+                                
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                                     {productosCat.map(producto => (
-                                        <div key={producto.id} className="relative group shrink-0 min-w-[85%] sm:min-w-[45%] lg:min-w-[150px] lg:w-48 snap-center overflow-hidden rounded-xl"> 
+                                        <div key={producto.id} className="relative group overflow-hidden rounded-xl shadow-sm border border-gray-50"> 
                                             <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
                                             
-                                            {/* --- NUEVO OVERLAY CENTRADO --- */}
-                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all z-10">
-                                                <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-3 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
-                                                    {producto.pausado ? <PlayCircle size={20} /> : <PauseCircle size={20} />}
+                                            {/* Overlay Botones Compactos */}
+                                            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10">
+                                                <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-2 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
+                                                    {producto.pausado ? <PlayCircle size={18} /> : <PauseCircle size={18} />}
                                                 </button>
                                                 
                                                 <button onClick={(e) => { 
                                                     e.stopPropagation(); 
                                                     setProductoAEditar(producto); 
                                                     setModalProductoOpen(true); 
-                                                }} className="p-3 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50 border border-gray-200 transform hover:scale-110 transition-all" title="Editar">
-                                                    <Edit size={20} />
+                                                }} className="p-2 bg-white text-blue-600 rounded-full shadow-lg hover:bg-blue-50 border border-gray-200 transform hover:scale-110 transition-all" title="Editar">
+                                                    <Edit size={18} />
                                                 </button>
 
-                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-3 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50 border border-gray-200 transform hover:scale-110 transition-all" title="Eliminar">
-                                                    <Trash2 size={20} />
+                                                <button onClick={(e) => { e.stopPropagation(); handleEliminarProductoWrapper(producto.id); }} className="p-2 bg-white text-red-600 rounded-full shadow-lg hover:bg-red-50 border border-gray-200 transform hover:scale-110 transition-all" title="Eliminar">
+                                                    <Trash2 size={18} />
                                                 </button>
                                             </div>
                                         </div>
@@ -817,7 +786,6 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
                 mostrarNotificacion={mostrarNotificacion} 
             />
 
-            {/* --- AQUÍ ESTÁ EL MODAL BONITO --- */}
             <ModalConfirmacion 
                 isOpen={!!productoParaEliminar} 
                 onClose={() => setProductoParaEliminar(null)} 

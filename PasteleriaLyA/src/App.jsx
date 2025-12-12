@@ -229,7 +229,7 @@ export default function PasteleriaApp() {
       try { await deleteUser(id); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
   };
 
-  // --- MANEJO DE PRODUCTOS (MODIFICADO: SOPORTA SILENCIOSO) ---
+  // --- MANEJO DE PRODUCTOS ---
   const guardarProductoCafeteria = async (prod, notificar = true) => { 
     try { 
         const res = await saveProduct(prod); 
@@ -268,13 +268,10 @@ export default function PasteleriaApp() {
   };
   
   const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
-    // 1. Actualizar Stock
     await updateProductStock(carrito);
-
     const carritoMarcado = carrito.map(item => ({ ...item, origen: 'cliente' }));
 
     if (idMesa === ID_QR_LLEVAR) {
-        // Pedido Para Llevar (Mostrador/QR)
         const sesionExistente = sesionesLlevar.find(s => s.nombreCliente === nombre);
         if (sesionExistente) {
             const nuevosItems = [...sesionExistente.cuenta, ...carritoMarcado];
@@ -282,10 +279,8 @@ export default function PasteleriaApp() {
             await updateSession(sesionExistente.id, { cuenta: nuevosItems, total: nuevoTotal });
             mostrarNotificacion(`Pedido actualizado: ${nombre}`, "info");
         } else {
-            // Crear nueva sesión con items iniciales
             const totalInicial = carritoMarcado.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0);
             const nuevaId = `L-${Date.now().toString().slice(-4)}`;
-            // Usamos saveSession (upsert) para poder pasarle los items de una vez
             await saveSession({ 
                 id: nuevaId, tipo: 'llevar', nombreCliente: nombre, telefono, 
                 cuenta: carritoMarcado, total: totalInicial, estado: 'Activa' 
@@ -293,7 +288,6 @@ export default function PasteleriaApp() {
             mostrarNotificacion(`Pedido recibido: ${nombre}`, "exito");
         }
     } else {
-        // Pedido en Mesa
         const mesa = mesas.find(m => m.id === idMesa);
         if(!mesa) return;
         const cuentaExistente = mesa.cuentas.find(c => c.cliente === nombre);
@@ -314,8 +308,9 @@ export default function PasteleriaApp() {
     }
   };
 
-  const agregarProductoASesion = async (idSesion, producto) => { 
-    const itemNuevo = { ...producto, cantidad: 1, origen: 'personal' };
+  // --- FUNCIÓN MODIFICADA: AGREGAR SIN NOTIFICACIÓN ---
+  const agregarProductoASesion = async (idSesion, producto, cantidad = 1) => { 
+    const itemNuevo = { ...producto, cantidad: cantidad, origen: 'personal' };
 
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
@@ -324,7 +319,9 @@ export default function PasteleriaApp() {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
                     const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
-                    if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+                    if (itemIndex > -1) {
+                        items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + cantidad };
+                    }
                     else items.push(itemNuevo);
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
@@ -339,13 +336,15 @@ export default function PasteleriaApp() {
         if (sesion) {
             let items = [...sesion.cuenta];
             const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
-            if (itemIndex > -1) items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + 1 };
+            if (itemIndex > -1) {
+                items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + cantidad };
+            }
             else items.push(itemNuevo);
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
             await updateSession(sesion.id, { cuenta: items, total });
         }
     } 
-    mostrarNotificacion("Producto agregado", "info"); 
+    // NOTIFICACIÓN ELIMINADA AQUÍ PARA COMANDA
   };
 
   const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObjetivo) => {
@@ -355,9 +354,6 @@ export default function PasteleriaApp() {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
-                    
-                    // CAMBIO CLAVE: Buscamos por ID *Y* por ORIGEN
-                    // Así el sistema no confunde el café del cliente con el tuyo.
                     const itemIndex = items.findIndex(i => i.id === idProducto && i.origen === origenObjetivo);
                     
                     if(itemIndex > -1) {
@@ -374,12 +370,9 @@ export default function PasteleriaApp() {
             actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
         }
     } else {
-        // Lógica para 'Llevar' (Mismo cambio aquí)
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
-            
-            // CAMBIO CLAVE AQUÍ TAMBIÉN
             const itemIndex = items.findIndex(i => i.id === idProducto && i.origen === origenObjetivo);
             
             if(itemIndex > -1) {
@@ -429,9 +422,7 @@ export default function PasteleriaApp() {
     }
   };
 
-  // --- FUNCIÓN CANCELAR MODIFICADA (AVISO PREVIO) ---
   const cancelarCuentaSinPagar = async (sesion) => {
-      // 1. Guardar en papelera local
       const canceladoItem = {
           ...sesion,
           timestamp: Date.now(),
@@ -446,27 +437,17 @@ export default function PasteleriaApp() {
           if (sesion.tipo === 'mesa') {
               const mesa = mesas.find(m => m.id === sesion.idMesa);
               if (mesa) {
-                  // A) MARCAR COMO CANCELADO (Para que el cliente lo vea ROJO)
                   const cuentasMarcadas = mesa.cuentas.map(c => 
                       c.id === sesion.id ? { ...c, estado: 'Cancelado' } : c
                   );
                   await updateMesa(mesa.id, { cuentas: cuentasMarcadas });
-
-                  // B) ESPERAR UN MOMENTO (para que le dé tiempo al cliente de ver el aviso)
                   await new Promise(r => setTimeout(r, 1500));
-
-                  // C) ELIMINAR DE VERDAD
                   const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
                   await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
               }
           } else {
-              // A) MARCAR COMO CANCELADO
               await updateSession(sesion.id, { estado: 'Cancelado' });
-              
-              // B) ESPERAR
               await new Promise(r => setTimeout(r, 1500));
-
-              // C) ELIMINAR
               await deleteSession(sesion.id);
           }
           mostrarNotificacion("Pedido enviado a Papelera", "info");

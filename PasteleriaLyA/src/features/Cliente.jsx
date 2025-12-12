@@ -2,13 +2,13 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
-    LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle
+    LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
+    ChevronUp, ChevronDown 
 } from 'lucide-react';
-// IMPORTAMOS LA NUEVA FUNCIÓN
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
-import { Notificacion, ModalConfirmacion } from '../components/Shared';
+import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
 
-// --- PANTALLA LOGIN (Sin cambios) ---
+// --- PANTALLA LOGIN ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
@@ -92,34 +92,37 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     );
 };
 
-// --- CARRITO FLOTANTE (Sin cambios) ---
+// --- CARRITO FLOTANTE (COLAPSABLE / EXPANDIBLE) ---
 const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) => {
     const [confirmando, setConfirmando] = useState(false);
+    const [expandido, setExpandido] = useState(false); 
+    
     const total = cuenta.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
+    const totalItems = cuenta.reduce((acc, i) => acc + i.cantidad, 0);
 
     if (cuenta.length === 0) return null;
 
     if (confirmando) {
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-60 z-[100] flex items-end sm:items-center justify-center p-4">
-                <div className="bg-white w-full max-w-md rounded-2xl p-6 animate-bounce-in">
+            <div className="fixed inset-0 bg-black bg-opacity-60 z-[100] flex items-end sm:items-center justify-center p-4 backdrop-blur-sm animate-fade-in-up">
+                <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
                     <h3 className="text-xl font-bold text-gray-800 mb-2">¿Confirmar Pedido?</h3>
                     <p className="text-gray-600 mb-4 text-sm">Se enviará a cocina inmediatamente.</p>
-                    <div className="max-h-60 overflow-y-auto mb-4 bg-gray-50 p-4 rounded-xl">
+                    <div className="max-h-60 overflow-y-auto mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100 custom-scrollbar">
                         {cuenta.map((item, i) => (
-                            <div key={i} className="flex justify-between text-sm mb-2 border-b border-gray-100 pb-2 last:border-0">
-                                <span>{item.cantidad}x {item.nombre}</span>
-                                <span className="font-bold">${item.precio * item.cantidad}</span>
+                            <div key={i} className="flex justify-between text-sm mb-2 border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+                                <span className="text-gray-700"><span className="font-bold">{item.cantidad}x</span> {item.nombre}</span>
+                                <span className="font-bold text-gray-900">${(item.precio * item.cantidad).toFixed(2)}</span>
                             </div>
                         ))}
-                        <div className="flex justify-between text-lg font-bold mt-2 pt-2 border-t border-gray-200">
+                        <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-gray-300">
                             <span>Total</span>
-                            <span className="text-orange-600">${total}</span>
+                            <span className="text-orange-600">${total.toFixed(2)}</span>
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={() => setConfirmando(false)} className="flex-1 py-3 border border-gray-300 rounded-xl font-bold text-gray-600">Volver</button>
-                        <button onClick={onConfirmar} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg">Sí, Pedir</button>
+                        <button onClick={() => setConfirmando(false)} className="flex-1 py-3 border border-gray-300 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition">Volver</button>
+                        <button onClick={onConfirmar} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg hover:bg-green-700 transition transform active:scale-95">Sí, Pedir</button>
                     </div>
                 </div>
             </div>
@@ -127,48 +130,61 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     }
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.1)] p-4 rounded-t-3xl z-50">
+        <div className={`fixed bottom-0 left-0 right-0 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-50 transition-all duration-300 rounded-t-2xl border-t border-gray-100 ${expandido ? 'p-4' : 'p-0'}`}>
             <div className="max-w-md mx-auto">
-                <div className="flex justify-between items-center mb-4 cursor-pointer" onClick={() => setConfirmando(true)}>
-                    <div className="flex items-center gap-2">
-                        <div className="bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                            {cuenta.reduce((acc, i) => acc + i.cantidad, 0)}
+                <div 
+                    onClick={() => setExpandido(!expandido)} 
+                    className={`flex justify-between items-center cursor-pointer select-none ${expandido ? 'mb-4 border-b border-gray-100 pb-3' : 'p-4 active:bg-gray-50'}`}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm animate-bounce-in">
+                            {totalItems}
                         </div>
-                        <span className="font-bold text-gray-800">Ver Pedido</span>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                Ver Pedido {expandido ? <ChevronDown size={16} className="text-gray-400"/> : <ChevronUp size={16} className="text-orange-500 animate-bounce"/>}
+                            </span>
+                            {!expandido && <span className="text-[10px] text-gray-400 font-medium">Tocá para desplegar</span>}
+                        </div>
                     </div>
-                    <span className="text-xl font-bold text-orange-600">${total}</span>
+                    <span className="text-xl font-bold text-orange-600">${total.toFixed(2)}</span>
                 </div>
                 
-                <div className="space-y-3 mb-4 max-h-40 overflow-y-auto">
-                    {cuenta.map((item) => (
-                        <div key={item.tempId} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
-                            <div className="flex-1">
-                                <p className="font-bold text-sm text-gray-800">{item.nombre}</p>
-                                <p className="text-xs text-orange-600 font-bold">${item.precio}</p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button onClick={() => item.cantidad > 1 ? onUpdateCantidad(item.tempId, -1) : onEliminar(item.tempId)} className="text-gray-400 hover:text-red-500"><MinusCircle size={20}/></button>
-                                <span className="font-bold w-4 text-center">{item.cantidad}</span>
-                                <button onClick={() => onUpdateCantidad(item.tempId, 1)} className="text-orange-600"><PlusCircle size={20}/></button>
-                            </div>
-                            <button onClick={() => onEliminar(item.tempId)} className="ml-3 text-red-400 p-1"><Trash2 size={16}/></button>
+                {expandido && (
+                    <div className="animate-fade-in-up">
+                        <div className="space-y-3 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                            {cuenta.map((item) => (
+                                <div key={item.tempId} className="flex items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    <div className="flex-1 pr-2">
+                                        <p className="font-bold text-sm text-gray-800 line-clamp-1">{item.nombre}</p>
+                                        <p className="text-xs text-orange-600 font-bold">${item.precio}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
+                                        <button onClick={() => item.cantidad > 1 ? onUpdateCantidad(item.tempId, -1) : onEliminar(item.tempId)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 transition"><MinusCircle size={18}/></button>
+                                        <span className="font-bold w-4 text-center text-sm">{item.cantidad}</span>
+                                        <button onClick={() => onUpdateCantidad(item.tempId, 1)} className="w-6 h-6 flex items-center justify-center text-orange-600 hover:bg-orange-50 rounded transition"><PlusCircle size={18}/></button>
+                                    </div>
+                                    <button onClick={() => onEliminar(item.tempId)} className="ml-2 text-red-300 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
 
-                <button onClick={() => setConfirmando(true)} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg">
-                    Confirmar Pedido <ArrowRight size={20}/>
-                </button>
+                        <button 
+                            onClick={() => setConfirmando(true)} 
+                            className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg hover:bg-gray-800 transition transform active:scale-95"
+                        >
+                            Confirmar Pedido <ArrowRight size={20}/>
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-// --- VISTA MI CUENTA TOTAL (MODIFICADO: SIN BOTÓN PDF AQUÍ) ---
+// --- VISTA MI CUENTA TOTAL ---
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) => {
     
-    // NOTA: Se eliminó la función de descargar PDF aquí para que solo aparezca al final.
-
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
             <p className="text-gray-500">No hay consumos registrados aún.</p>
@@ -178,15 +194,12 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
-            {/* Header */}
             <div className="bg-gray-900 text-white p-6 pb-12 rounded-b-[2.5rem] shadow-lg relative z-10">
                 <div className="flex justify-between items-center mb-6">
                     <button onClick={onVolver} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition flex items-center gap-1 text-xs font-bold pl-3 pr-4">
                         <ArrowLeft size={16}/> Volver
                     </button>
-                    
                     <h2 className="text-xl font-bold">Mi Cuenta</h2>
-                    
                     <button onClick={onSolicitarSalida} className="p-2 bg-red-500/20 text-red-200 rounded-full hover:bg-red-500/40 transition">
                         <LogOut size={18} />
                     </button>
@@ -198,10 +211,8 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                 </div>
             </div>
 
-            {/* Contenido */}
             <div className="flex-1 px-6 -mt-8 relative z-20 pb-12 overflow-y-auto">
                 <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
-                    
                     <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                         <h3 className="text-gray-800 font-bold flex items-center gap-2">
                             <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
@@ -212,7 +223,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                         <p className="text-gray-400 text-center text-sm py-4">Aún no has pedido nada.</p>
                     ) : (
                         <>
-                            {/* SECCIÓN 1: LO QUE EL CLIENTE PIDIÓ */}
                             {cuentaAcumulada.cuenta.some(i => i.origen !== 'personal') && (
                                 <div>
                                     <p className="text-[10px] font-bold text-gray-400 uppercase mb-3 tracking-widest flex items-center gap-1">
@@ -234,7 +244,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                                 </div>
                             )}
 
-                            {/* SECCIÓN 2: LO QUE SE AGREGÓ DESPUÉS */}
                             {cuentaAcumulada.cuenta.some(i => i.origen === 'personal') && (
                                 <div className="bg-blue-50/50 -mx-2 p-3 rounded-xl border border-blue-50">
                                     <p className="text-[10px] font-bold text-blue-400 uppercase mb-3 tracking-widest flex items-center gap-1">
@@ -259,9 +268,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                     )}
                 </div>
                 
-                {/* TARJETAS DE INFORMACIÓN */}
                 <div className="space-y-4 mt-6">
-                    {/* INFO PAGO */}
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center shadow-sm animate-fade-in-up">
                         <p className="text-yellow-800 font-bold text-sm flex flex-col items-center gap-1">
                             <span>💁‍♂️</span>
@@ -269,7 +276,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                         </p>
                     </div>
 
-                    {/* INFO PEDIR MÁS */}
                     <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col gap-3 items-center justify-center text-center shadow-sm animate-fade-in-up delay-75">
                         <div className="bg-blue-100 p-3 rounded-full text-blue-600">
                             <Info size={24} />
@@ -287,24 +293,20 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
     );
 };
 
-// --- PANTALLA DE DESPEDIDA ACTUALIZADA (SOPORTA CANCELACIÓN) ---
+// --- PANTALLA DE DESPEDIDA ---
 const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
-    // Verificamos si fue cancelada
     const esCancelado = cuentaCerrada.estado === 'Cancelado';
 
-    // 1. CASO CUENTA CANCELADA (ROJO - SIN PDF)
     if (esCancelado) {
         return (
             <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-8 text-center text-red-900 animate-fade-in-up">
                 <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
                     <XCircle size={60} className="text-red-600" />
                 </div>
-                
                 <h2 className="text-3xl font-bold mb-2">Pedido Cancelado</h2>
                 <p className="text-red-700 text-lg mb-8 max-w-xs mx-auto">
                     Tu orden ha sido cancelada por el establecimiento.
                 </p>
-                
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 w-full max-w-sm mb-8">
                     <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Anulado</p>
                     <p className="text-3xl font-bold text-gray-400 line-through decoration-red-500 decoration-2">
@@ -314,12 +316,10 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
                         No se generó cobro.
                     </p>
                 </div>
-
                 <div className="flex flex-col items-center gap-2 text-red-400 text-sm">
                     <Clock size={20} className="animate-pulse"/>
                     <p>Cerrando sesión en {tiempoRestante}...</p>
                 </div>
-
                 <button 
                     onClick={onFinalizar}
                     className="mt-8 text-red-600 hover:text-red-800 font-bold underline transition"
@@ -330,7 +330,6 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
         );
     }
 
-    // 2. CASO NORMAL: PAGO EXITOSO (VERDE - CON PDF)
     return (
         <div className="min-h-screen bg-green-600 flex flex-col items-center justify-center p-8 text-center text-white animate-fade-in-up">
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
@@ -340,7 +339,6 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
             <h2 className="text-4xl font-bold mb-2">¡Gracias por tu visita!</h2>
             <p className="text-green-100 text-lg mb-8 max-w-xs mx-auto">Tu cuenta ha sido cerrada correctamente. Esperamos verte pronto.</p>
             
-            {/* Tarjeta de Resumen Final */}
             <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm mb-8">
                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pagado</p>
                 <p className="text-4xl font-bold text-green-600 mb-4">${cuentaCerrada.total}</p>
@@ -381,10 +379,11 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     // --- ESTADOS PARA EL CIERRE DE CUENTA ---
     const [ultimoEstadoCuenta, setUltimoEstadoCuenta] = useState(null);
     const [mostrarDespedida, setMostrarDespedida] = useState(false);
-    const [tiempoDespedida, setTiempoDespedida] = useState(10); // 10 segundos
+    const [tiempoDespedida, setTiempoDespedida] = useState(10); 
 
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
+    const [productoVerDetalles, setProductoVerDetalles] = useState(null);
 
     const esParaLlevar = useMemo(() => mesa?.nombre.toLowerCase().includes('llevar'), [mesa]);
     
@@ -393,16 +392,12 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
 
-    // --- EFECTO: DETECTAR CIERRE DE CUENTA (PAGO O CANCELACIÓN) ---
-    // NOTA CLAVE: También miramos si 'miCuentaAcumulada' DESAPARECE
+    // --- EFECTO: DETECTAR CIERRE DE CUENTA ---
     useEffect(() => {
-        // Si la cuenta existe, la guardamos como "el último estado conocido"
         if (miCuentaAcumulada) {
             setUltimoEstadoCuenta(miCuentaAcumulada);
         } 
-        // Si la cuenta desapareció (es null) PERO teníamos un estado anterior y un nombre...
         else if (nombreCliente && ultimoEstadoCuenta && !mostrarDespedida && !confirmarSalida) {
-            // ACTIVAR MODO DESPEDIDA
             setMostrarDespedida(true);
         }
     }, [miCuentaAcumulada, nombreCliente, ultimoEstadoCuenta, mostrarDespedida, confirmarSalida]);
@@ -461,13 +456,15 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         });
     }, [productos, busqueda, categoriaFiltro]);
 
-    const agregarAlCarrito = (producto) => {
+    // FUNCIÓN AGREGAR (SIN NOTIFICACIÓN AHORA)
+    const agregarAlCarrito = (producto, qty = 1) => {
         if (producto.pausado) return;
         setCarrito(prev => {
             const itemEnCarrito = prev.find(item => item.id === producto.id);
-            if (itemEnCarrito) { return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item); }
-            return [...prev, { ...producto, cantidad: 1, tempId: Date.now() }];
+            if (itemEnCarrito) { return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + qty } : item); }
+            return [...prev, { ...producto, cantidad: qty, tempId: Date.now() }];
         });
+        // Feedback silenciado a petición del usuario
     };
 
     const actualizarCantidad = (tempId, delta) => {
@@ -494,9 +491,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         setPedidoEnviado(true);
     };
 
-    // --- RENDERIZADO CONDICIONAL ---
-
-    // 1. Si se cerró la cuenta, mostrar PANTALLA DE DESPEDIDA (Prioridad máxima)
     if (mostrarDespedida && ultimoEstadoCuenta) {
         return (
             <PantallaDespedida 
@@ -507,7 +501,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         );
     }
 
-    // 2. Si no hay cliente logueado, mostrar LOGIN
     if (!nombreCliente) { 
         return <PantallaLogin 
             mesaNombre={mesa.nombre} 
@@ -518,7 +511,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         />; 
     }
 
-    // 3. Si está viendo el total de la cuenta
     if (viendoCuentaTotal) { 
         return (
             <>
@@ -530,7 +522,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 <ModalConfirmacion 
                     isOpen={confirmarSalida}
                     onClose={() => setConfirmarSalida(false)}
-                    onConfirm={handleSalidaCompleta} // Salida manual
+                    onConfirm={handleSalidaCompleta} 
                     titulo="¿Cerrar Sesión?"
                     mensaje="Tu cuenta seguirá abierta y activa en el sistema. Puedes volver a ingresar con tu nombre."
                     tipo="eliminar" 
@@ -539,7 +531,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         ); 
     }
 
-    // 4. Si ya envió pedido (Pantalla de estado)
     if (pedidoEnviado) { 
         return (
             <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up relative">
@@ -588,14 +579,13 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                     onClose={() => setConfirmarSalida(false)}
                     onConfirm={handleSalidaCompleta}
                     titulo="¿Cerrar Sesión?"
-                    mensaje="Tu cuenta seguirá abierta y activa en el sistema para que nuestro personal la atienda. Puedes volver a ingresar con tu nombre."
+                    mensaje="Si ya confirmó algo, tu cuenta seguirá abierta y activa en el sistema para que nuestro personal la atienda. Puedes volver a ingresar con tu nombre."
                     tipo="eliminar" 
                 />
             </div>
         ); 
     }
 
-    // 5. Vista de Menú (Para agregar productos)
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
             <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
@@ -622,9 +612,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                         onChange={(e) => setBusqueda(e.target.value)}
                     />
                     {busqueda && (
-                        <button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
-                            <X size={16} />
-                        </button>
+                        <button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>
                     )}
                 </div>
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
@@ -644,55 +632,16 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                             <h3 className="font-bold text-xl text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
                                 {cat} <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{prods.length}</span>
                             </h3>
-                            
-                            <div className="flex gap-4 overflow-x-auto pb-6 snap-x lg:grid lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 lg:pb-0 lg:overflow-visible no-scrollbar">
-                                {prods.map(prod => {
-                                    const agotado = prod.pausado === true;
-                                    const esImagen = (str) => str && (str.startsWith('http') || str.startsWith('data:image'));
-
-                                    return (
-                                        <div 
-                                            key={prod.id} 
-                                            className={`
-                                                min-w-[85%] sm:min-w-[45%] lg:min-w-0 snap-center 
-                                                bg-white p-3 rounded-xl shadow-sm border flex gap-4 transition-all
-                                                ${agotado ? 'border-red-100 bg-gray-50 opacity-75' : 'border-gray-100 hover:shadow-md hover:border-orange-200'}
-                                            `}
-                                        >
-                                            <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-4xl shrink-0 overflow-hidden relative">
-                                                {esImagen(prod.imagen) ? (
-                                                    <img src={prod.imagen} className={`w-full h-full object-cover ${agotado ? 'grayscale' : ''}`} alt={prod.nombre}/>
-                                                ) : (
-                                                    <span className="text-4xl text-center select-none w-full">{prod.imagen || '☕'}</span>
-                                                )}
-                                                {agotado && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
-                                                        <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg transform -rotate-12 tracking-wider">AGOTADO</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 flex flex-col justify-between py-1">
-                                                <div>
-                                                    <h4 className={`font-bold leading-tight text-sm ${agotado ? 'text-gray-400' : 'text-gray-800'}`}>{prod.nombre}</h4>
-                                                    <p className="text-xs text-gray-500 line-clamp-2 mt-1">{prod.descripcion}</p>
-                                                </div>
-                                                <div className="flex justify-between items-end mt-2">
-                                                    <span className={`font-bold text-lg ${agotado ? 'text-gray-400 line-through' : 'text-orange-600'}`}>${prod.precio}</span>
-                                                    
-                                                    {!agotado ? (
-                                                        <button onClick={() => agregarAlCarrito(prod)} className="p-2 rounded-full transition shadow-sm bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white active:scale-95">
-                                                            <PlusCircle size={22}/>
-                                                        </button>
-                                                    ) : (
-                                                        <button disabled className="p-2 rounded-full bg-gray-100 text-gray-300 cursor-not-allowed">
-                                                            <PlusCircle size={22}/>
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                {prods.map(prod => (
+                                    <div key={prod.id} className="h-full">
+                                        <CardProducto 
+                                            producto={prod} 
+                                            onClick={() => setProductoVerDetalles(prod)} 
+                                            onAdd={(p) => agregarAlCarrito(p)} 
+                                        />
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     );
@@ -709,12 +658,19 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
 
             <CarritoFlotante cuenta={carrito} onUpdateCantidad={actualizarCantidad} onEliminar={eliminarItem} onConfirmar={confirmarPedido} />
             
+            <ModalInfoProducto 
+                isOpen={!!productoVerDetalles} 
+                onClose={() => setProductoVerDetalles(null)} 
+                producto={productoVerDetalles} 
+                onAgregar={agregarAlCarrito} 
+            />
+
             <ModalConfirmacion 
                 isOpen={confirmarSalida}
                 onClose={() => setConfirmarSalida(false)}
                 onConfirm={handleSalidaCompleta}
                 titulo="¿Cerrar Sesión?"
-                mensaje="Tu cuenta seguirá abierta y activa en el sistema para que nuestro personal la atienda. Puedes volver a ingresar con tu nombre."
+                mensaje="Si ya confirmó algo, tu cuenta seguirá abierta y activa en el sistema para que nuestro personal lo atienda. Puedes volver a ingresar con tu nombre."
                 tipo="eliminar" 
             />
         </div>
