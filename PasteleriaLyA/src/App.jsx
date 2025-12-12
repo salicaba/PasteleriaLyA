@@ -229,9 +229,14 @@ export default function PasteleriaApp() {
       try { await deleteUser(id); mostrarNotificacion("Usuario eliminado", "info"); } catch (e) { mostrarNotificacion("Error al eliminar", "error"); }
   };
 
-  // --- MANEJO DE PRODUCTOS ---
-  const guardarProductoCafeteria = async (prod) => { 
-    try { const res = await saveProduct(prod); mostrarNotificacion(res.message, "exito"); } catch (e) { mostrarNotificacion("Error: " + e.message, "error"); }
+  // --- MANEJO DE PRODUCTOS (MODIFICADO: SOPORTA SILENCIOSO) ---
+  const guardarProductoCafeteria = async (prod, notificar = true) => { 
+    try { 
+        const res = await saveProduct(prod); 
+        if (notificar) mostrarNotificacion(res.message, "exito"); 
+    } catch (e) { 
+        mostrarNotificacion("Error: " + e.message, "error"); 
+    }
   };
   
   const eliminarProductoCafeteria = async (id) => { 
@@ -424,7 +429,9 @@ export default function PasteleriaApp() {
     }
   };
 
+  // --- FUNCIÓN CANCELAR MODIFICADA (AVISO PREVIO) ---
   const cancelarCuentaSinPagar = async (sesion) => {
+      // 1. Guardar en papelera local
       const canceladoItem = {
           ...sesion,
           timestamp: Date.now(),
@@ -435,17 +442,39 @@ export default function PasteleriaApp() {
       };
       setCancelados([...cancelados, canceladoItem]);
       
-      if (sesion.tipo === 'mesa') {
-          const mesa = mesas.find(m => m.id === sesion.idMesa);
-          if (mesa) {
-              const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
-              actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
+      try {
+          if (sesion.tipo === 'mesa') {
+              const mesa = mesas.find(m => m.id === sesion.idMesa);
+              if (mesa) {
+                  // A) MARCAR COMO CANCELADO (Para que el cliente lo vea ROJO)
+                  const cuentasMarcadas = mesa.cuentas.map(c => 
+                      c.id === sesion.id ? { ...c, estado: 'Cancelado' } : c
+                  );
+                  await updateMesa(mesa.id, { cuentas: cuentasMarcadas });
+
+                  // B) ESPERAR UN MOMENTO (para que le dé tiempo al cliente de ver el aviso)
+                  await new Promise(r => setTimeout(r, 1500));
+
+                  // C) ELIMINAR DE VERDAD
+                  const cuentasRestantes = mesa.cuentas.filter(c => c.id !== sesion.id);
+                  await actualizarMesaEnBD({ ...mesa, cuentas: cuentasRestantes });
+              }
+          } else {
+              // A) MARCAR COMO CANCELADO
+              await updateSession(sesion.id, { estado: 'Cancelado' });
+              
+              // B) ESPERAR
+              await new Promise(r => setTimeout(r, 1500));
+
+              // C) ELIMINAR
+              await deleteSession(sesion.id);
           }
-      } else {
-          try { await deleteSession(sesion.id); } catch(e) { console.error(e); }
+          mostrarNotificacion("Pedido enviado a Papelera", "info");
+      } catch (e) {
+          console.error(e);
+          mostrarNotificacion("Error al cancelar", "error");
       }
       setCuentaActiva(null);
-      mostrarNotificacion("Pedido enviado a Papelera", "info");
   };
 
   const restaurarDeHistorial = async (item) => {

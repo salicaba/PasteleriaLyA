@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
-    LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock
+    LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle
 } from 'lucide-react';
 // IMPORTAMOS LA NUEVA FUNCIÓN
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
@@ -164,7 +164,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
     );
 };
 
-// --- VISTA MI CUENTA TOTAL (MODIFICADO: SIN BOTÓN PDF) ---
+// --- VISTA MI CUENTA TOTAL (MODIFICADO: SIN BOTÓN PDF AQUÍ) ---
 const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) => {
     
     // NOTA: Se eliminó la función de descargar PDF aquí para que solo aparezca al final.
@@ -206,8 +206,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                         <h3 className="text-gray-800 font-bold flex items-center gap-2">
                             <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
                         </h3>
-                        
-                        {/* (El botón de descarga se ha quitado de aquí) */}
                     </div>
                     
                     {cuentaAcumulada.cuenta.length === 0 ? (
@@ -289,8 +287,50 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
     );
 };
 
-// --- PANTALLA DE DESPEDIDA CON DESCARGA (NUEVO) ---
+// --- PANTALLA DE DESPEDIDA ACTUALIZADA (SOPORTA CANCELACIÓN) ---
 const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
+    // Verificamos si fue cancelada
+    const esCancelado = cuentaCerrada.estado === 'Cancelado';
+
+    // 1. CASO CUENTA CANCELADA (ROJO - SIN PDF)
+    if (esCancelado) {
+        return (
+            <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-8 text-center text-red-900 animate-fade-in-up">
+                <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
+                    <XCircle size={60} className="text-red-600" />
+                </div>
+                
+                <h2 className="text-3xl font-bold mb-2">Pedido Cancelado</h2>
+                <p className="text-red-700 text-lg mb-8 max-w-xs mx-auto">
+                    Tu orden ha sido cancelada por el establecimiento.
+                </p>
+                
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 w-full max-w-sm mb-8">
+                    <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Anulado</p>
+                    <p className="text-3xl font-bold text-gray-400 line-through decoration-red-500 decoration-2">
+                        ${cuentaCerrada.total}
+                    </p>
+                    <p className="text-xs text-red-400 mt-2 font-medium italic">
+                        No se generó cobro.
+                    </p>
+                </div>
+
+                <div className="flex flex-col items-center gap-2 text-red-400 text-sm">
+                    <Clock size={20} className="animate-pulse"/>
+                    <p>Cerrando sesión en {tiempoRestante}...</p>
+                </div>
+
+                <button 
+                    onClick={onFinalizar}
+                    className="mt-8 text-red-600 hover:text-red-800 font-bold underline transition"
+                >
+                    Salir ahora
+                </button>
+            </div>
+        );
+    }
+
+    // 2. CASO NORMAL: PAGO EXITOSO (VERDE - CON PDF)
     return (
         <div className="min-h-screen bg-green-600 flex flex-col items-center justify-center p-8 text-center text-white animate-fade-in-up">
             <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
@@ -306,7 +346,7 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
                 <p className="text-4xl font-bold text-green-600 mb-4">${cuentaCerrada.total}</p>
                 
                 <button 
-                    onClick={() => generarTicketPDF(cuentaCerrada)} // USA LA NUEVA FUNCIÓN
+                    onClick={() => generarTicketPDF(cuentaCerrada)} 
                     className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition"
                 >
                     <Download size={20} /> Descargar Ticket Final
@@ -353,12 +393,16 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
 
-    // --- EFECTO: DETECTAR CIERRE DE CUENTA (PAGO) ---
+    // --- EFECTO: DETECTAR CIERRE DE CUENTA (PAGO O CANCELACIÓN) ---
+    // NOTA CLAVE: También miramos si 'miCuentaAcumulada' DESAPARECE
     useEffect(() => {
+        // Si la cuenta existe, la guardamos como "el último estado conocido"
         if (miCuentaAcumulada) {
             setUltimoEstadoCuenta(miCuentaAcumulada);
         } 
+        // Si la cuenta desapareció (es null) PERO teníamos un estado anterior y un nombre...
         else if (nombreCliente && ultimoEstadoCuenta && !mostrarDespedida && !confirmarSalida) {
+            // ACTIVAR MODO DESPEDIDA
             setMostrarDespedida(true);
         }
     }, [miCuentaAcumulada, nombreCliente, ultimoEstadoCuenta, mostrarDespedida, confirmarSalida]);
