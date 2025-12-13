@@ -158,7 +158,34 @@ export default function PasteleriaApp() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Limpieza automática de papelera local (UI)
+  // --- NUEVA LÓGICA DE LIMPIEZA AUTOMÁTICA (PASTELERÍA) ---
+  // Elimina pedidos cancelados cuya fecha de cancelación sea anterior a hoy
+  useEffect(() => {
+    if (pedidosPasteleria.length > 0) {
+        const fechaHoy = getFechaHoy(); // YYYY-MM-DD
+
+        const basuraVieja = pedidosPasteleria.filter(p => {
+            // Solo nos interesan los cancelados
+            if (p.estado !== 'Cancelado') return false;
+            
+            // Usamos la fecha de cancelación si existe, o la de registro como respaldo
+            // split('T')[0] convierte "2023-10-25T14:00:00.000Z" en "2023-10-25"
+            const fechaRef = p.fechaCancelacion ? p.fechaCancelacion.split('T')[0] : p.fecha;
+            
+            // Si la fecha es MENOR a hoy (es decir, ayer o antes), se borra
+            return fechaRef < fechaHoy;
+        });
+
+        if (basuraVieja.length > 0) {
+            console.log(`🧹 Limpiando ${basuraVieja.length} pedidos viejos de la papelera...`);
+            emptyOrdersTrash(basuraVieja)
+                .then(() => console.log("Papelera limpia."))
+                .catch(err => console.error("Error limpiando papelera:", err));
+        }
+    }
+  }, [pedidosPasteleria]);
+
+  // Limpieza automática de papelera local de Cafetería (UI)
   useEffect(() => {
     const intervalo = setInterval(() => {
         const hoy = new Date().toLocaleDateString();
