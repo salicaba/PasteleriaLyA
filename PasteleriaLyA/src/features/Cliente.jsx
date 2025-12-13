@@ -20,9 +20,12 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
 
     const handleChangeNombre = (e) => {
         const valor = e.target.value.toUpperCase();
+        // Permitimos letras y espacios
         if (/^[A-ZÑÁÉÍÓÚ\s]*$/.test(valor)) {
             setNombre(valor);
             if (error) setError('');
+            
+            // Verificamos si ya existe una cuenta exacta con ese nombre
             const cuentaExistente = cuentasActivas.find(c => c.cliente === valor);
             if (cuentaExistente) {
                 setMensajeBienvenida(`¡Hola de nuevo! Tienes una cuenta activa.`);
@@ -43,10 +46,20 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     };
 
     const validarYEjecutar = (accion) => {
-        if (nombre.trim().length < 3) {
-            setError("Por favor, ingresa un nombre válido (mínimo 3 letras).");
+        const nombreLimpio = nombre.trim();
+        const palabras = nombreLimpio.split(/\s+/); // Divide por espacios
+
+        // --- VALIDACIÓN NUEVA: NOMBRE Y APELLIDO ---
+        if (palabras.length < 2) {
+            setError("Por favor, ingresa tu NOMBRE y APELLIDO (Ej. Carlos Pérez).");
             return;
         }
+        
+        if (nombreLimpio.length < 5) {
+            setError("El nombre es muy corto.");
+            return;
+        }
+
         if (esParaLlevar && telefono.length !== 10) {
             setError("El teléfono debe ser de 10 dígitos para avisarte.");
             return;
@@ -66,16 +79,21 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                 
                 <div className="text-left space-y-4 mb-6">
                     <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Nombre</label>
-                        <input value={nombre} onChange={handleChangeNombre} placeholder="Ej. JUAN PÉREZ" className={`w-full p-4 border-2 rounded-xl font-bold text-gray-700 focus:outline-none transition-colors uppercase ${mensajeBienvenida ? 'border-green-500 bg-green-50' : 'border-orange-100 focus:border-orange-500'}`} />
+                        <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Nombre y Apellido</label>
+                        <input 
+                            value={nombre} 
+                            onChange={handleChangeNombre} 
+                            placeholder="Ej. JUAN PÉREZ" 
+                            className={`w-full p-4 border-2 rounded-xl font-bold text-gray-700 focus:outline-none transition-colors uppercase ${mensajeBienvenida ? 'border-green-500 bg-green-50' : 'border-orange-100 focus:border-orange-500'}`} 
+                        />
                         {mensajeBienvenida && (<p className="text-xs text-green-600 font-bold mt-2 flex items-center animate-bounce-in"><UserCheck size={12} className="mr-1"/> {mensajeBienvenida}</p>)}
                     </div>
                     {esParaLlevar && (<div className="animate-fade-in"><label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono</label><input value={telefono} onChange={handleChangeTelefono} placeholder="10 DÍGITOS" type="tel" inputMode="numeric" className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors" /></div>)}
                 </div>
-                {error && (<div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold flex items-center gap-2 animate-bounce-in"><AlertCircle size={16}/> {error}</div>)}
+                {error && (<div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold flex items-center gap-2 animate-bounce-in"><AlertCircle size={16} className="shrink-0"/> {error}</div>)}
                 
                 {!tieneCuentaActiva ? (
-                    <button type="button" onClick={() => validarYEjecutar(onIngresar)} className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${nombre.length >= 3 && (!esParaLlevar || telefono.length === 10) ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-300 cursor-not-allowed'}`}>
+                    <button type="button" onClick={() => validarYEjecutar(onIngresar)} className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${nombre.trim().includes(' ') && (!esParaLlevar || telefono.length === 10) ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-300 cursor-not-allowed'}`}>
                         Comenzar a Pedir
                     </button>
                 ) : (

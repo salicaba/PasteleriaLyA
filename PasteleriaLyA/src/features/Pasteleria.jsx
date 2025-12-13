@@ -344,7 +344,18 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                 pedidosFiltrados.map((p, i) => (
                                     <tr key={i} onClick={() => onVerDetalles(p)} className="border-b hover:bg-gray-50 cursor-pointer">
                                         <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
-                                        <td className="p-4"><div className="font-bold uppercase text-gray-800">{p.cliente}</div><div className="text-xs text-gray-400">{p.tipoProducto || 'Pastel'}</div></td>
+                                        
+                                        {/* --- CAMBIO AQUÍ: AGREGADO EL TELÉFONO --- */}
+                                        <td className="p-4">
+                                            <div className="font-bold uppercase text-gray-800">{p.cliente}</div>
+                                            <div className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-0.5">
+                                                <Phone size={10} /> 
+                                                <span>{p.telefono || 'Sin número'}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-400 mt-0.5">{p.tipoProducto || 'Pastel'}</div>
+                                        </td>
+                                        {/* ------------------------------------------ */}
+
                                         <td className="p-4 text-sm font-medium text-gray-600">{formatearFechaLocal(p.fechaEntrega)}<br/><span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span></td>
                                         <td className="p-4 font-bold text-green-600">${p.total}</td>
                                         <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
@@ -446,7 +457,7 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
                         <div className="space-y-2">
                             <label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label>
                             {/* --- CAMBIO AQUÍ: min={fechaMinima} --- */}
-                            <input required type="date" min={fechaMinima} className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario, fechaEntrega: e.target.value })} />
+                            <input required type="date" min={fechaMinima} className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario,fechaEntrega: e.target.value })} />
                         </div>
                         <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><Clock size={16} className="mr-2 text-pink-500" /> Hora Entrega</label><input required type="time" className="w-full p-3 border rounded-lg" value={formulario.horaEntrega} onChange={e => setFormulario({ ...formulario, horaEntrega: e.target.value })} /></div>
                     </div>
