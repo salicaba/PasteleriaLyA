@@ -354,7 +354,10 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
     const [comandaVisible, setComandaVisible] = useState(window.innerWidth >= 768);
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
-    const [productoVerDetalles, setProductoVerDetalles] = useState(null); // NUEVO ESTADO
+    const [productoVerDetalles, setProductoVerDetalles] = useState(null); 
+    
+    // --- NUEVO ESTADO: CONTROL DE CONFIRMACIÓN AL ELIMINAR ITEM ---
+    const [itemParaEliminar, setItemParaEliminar] = useState(null);
 
     // --- FUNCIÓN SEGURA PARA ACTUALIZAR ---
     const handleUpdate = (e, idItem, cantidad, origenItem) => {
@@ -422,11 +425,24 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     <div className="flex flex-col items-end gap-1">
                         <span className={`font-bold text-lg ${esPersonal ? 'text-blue-900' : 'text-gray-900'}`}>${subtotalItem.toFixed(2)}</span>
                         <div className={`flex items-center gap-1 p-1 rounded-lg z-10 relative ${esPersonal ? 'bg-white border border-blue-100' : 'bg-gray-50 border border-gray-100'}`}>
-                            <button type="button" onClick={(e) => handleUpdate(e, item.id, -1, origenItem)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-white rounded-full transition border border-transparent hover:border-gray-200"><MinusCircle size={18}/></button>
+                            {/* BOTÓN RESTAR CON CONFIRMACIÓN AL LLEGAR A CERO */}
+                            <button type="button" onClick={(e) => {
+                                if (cantidad === 1) {
+                                    setItemParaEliminar({ item, cantidad: 1, origen: origenItem }); 
+                                } else {
+                                    handleUpdate(e, item.id, -1, origenItem);
+                                }
+                            }} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-orange-600 hover:bg-white rounded-full transition border border-transparent hover:border-gray-200"><MinusCircle size={18}/></button>
+                            
                             <span className="font-bold text-gray-700 text-sm w-6 text-center select-none">{cantidad}</span>
+                            
+                            {/* BOTÓN SUMAR (RESTAURADO PARA TODOS) */}
                             <button type="button" onClick={(e) => !estaPausado && handleUpdate(e, item.id, 1, origenItem)} className={`w-7 h-7 flex items-center justify-center rounded-full transition border border-transparent hover:border-gray-200 ${estaPausado ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-orange-600 hover:bg-white'}`}><PlusCircle size={18}/></button>
+
                             <div className="w-px h-4 bg-gray-300 mx-1"></div>
-                            <button type="button" onClick={(e) => handleUpdate(e, item.id, -cantidad, origenItem)} className="w-7 h-7 flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"><Trash2 size={18}/></button>
+                            
+                            {/* BOTÓN ELIMINAR CON CONFIRMACIÓN */}
+                            <button type="button" onClick={(e) => setItemParaEliminar({ item, cantidad: cantidad, origen: origenItem })} className="w-7 h-7 flex items-center justify-center text-red-300 hover:text-red-500 hover:bg-red-50 rounded-full transition"><Trash2 size={18}/></button>
                         </div>
                     </div>
                 </div>
@@ -573,6 +589,21 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             
             <ModalDividirItems isOpen={modalDividirManualOpen} onClose={() => setModalDividirManualOpen(false)} cuenta={sesion} onConfirm={(nombre, items) => { onDividirCuentaManual(sesion.id, nombre, items); }} />
             <ModalDesunirCuentas isOpen={modalDesunirOpen} onClose={() => setModalDesunirOpen(false)} cuenta={sesion} onConfirm={(ids) => { onDesunirCuentas(sesion.idMesa, sesion.id, ids); }} />
+            
+            {/* NUEVO MODAL DE CONFIRMACIÓN PARA ELIMINAR ITEM */}
+            <ModalConfirmacion 
+                isOpen={!!itemParaEliminar} 
+                onClose={() => setItemParaEliminar(null)} 
+                onConfirm={() => {
+                    if (itemParaEliminar) {
+                        onActualizarProducto(sesion.id, itemParaEliminar.item.id, -itemParaEliminar.cantidad, itemParaEliminar.origen);
+                        setItemParaEliminar(null);
+                    }
+                }}
+                titulo="¿Eliminar Producto?" 
+                mensaje={itemParaEliminar ? `¿Estás seguro de quitar "${itemParaEliminar.item.nombre}" de la cuenta?` : ''}
+                tipo="eliminar" 
+            />
         </div>
     );
 };

@@ -456,15 +456,31 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         });
     }, [productos, busqueda, categoriaFiltro]);
 
-    // FUNCIÓN AGREGAR (SIN NOTIFICACIÓN AHORA)
+    // FUNCIÓN AGREGAR (CORREGIDA PARA MOSTRAR CANTIDAD)
     const agregarAlCarrito = (producto, qty = 1) => {
         if (producto.pausado) return;
+        
+        // 1. PRIMERO calculamos cuánto habrá, mirando el carrito actual
+        const itemExistente = carrito.find(item => item.id === producto.id);
+        const cantidadFinal = itemExistente ? (itemExistente.cantidad + qty) : qty;
+
+        // 2. ACTUALIZAMOS el estado del carrito
         setCarrito(prev => {
             const itemEnCarrito = prev.find(item => item.id === producto.id);
-            if (itemEnCarrito) { return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + qty } : item); }
+            if (itemEnCarrito) { 
+                return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + qty } : item); 
+            }
             return [...prev, { ...producto, cantidad: qty, tempId: Date.now() }];
         });
-        // Feedback silenciado a petición del usuario
+
+        // 3. MOSTRAMOS la notificación con el valor que calculamos al principio
+        setNotificacion({ 
+            visible: true, 
+            mensaje: `¡${producto.nombre} agregado! ${cantidadFinal > 1 ? `(x${cantidadFinal})` : ''}`, 
+            tipo: 'exito' 
+        });
+        
+        setTimeout(() => setNotificacion(prev => ({...prev, visible: false})), 2000);
     };
 
     const actualizarCantidad = (tempId, delta) => {

@@ -311,6 +311,7 @@ export default function PasteleriaApp() {
   // --- FUNCIÓN MODIFICADA: AGREGAR SIN NOTIFICACIÓN ---
   const agregarProductoASesion = async (idSesion, producto, cantidad = 1) => { 
     const itemNuevo = { ...producto, cantidad: cantidad, origen: 'personal' };
+    let cantidadTotalProducto = cantidad; // Variable para guardar el total y mostrarlo
 
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
@@ -319,10 +320,15 @@ export default function PasteleriaApp() {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
                     const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
+                    
                     if (itemIndex > -1) {
-                        items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + cantidad };
+                        // Si ya existe, sumamos y guardamos el nuevo total en la variable
+                        const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad;
+                        items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
+                        cantidadTotalProducto = nuevaCant;
                     }
                     else items.push(itemNuevo);
+                    
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -332,19 +338,28 @@ export default function PasteleriaApp() {
             actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
         }
     } else { 
+        // LÓGICA PARA LLEVAR
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
             const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
+            
             if (itemIndex > -1) {
-                items[itemIndex] = { ...items[itemIndex], cantidad: (items[itemIndex].cantidad || 1) + cantidad };
+                const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad;
+                items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
+                cantidadTotalProducto = nuevaCant;
             }
             else items.push(itemNuevo);
+            
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
             await updateSession(sesion.id, { cuenta: items, total });
         }
     } 
-    // NOTIFICACIÓN ELIMINADA AQUÍ PARA COMANDA
+    
+    // --- NOTIFICACIÓN RESTAURADA ---
+    // Si es más de 1, muestra (xN), si es el primero solo dice Agregado.
+    const sufijo = cantidadTotalProducto > 1 ? ` (x${cantidadTotalProducto})` : '';
+    mostrarNotificacion(`Agregado: ${producto.nombre}${sufijo}`, "exito");
   };
 
   const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObjetivo) => {
