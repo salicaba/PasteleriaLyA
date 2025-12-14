@@ -6,11 +6,12 @@ import {
     Grid, QrCode, ArrowLeft, Receipt, Users, Printer, Merge, CheckSquare, Square, 
     Cake, Sparkles, AlertCircle, Calculator, MinusCircle,
     CheckCircle, XCircle, Clock, Info, ArchiveRestore, Box, PauseCircle, PlayCircle, Lock, EyeOff, Loader, Split, CheckCheck, Undo2,
-    ChevronDown, ChevronUp 
+    ChevronDown, ChevronUp, Power // <--- (1) Importamos Power
 } from 'lucide-react';
-// IMPORTANTE: Asegúrate de importar CardProducto y ModalInfoProducto aquí
+
 import { Notificacion, CardStat, CardProducto, ModalConfirmacion, ModalInfoProducto } from '../components/Shared';
 import { ORDEN_CATEGORIAS, imprimirTicket } from '../utils/config';
+import { cambiarEstadoServicio } from '../services/config.service'; // <--- (2) Importamos el servicio
 
 const CATEGORIAS_INICIALES = ['Bebidas Calientes', 'Bebidas Frías', 'Pastelería', 'Bocadillos', 'Otros'];
 
@@ -608,7 +609,90 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
     );
 };
 
-export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa }) => { const [qrData, setQrData] = useState(null); const [mesaAEliminar, setMesaAEliminar] = useState(null); return ( <div className="p-8 h-screen overflow-y-auto relative"> <h2 className="text-3xl font-bold text-gray-800 mb-6">Configuración de Mesas</h2> <div className="mb-10"> <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas</h3><button onClick={onAgregarMesa} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-200 flex items-center gap-2"><PlusCircle size={18} /> Agregar Mesa</button></div> <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"> {mesas.map(mesa => ( <div key={mesa.id} className="relative p-6 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[160px] bg-white border-gray-200 hover:border-orange-300 transition group"> <QrCode size={40} className="text-gray-300 mb-2 group-hover:text-orange-500 transition-colors" /> <h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3> <div className="flex gap-2 mt-3 w-full"><button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver/Imprimir QR</button></div> <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button> </div> ))} </div> </div> <div className="mt-8 border-t pt-8"> <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3> <div className="bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between"> <div><h4 className="font-bold text-orange-900">QR General para Mostrador</h4><p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p></div> <button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: "https://app.lya.com/llevar" })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><QrCode size={20} /> Ver/Imprimir QR</button> </div> </div> <div className="fixed bottom-6 right-6 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 z-50 w-72 animate-fade-in-up"> <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2"><p className="text-xs font-bold uppercase text-orange-600 flex items-center gap-2"><Smartphone size={16}/> Simulador QR</p><span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">MODO DEV</span></div> <p className="text-[11px] text-gray-400 mb-3">Haz clic abajo para abrir la vista del cliente en una nueva pestaña (como si escanearan el QR).</p> <div className="space-y-2 mb-3 max-h-40 overflow-y-auto custom-scrollbar pr-1">{mesas.map(m => (<button key={m.id} onClick={() => window.open(`/mesa/${m.id}`, '_blank')} className="w-full bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 text-xs font-bold py-2 px-3 rounded-lg border border-gray-200 hover:border-blue-200 transition text-left flex items-center gap-2"><QrCode size={14} className="opacity-50"/> Simular {m.nombre}</button>))}</div> <button onClick={() => window.open('/llevar', '_blank')} className="w-full bg-gray-900 text-white text-xs font-bold py-3 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition shadow-lg border border-gray-900"><ShoppingBag size={14}/> Simular "Para Llevar"</button> </div> <ModalQR isOpen={!!qrData} onClose={() => setQrData(null)} titulo={qrData?.titulo} subtitulo={qrData?.sub} valorQR={qrData?.val} /> <ModalConfirmacion isOpen={!!mesaAEliminar} onClose={() => setMesaAEliminar(null)} onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" /> </div> ); };
+// --- COMPONENTE GESTIÓN DE MESAS MODIFICADO ---
+export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa, servicioActivo }) => { // <--- (3) Recibimos servicioActivo
+    const [qrData, setQrData] = useState(null); 
+    const [mesaAEliminar, setMesaAEliminar] = useState(null); 
+    
+    // Estado para confirmar el cambio de switch
+    const [confirmarSwitch, setConfirmarSwitch] = useState(false);
+
+    return ( 
+        <div className="p-8 h-screen overflow-y-auto relative"> 
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 className="text-3xl font-bold text-gray-800">Configuración de Mesas</h2>
+                
+                {/* --- NUEVO BOTÓN INTERRUPTOR (TOGGLE) --- */}
+                <button 
+                    onClick={() => setConfirmarSwitch(true)}
+                    className={`px-5 py-3 rounded-xl font-bold text-white shadow-md flex items-center gap-3 transition-all transform active:scale-95 ${servicioActivo ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                >
+                    <div className="bg-white/20 p-1.5 rounded-full">
+                        <Power size={18} />
+                    </div>
+                    <div className="text-left leading-tight">
+                        <span className="block text-[10px] uppercase opacity-80 font-bold">Estado QRs</span>
+                        <span className="block text-sm">{servicioActivo ? 'ACTIVO (ON)' : 'APAGADO (OFF)'}</span>
+                    </div>
+                </button>
+                {/* ---------------------------------------- */}
+            </div>
+
+            <div className="mb-10"> 
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas</h3>
+                    <button onClick={onAgregarMesa} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-200 flex items-center gap-2"><PlusCircle size={18} /> Agregar Mesa</button>
+                </div> 
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"> 
+                    {mesas.map(mesa => ( 
+                        <div key={mesa.id} className={`relative p-6 rounded-2xl border-2 flex flex-col items-center justify-center min-h-[160px] bg-white transition group ${!servicioActivo ? 'opacity-50 border-gray-200 grayscale' : 'border-gray-200 hover:border-orange-300'}`}> 
+                            <QrCode size={40} className={`mb-2 transition-colors ${!servicioActivo ? 'text-gray-300' : 'text-gray-300 group-hover:text-orange-500'}`} /> 
+                            <h3 className="font-bold text-lg text-gray-600">{mesa.nombre}</h3> 
+                            <div className="flex gap-2 mt-3 w-full">
+                                <button onClick={() => setQrData({ titulo: mesa.nombre, sub: `Escanea para pedir en ${mesa.nombre}`, val: `https://app.lya.com/mesa/${mesa.id}` })} className="flex-1 text-xs bg-gray-100 hover:bg-gray-200 py-2 rounded text-gray-700 font-bold">Ver/Imprimir QR</button>
+                            </div> 
+                            <button onClick={(e) => { e.stopPropagation(); setMesaAEliminar(mesa); }} className="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-1"><X size={14} /></button> 
+                        </div> 
+                    ))} 
+                </div> 
+            </div> 
+            
+            <div className="mt-8 border-t pt-8"> 
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3> 
+                <div className={`bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between ${!servicioActivo ? 'opacity-50 grayscale' : ''}`}> 
+                    <div><h4 className="font-bold text-orange-900">QR General para Mostrador</h4><p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p></div> 
+                    <button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: "https://app.lya.com/llevar" })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><QrCode size={20} /> Ver/Imprimir QR</button> 
+                </div> 
+            </div> 
+            
+            {/* Modal de simulación (Dev) */}
+            <div className="fixed bottom-6 right-6 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 z-50 w-72 animate-fade-in-up"> 
+                <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2"><p className="text-xs font-bold uppercase text-orange-600 flex items-center gap-2"><Smartphone size={16}/> Simulador QR</p><span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">MODO DEV</span></div> 
+                <p className="text-[11px] text-gray-400 mb-3">Haz clic abajo para abrir la vista del cliente en una nueva pestaña (como si escanearan el QR).</p> 
+                <div className="space-y-2 mb-3 max-h-40 overflow-y-auto custom-scrollbar pr-1">{mesas.map(m => (<button key={m.id} onClick={() => window.open(`/mesa/${m.id}`, '_blank')} className="w-full bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 text-xs font-bold py-2 px-3 rounded-lg border border-gray-200 hover:border-blue-200 transition text-left flex items-center gap-2"><QrCode size={14} className="opacity-50"/> Simular {m.nombre}</button>))}</div> 
+                <button onClick={() => window.open('/llevar', '_blank')} className="w-full bg-gray-900 text-white text-xs font-bold py-3 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition shadow-lg border border-gray-900"><ShoppingBag size={14}/> Simular "Para Llevar"</button> 
+            </div> 
+            
+            <ModalQR isOpen={!!qrData} onClose={() => setQrData(null)} titulo={qrData?.titulo} subtitulo={qrData?.sub} valorQR={qrData?.val} /> 
+            <ModalConfirmacion isOpen={!!mesaAEliminar} onClose={() => setMesaAEliminar(null)} onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" /> 
+            
+            {/* --- MODAL CONFIRMACIÓN SWITCH --- */}
+            <ModalConfirmacion 
+                isOpen={confirmarSwitch} 
+                onClose={() => setConfirmarSwitch(false)} 
+                onConfirm={() => {
+                    cambiarEstadoServicio(!servicioActivo);
+                    setConfirmarSwitch(false);
+                }} 
+                titulo={servicioActivo ? "¿Apagar Servicio QR?" : "¿Activar Servicio QR?"} 
+                mensaje={servicioActivo 
+                    ? "Al apagarlo, los clientes verán una pantalla de 'Servicio Cerrado' al escanear los códigos y no podrán hacer pedidos." 
+                    : "Los códigos QR volverán a funcionar y los clientes podrán ver el menú."}
+                tipo={servicioActivo ? "eliminar" : "pago"} // Usamos "eliminar" para rojo y "pago" para verde
+            />
+        </div> 
+    ); 
+};
 
 export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarProducto }) => {
     const [busqueda, setBusqueda] = useState('');

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { 
     Smartphone, ShoppingBag, Loader, Coffee, AlertCircle, Info, WifiOff, 
-    RefreshCw, MapPinOff, HelpCircle, ArrowRight, Clock
+    RefreshCw, MapPinOff, HelpCircle, ArrowRight, Clock, Lock // <--- Importamos Lock
 } from 'lucide-react';
 
 import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy, formatearFechaLocal } from './utils/config';
@@ -13,13 +13,14 @@ import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios } from '.
 import { VistaCliente } from './features/Cliente';
 import { VistaLogin } from './components/Login';
 
-// --- IMPORTACIONES DE SERVICIOS (TODO CENTRALIZADO) ---
+// --- IMPORTACIONES DE SERVICIOS ---
 import { saveProduct, deleteProduct, subscribeToProducts, updateProductStock } from './services/products.service';
 import { createMesa, updateMesa, removeMesa, subscribeToMesas } from './services/mesas.service';
 import { subscribeToOrders, saveOrder, updateOrderStatus, deleteOrder, emptyOrdersTrash } from './services/orders.service';
 import { subscribeToSales, createSale, deleteSale } from './services/sales.service';
 import { subscribeToUsers, saveUser, deleteUser } from './services/users.service';
 import { subscribeToSessions, createSession, updateSession, deleteSession, saveSession } from './services/sessions.service';
+import { suscribirEstadoServicio } from './services/config.service'; // <--- Importamos servicio de configuración
 
 // --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
 const TextoCargandoAnimado = () => {
@@ -39,10 +40,8 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE ---
-// --- COMPONENTE RUTA CLIENTE MEJORADO ---
-// --- COMPONENTE RUTA CLIENTE (CORREGIDO Y MEJORADO) ---
-const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading }) => {
+// --- COMPONENTE RUTA CLIENTE (CON BLOQUEO) ---
+const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
     const esLlevar = id === 'llevar' || location.pathname === '/llevar';
@@ -69,7 +68,7 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         if ((loading || !online) && !tiempoExcedido) {
             timer = setTimeout(() => {
                 setTiempoExcedido(true);
-            }, 12000); 
+            }, 10000); 
         }
         return () => clearTimeout(timer);
     }, [loading, online, tiempoExcedido]);
@@ -92,6 +91,25 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
             window.location.reload();
         }, 1000);
     };
+
+    // --- BLOQUEO: SERVICIO INACTIVO ---
+    if (!loading && !servicioActivo) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6 text-center animate-fade-in">
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <Lock size={40} className="text-gray-400" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">Servicio Cerrado</h2>
+                <p className="text-gray-500 max-w-xs mx-auto mb-8">
+                    El sistema de pedidos por QR no está disponible en este momento. Por favor, acércate al mostrador.
+                </p>
+                <div className="text-xs text-gray-400 font-medium">
+                    Horario de atención finalizado o en pausa.
+                </div>
+            </div>
+        );
+    }
+    // ----------------------------------
 
     // --- PANTALLA DE CARGA ---
     if ((loading || reintentando) && !tiempoExcedido && online) {
@@ -129,10 +147,9 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
                 bgIcon: "bg-red-50"
             },
             timeout: {
-                // AQUÍ ESTÁ EL CAMBIO QUE PEDISTE:
                 titulo: "Conexión Inestable",
                 mensaje: "El servidor tarda en responder. Esto suele pasar cuando la señal es débil o hay problemas de conexión en la zona.",
-                icono: Clock, // Ahora sí funcionará porque lo importamos arriba
+                icono: Clock,
                 color: "text-orange-500",
                 bgIcon: "bg-orange-50"
             },
@@ -218,13 +235,26 @@ export default function PasteleriaApp() {
   const [ventasCafeteria, setVentasCafeteria] = useState([]); 
   const [usuariosSistema, setUsuariosSistema] = useState([]);
   const [sesionesLlevar, setSesionesLlevar] = useState([]); 
+  
+  // ESTADO GLOBAL: SERVICIO ACTIVO (INTERRUPTOR MAESTRO)
+  const [servicioActivo, setServicioActivo] = useState(true);
 
   const [firebaseCargando, setFirebaseCargando] = useState(true);
   const [tiempoMinimoCarga, setTiempoMinimoCarga] = useState(true);
   const cargandoDatos = firebaseCargando || tiempoMinimoCarga;
 
   // ESTADOS UI
-  const [cancelados, setCancelados] = useState([]); 
+  // --- AQUÍ ESTÁ EL CAMBIO PARA PERSISTENCIA DE PAPELERA ---
+  const [cancelados, setCancelados] = useState(() => {
+      try {
+          const guardados = localStorage.getItem('lya_cafeteria_papelera');
+          return guardados ? JSON.parse(guardados) : [];
+      } catch (e) {
+          return [];
+      }
+  }); 
+  // ---------------------------------------------------------
+
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
   const [cuentaActiva, setCuentaActiva] = useState(null); 
   const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
@@ -246,24 +276,21 @@ export default function PasteleriaApp() {
     return () => clearTimeout(timer);
   }, []);
 
-  // --- NUEVA LÓGICA DE LIMPIEZA AUTOMÁTICA (PASTELERÍA) ---
-  // Elimina pedidos cancelados cuya fecha de cancelación sea anterior a hoy
+  // --- GUARDADO AUTOMÁTICO DE PAPELERA ---
+  useEffect(() => {
+      localStorage.setItem('lya_cafeteria_papelera', JSON.stringify(cancelados));
+  }, [cancelados]);
+  // ---------------------------------------
+
+  // --- LIMPIEZA AUTOMÁTICA (PASTELERÍA) ---
   useEffect(() => {
     if (pedidosPasteleria.length > 0) {
-        const fechaHoy = getFechaHoy(); // YYYY-MM-DD
-
+        const fechaHoy = getFechaHoy();
         const basuraVieja = pedidosPasteleria.filter(p => {
-            // Solo nos interesan los cancelados
             if (p.estado !== 'Cancelado') return false;
-            
-            // Usamos la fecha de cancelación si existe, o la de registro como respaldo
-            // split('T')[0] convierte "2023-10-25T14:00:00.000Z" en "2023-10-25"
             const fechaRef = p.fechaCancelacion ? p.fechaCancelacion.split('T')[0] : p.fecha;
-            
-            // Si la fecha es MENOR a hoy (es decir, ayer o antes), se borra
             return fechaRef < fechaHoy;
         });
-
         if (basuraVieja.length > 0) {
             console.log(`🧹 Limpiando ${basuraVieja.length} pedidos viejos de la papelera...`);
             emptyOrdersTrash(basuraVieja)
@@ -277,6 +304,7 @@ export default function PasteleriaApp() {
   useEffect(() => {
     const intervalo = setInterval(() => {
         const hoy = new Date().toLocaleDateString();
+        // Filtra y actualiza el estado (lo cual disparará el guardado en localStorage)
         setCancelados(prev => prev.filter(item => new Date(item.timestamp).toLocaleDateString() === hoy));
     }, 60000); 
     return () => clearInterval(intervalo);
@@ -295,7 +323,6 @@ export default function PasteleriaApp() {
       
       const unsubLlevar = subscribeToSessions((data) => {
           setSesionesLlevar(data);
-          // Actualizar cuenta activa si es "llevar"
           setCuentaActiva(prev => {
               if (prev && prev.tipo === 'llevar') {
                   const actualizada = data.find(s => s.id === prev.id);
@@ -305,9 +332,13 @@ export default function PasteleriaApp() {
           });
       });
 
+      // Suscripción al estado del servicio (Switch)
+      const unsubServicio = suscribirEstadoServicio(setServicioActivo);
+
       return () => {
           unsubProductos(); unsubMesas(); unsubPedidos();
           unsubVentas(); unsubUsuarios(); unsubLlevar();
+          unsubServicio();
       };
   }, []);
 
@@ -423,10 +454,9 @@ export default function PasteleriaApp() {
     }
   };
 
-  // --- FUNCIÓN MODIFICADA: AGREGAR SIN NOTIFICACIÓN ---
   const agregarProductoASesion = async (idSesion, producto, cantidad = 1) => { 
     const itemNuevo = { ...producto, cantidad: cantidad, origen: 'personal' };
-    let cantidadTotalProducto = cantidad; // Variable para guardar el total y mostrarlo
+    let cantidadTotalProducto = cantidad;
 
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
@@ -437,7 +467,6 @@ export default function PasteleriaApp() {
                     const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
                     
                     if (itemIndex > -1) {
-                        // Si ya existe, sumamos y guardamos el nuevo total en la variable
                         const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad;
                         items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant };
                         cantidadTotalProducto = nuevaCant;
@@ -453,7 +482,6 @@ export default function PasteleriaApp() {
             actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
         }
     } else { 
-        // LÓGICA PARA LLEVAR
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
@@ -470,9 +498,6 @@ export default function PasteleriaApp() {
             await updateSession(sesion.id, { cuenta: items, total });
         }
     } 
-    
-    // --- NOTIFICACIÓN RESTAURADA ---
-    // Si es más de 1, muestra (xN), si es el primero solo dice Agregado.
     const sufijo = cantidadTotalProducto > 1 ? ` (x${cantidadTotalProducto})` : '';
     mostrarNotificacion(`Agregado: ${producto.nombre}${sufijo}`, "exito");
   };
@@ -831,7 +856,17 @@ export default function PasteleriaApp() {
                 />
             )} 
             {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
-            {vistaActual === 'mesas' && <VistaGestionMesas mesas={mesas} onAgregarMesa={agregarMesa} onEliminarMesa={eliminarMesa} />} 
+            
+            {/* PASAMOS LA PROP servicioActivo A VISTA GESTIÓN MESAS */}
+            {vistaActual === 'mesas' && (
+                <VistaGestionMesas 
+                    mesas={mesas} 
+                    onAgregarMesa={agregarMesa} 
+                    onEliminarMesa={eliminarMesa} 
+                    servicioActivo={servicioActivo} 
+                />
+            )} 
+
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
         </> 
       )}
@@ -873,10 +908,32 @@ export default function PasteleriaApp() {
         <Route path="/pasteleria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
         <Route path="/cafeteria" element={isAuthenticated ? renderContenidoProtegido() : <Navigate to="/login" />} />
         <Route path="/" element={<Navigate to="/admin" />} />
-        <Route path="/mesa/:id" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
-            loading={cargandoDatos} />} />
-        <Route path="/llevar" element={<RutaCliente mesas={mesas} sesionesLlevar={sesionesLlevar} productos={productosCafeteria} onRealizarPedido={recibirPedidoCliente} onSalir={() => window.close()} 
-            loading={cargandoDatos} />} />
+        
+        {/* RUTAS CLIENTE CON BLOQUEO */}
+        <Route path="/mesa/:id" element={
+            <RutaCliente 
+                mesas={mesas} 
+                sesionesLlevar={sesionesLlevar} 
+                productos={productosCafeteria} 
+                onRealizarPedido={recibirPedidoCliente} 
+                onSalir={() => window.close()} 
+                loading={cargandoDatos} 
+                servicioActivo={servicioActivo}
+            />
+        } />
+        <Route path="/llevar" element={
+            <RutaCliente 
+                mesas={mesas} 
+                sesionesLlevar={sesionesLlevar} 
+                productos={productosCafeteria} 
+                onRealizarPedido={recibirPedidoCliente} 
+                onSalir={() => window.close()} 
+                loading={cargandoDatos} 
+                servicioActivo={servicioActivo} 
+            />
+        } />
+        {/* --------------------------- */}
+        
         <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
