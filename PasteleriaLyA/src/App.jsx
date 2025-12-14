@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
-import { Smartphone, ShoppingBag, Loader, Coffee, AlertCircle, Info, WifiOff } from 'lucide-react'; 
+import { 
+    Smartphone, ShoppingBag, Loader, Coffee, AlertCircle, Info, WifiOff, 
+    RefreshCw, MapPinOff, HelpCircle, ArrowRight, Clock
+} from 'lucide-react';
 
 import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy, formatearFechaLocal } from './utils/config';
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
@@ -37,6 +40,8 @@ const TextoCargandoAnimado = () => {
 };
 
 // --- COMPONENTE RUTA CLIENTE ---
+// --- COMPONENTE RUTA CLIENTE MEJORADO ---
+// --- COMPONENTE RUTA CLIENTE (CORREGIDO Y MEJORADO) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading }) => {
     const { id } = useParams(); 
     const location = useLocation();
@@ -44,7 +49,9 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
     
     const [tiempoExcedido, setTiempoExcedido] = useState(false);
     const [online, setOnline] = useState(navigator.onLine);
+    const [reintentando, setReintentando] = useState(false);
 
+    // Monitor de conexión
     useEffect(() => {
         const handleOnline = () => setOnline(true);
         const handleOffline = () => setOnline(false);
@@ -56,15 +63,16 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         };
     }, []);
 
+    // Timer de seguridad (12 segundos)
     useEffect(() => {
         let timer;
-        if (loading || !online) {
+        if ((loading || !online) && !tiempoExcedido) {
             timer = setTimeout(() => {
                 setTiempoExcedido(true);
-            }, 10000); // 10 segundos
+            }, 12000); 
         }
         return () => clearTimeout(timer);
-    }, [loading, online]);
+    }, [loading, online, tiempoExcedido]);
     
     const mesaObj = useMemo(() => {
         if (loading || !online) return null; 
@@ -77,31 +85,111 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         return mesas.find(m => m.id === id);
     }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    if ((loading || !online) && !tiempoExcedido) {
+    const handleReintentar = () => {
+        setReintentando(true);
+        setTiempoExcedido(false);
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    };
+
+    // --- PANTALLA DE CARGA ---
+    if ((loading || reintentando) && !tiempoExcedido && online) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 transition-opacity duration-500 text-center">
-                <div className="relative mb-6">
-                    <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto"></div>
-                    <div className="absolute inset-0 flex items-center justify-center"><Coffee size={24} className="text-orange-600 opacity-80" /></div>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 animate-fade-in">
+                <div className="relative mb-8">
+                    <div className="absolute inset-0 bg-orange-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                    <div className="relative w-24 h-24 bg-white rounded-full shadow-xl flex items-center justify-center border-4 border-orange-100">
+                        <Coffee size={40} className="text-orange-600 animate-bounce-slow" />
+                    </div>
+                    <div className="absolute top-0 left-0 w-full h-full border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <div className="text-orange-800 font-bold text-lg animate-pulse"><TextoCargandoAnimado /></div>
-                <p className="text-xs text-orange-400 mt-2 text-center">Conectando con el sistema...</p>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2 font-serif tracking-wide">Conectando...</h2>
+                <p className="text-gray-500 text-sm bg-white px-4 py-1 rounded-full shadow-sm border border-orange-100 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Obteniendo menú actualizado
+                </p>
             </div>
         );
     }
 
+    // --- PANTALLA DE ERROR / AYUDA ---
     if (!mesaObj || tiempoExcedido || !online) {
-        const titulo = esLlevar ? "Sin Conexión" : "Mesa no encontrada";
-        const mensaje = esLlevar ? "No se pudo conectar con el servidor." : "El código QR parece ser inválido.";
-        const Icono = !online ? WifiOff : AlertCircle;
+        let tipoError = 'desconocido';
+        if (!online) tipoError = 'offline';
+        else if (tiempoExcedido) tipoError = 'timeout';
+        else if (!mesaObj) tipoError = 'not_found';
+
+        const configError = {
+            offline: {
+                titulo: "¡Ups! Sin Internet",
+                mensaje: "Tu dispositivo no tiene conexión. Revisa tu WiFi o datos móviles.",
+                icono: WifiOff,
+                color: "text-red-500",
+                bgIcon: "bg-red-50"
+            },
+            timeout: {
+                // AQUÍ ESTÁ EL CAMBIO QUE PEDISTE:
+                titulo: "Conexión Inestable",
+                mensaje: "El servidor tarda en responder. Esto suele pasar cuando la señal es débil o hay problemas de conexión en la zona.",
+                icono: Clock, // Ahora sí funcionará porque lo importamos arriba
+                color: "text-orange-500",
+                bgIcon: "bg-orange-50"
+            },
+            not_found: {
+                titulo: "Código no válido",
+                mensaje: "No encontramos información de esta mesa. Es posible que el código QR haya cambiado.",
+                icono: MapPinOff,
+                color: "text-gray-500",
+                bgIcon: "bg-gray-100"
+            }
+        };
+
+        const { titulo, mensaje, icono: Icono, color, bgIcon } = configError[tipoError] || configError.timeout;
 
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6 text-center animate-fade-in-up">
-                <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
-                    <div className="mx-auto bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mb-6 animate-bounce-in"><Icono size={48} className="text-red-400"/></div>
-                    <h1 className="text-3xl font-bold text-gray-800 mb-3 leading-tight">{titulo}</h1>
-                    <p className="text-gray-600 font-medium mb-2 px-2">{mensaje}</p>
-                    <button onClick={() => window.location.reload()} className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95">Intentar de nuevo</button>
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 animate-fade-in-up">
+                <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                    <div className="p-8 text-center">
+                        <div className={`w-20 h-20 ${bgIcon} rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner`}>
+                            <Icono size={40} className={color} />
+                        </div>
+                        
+                        <h1 className="text-2xl font-bold text-gray-800 mb-3 leading-tight">{titulo}</h1>
+                        <p className="text-gray-500 text-sm leading-relaxed mb-8 px-2">
+                            {mensaje}
+                        </p>
+
+                        <button 
+                            onClick={handleReintentar} 
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw size={20} /> Intentar de nuevo
+                        </button>
+                    </div>
+
+                    <div className="bg-orange-50/50 p-6 border-t border-orange-100">
+                        <div className="flex items-start gap-3">
+                            <div className="bg-orange-100 p-2 rounded-full text-orange-600 shrink-0">
+                                <HelpCircle size={20} />
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-gray-800 text-sm mb-1">¿Sigues con problemas?</h3>
+                                <p className="text-xs text-gray-600 leading-relaxed">
+                                    No te preocupes. 
+                                    {esLlevar ? (
+                                        <span> Por favor, acércate a <strong>Caja</strong> o al <strong>Mostrador</strong> para tomar tu pedido manualmente.</span>
+                                    ) : (
+                                        <span> Por favor, llama a un <strong>mesero</strong>. Con gusto tomará tu orden en la mesa.</span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-8 text-gray-400 text-xs font-medium flex items-center gap-1">
+                    <Info size={12}/> Sistema LyA v1.0
                 </div>
             </div>
         );

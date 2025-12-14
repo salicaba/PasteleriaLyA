@@ -3,7 +3,7 @@ import {
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
     LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
-    ChevronUp, ChevronDown 
+    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader 
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
@@ -20,12 +20,10 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
 
     const handleChangeNombre = (e) => {
         const valor = e.target.value.toUpperCase();
-        // Permitimos letras y espacios
         if (/^[A-ZÑÁÉÍÓÚ\s]*$/.test(valor)) {
             setNombre(valor);
             if (error) setError('');
             
-            // Verificamos si ya existe una cuenta exacta con ese nombre
             const cuentaExistente = cuentasActivas.find(c => c.cliente === valor);
             if (cuentaExistente) {
                 setMensajeBienvenida(`¡Hola de nuevo! Tienes una cuenta activa.`);
@@ -47,9 +45,8 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
 
     const validarYEjecutar = (accion) => {
         const nombreLimpio = nombre.trim();
-        const palabras = nombreLimpio.split(/\s+/); // Divide por espacios
+        const palabras = nombreLimpio.split(/\s+/);
 
-        // --- VALIDACIÓN NUEVA: NOMBRE Y APELLIDO ---
         if (palabras.length < 2) {
             setError("Por favor, ingresa tu NOMBRE y APELLIDO (Ej. Carlos Pérez).");
             return;
@@ -110,8 +107,8 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     );
 };
 
-// --- CARRITO FLOTANTE (COLAPSABLE / EXPANDIBLE) ---
-const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) => {
+// --- CARRITO FLOTANTE (Con soporte de Loading y bloqueo) ---
+const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, enviando }) => {
     const [confirmando, setConfirmando] = useState(false);
     const [expandido, setExpandido] = useState(false); 
     
@@ -139,8 +136,26 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar }) 
                         </div>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={() => setConfirmando(false)} className="flex-1 py-3 border border-gray-300 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition">Volver</button>
-                        <button onClick={onConfirmar} className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg hover:bg-green-700 transition transform active:scale-95">Sí, Pedir</button>
+                        <button 
+                            onClick={() => setConfirmando(false)} 
+                            disabled={enviando}
+                            className="flex-1 py-3 border border-gray-300 rounded-xl font-bold text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+                        >
+                            Volver
+                        </button>
+                        <button 
+                            onClick={onConfirmar} 
+                            disabled={enviando}
+                            className={`flex-1 py-3 text-white rounded-xl font-bold shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 ${
+                                enviando ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                            }`}
+                        >
+                            {enviando ? (
+                                <>
+                                    <Loader className="animate-spin" size={20}/> Procesando...
+                                </>
+                            ) : 'Sí, Pedir'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -394,6 +409,12 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'info' });
     const [confirmarSalida, setConfirmarSalida] = useState(false);
     
+    // --- ESTADOS PARA VERIFICACIÓN DE CONEXIÓN Y CARGA ---
+    const [enviando, setEnviando] = useState(false);
+    const [errorConfirmacion, setErrorConfirmacion] = useState(null); // 'offline' | 'error'
+
+    const timerRef = useRef(null);
+
     // --- ESTADOS PARA EL CIERRE DE CUENTA ---
     const [ultimoEstadoCuenta, setUltimoEstadoCuenta] = useState(null);
     const [mostrarDespedida, setMostrarDespedida] = useState(false);
@@ -402,6 +423,15 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
     const [productoVerDetalles, setProductoVerDetalles] = useState(null);
+
+    const lanzarNotificacion = (mensaje, tipo = 'info', duracion = 4000) => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setNotificacion({ visible: true, mensaje, tipo });
+        timerRef.current = setTimeout(() => {
+            setNotificacion(prev => ({...prev, visible: false}));
+            timerRef.current = null;
+        }, duracion);
+    };
 
     const esParaLlevar = useMemo(() => mesa?.nombre.toLowerCase().includes('llevar'), [mesa]);
     
@@ -474,15 +504,12 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         });
     }, [productos, busqueda, categoriaFiltro]);
 
-    // FUNCIÓN AGREGAR (CORREGIDA PARA MOSTRAR CANTIDAD)
     const agregarAlCarrito = (producto, qty = 1) => {
         if (producto.pausado) return;
         
-        // 1. PRIMERO calculamos cuánto habrá, mirando el carrito actual
         const itemExistente = carrito.find(item => item.id === producto.id);
         const cantidadFinal = itemExistente ? (itemExistente.cantidad + qty) : qty;
 
-        // 2. ACTUALIZAMOS el estado del carrito
         setCarrito(prev => {
             const itemEnCarrito = prev.find(item => item.id === producto.id);
             if (itemEnCarrito) { 
@@ -491,14 +518,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
             return [...prev, { ...producto, cantidad: qty, tempId: Date.now() }];
         });
 
-        // 3. MOSTRAMOS la notificación con el valor que calculamos al principio
-        setNotificacion({ 
-            visible: true, 
-            mensaje: `¡${producto.nombre} agregado! ${cantidadFinal > 1 ? `(x${cantidadFinal})` : ''}`, 
-            tipo: 'exito' 
-        });
-        
-        setTimeout(() => setNotificacion(prev => ({...prev, visible: false})), 2000);
+        lanzarNotificacion(`¡${producto.nombre} agregado! ${cantidadFinal > 1 ? `(x${cantidadFinal})` : ''}`, 'exito', 2000);
     };
 
     const actualizarCantidad = (tempId, delta) => {
@@ -513,16 +533,68 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
 
     const eliminarItem = (tempId) => { setCarrito(prev => prev.filter(item => item.tempId !== tempId)); };
     
-    const confirmarPedido = () => { 
-        onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); 
-        setPedidoEnviado(true); 
-        setCarrito([]); 
+    // --- LÓGICA DE CONFIRMACIÓN SEGURA (CON RETRASO VISUAL) ---
+    const confirmarPedido = async () => { 
+        // 1. Verificación básica inicial
+        if (!navigator.onLine) {
+            setErrorConfirmacion('offline');
+            return;
+        }
+
+        setEnviando(true);
+
+        try {
+            // 2. PAUSA INTENCIONAL (UX) + VERIFICACIÓN REAL
+            // Esperamos mínimo 1 segundo para que el usuario VEA el spinner girar.
+            // Y al mismo tiempo hacemos el fetch al favicon de google para comprobar internet real.
+            
+            await new Promise((resolve, reject) => {
+                const minTime = new Promise(res => setTimeout(res, 1000)); // 1 seg de espera visual
+                const checkInternet = fetch("https://www.google.com/favicon.ico?" + new Date().getTime(), {
+                    mode: "no-cors",
+                    cache: "no-store"
+                });
+
+                // Esperamos a que ambas terminen (el tiempo mínimo Y el chequeo)
+                Promise.all([minTime, checkInternet])
+                    .then(() => resolve())
+                    .catch(() => reject(new Error("Sin internet real")));
+            });
+
+        } catch (e) {
+            // Si falla el ping
+            setEnviando(false);
+            setErrorConfirmacion('offline');
+            return; 
+        }
+
+        // 3. Si pasó el ping y la espera, enviamos el pedido
+        try {
+            await onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); 
+            
+            setPedidoEnviado(true); 
+            setCarrito([]); 
+            setEnviando(false);
+            setErrorConfirmacion(null); // Limpiamos cualquier error previo
+        } catch (err) {
+            console.error("Error al confirmar pedido:", err);
+            // 4. Si falla el servidor
+            setErrorConfirmacion('error');
+            setEnviando(false);
+        }
     };
     
     const handleIngresoConCuentaExistente = (n, t) => {
         setNombreCliente(n);
         setTelefonoCliente(t);
         setPedidoEnviado(true);
+    };
+
+    const cerrarModalError = () => {
+        // Solo cerramos si NO estamos enviando actualmente
+        if (!enviando) {
+            setErrorConfirmacion(null);
+        }
     };
 
     if (mostrarDespedida && ultimoEstadoCuenta) {
@@ -690,7 +762,13 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 )}
             </div>
 
-            <CarritoFlotante cuenta={carrito} onUpdateCantidad={actualizarCantidad} onEliminar={eliminarItem} onConfirmar={confirmarPedido} />
+            <CarritoFlotante 
+                cuenta={carrito} 
+                onUpdateCantidad={actualizarCantidad} 
+                onEliminar={eliminarItem} 
+                onConfirmar={confirmarPedido} 
+                enviando={enviando}
+            />
             
             <ModalInfoProducto 
                 isOpen={!!productoVerDetalles} 
@@ -707,6 +785,72 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 mensaje="Si ya confirmó algo, tu cuenta seguirá abierta y activa en el sistema para que nuestro personal lo atienda. Puedes volver a ingresar con tu nombre."
                 tipo="eliminar" 
             />
+
+            {/* --- MODAL DE ERROR DE CONEXIÓN (Diseño Mejorado) --- */}
+            {errorConfirmacion && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in">
+                        {/* Header del Modal */}
+                        <div className={`p-6 text-center ${errorConfirmacion === 'offline' ? 'bg-red-50' : 'bg-orange-50'}`}>
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm ${errorConfirmacion === 'offline' ? 'bg-red-100 text-red-500' : 'bg-orange-100 text-orange-500'}`}>
+                                {errorConfirmacion === 'offline' ? <WifiOff size={32} /> : <ServerOff size={32} />}
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-1">
+                                {errorConfirmacion === 'offline' ? '¡Sin Conexión!' : 'Algo salió mal'}
+                            </h3>
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                                {errorConfirmacion === 'offline' 
+                                    ? 'Parece que perdiste la conexión a internet justo antes de enviar tu pedido.' 
+                                    : 'Hubo un problema técnico al comunicarse con la cocina.'}
+                            </p>
+                        </div>
+
+                        {/* Cuerpo del Modal (Solución) */}
+                        <div className="p-6">
+                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 mb-6">
+                                <div className="text-blue-500 shrink-0 mt-0.5"><HelpCircle size={20} /></div>
+                                <div>
+                                    <p className="text-xs font-bold text-gray-700 uppercase mb-1">¿Qué puedes hacer?</p>
+                                    <p className="text-sm text-gray-600">
+                                        {esParaLlevar
+                                            ? 'Por favor, acércate a CAJA y muéstrales esta pantalla para que tomen tu pedido manualmente.'
+                                            : 'Por favor, llama a un MESERO y muéstrale esta pantalla. Él tomará tu orden enseguida.'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button 
+                                    onClick={cerrarModalError}
+                                    disabled={enviando}
+                                    className="py-3 px-4 rounded-xl border-2 border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                >
+                                    Cerrar
+                                </button>
+                                <button 
+                                    onClick={confirmarPedido}
+                                    disabled={enviando}
+                                    className={`py-3 px-4 rounded-xl font-bold transition-colors shadow-lg shadow-gray-200 flex items-center justify-center gap-2 ${
+                                        enviando 
+                                        ? 'bg-gray-700 text-gray-300 cursor-wait' 
+                                        : 'bg-gray-900 text-white hover:bg-gray-800'
+                                    }`}
+                                >
+                                    {enviando ? (
+                                        <>
+                                            <Loader size={18} className="animate-spin" /> Verificando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <RefreshCw size={18} /> Reintentar
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
