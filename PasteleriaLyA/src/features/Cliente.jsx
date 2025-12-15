@@ -401,8 +401,10 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
 
 // COMPONENTE PRINCIPAL VISTA CLIENTE
 export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => {
-    const [nombreCliente, setNombreCliente] = useState(null);
-    const [telefonoCliente, setTelefonoCliente] = useState(null);
+    // 1. INICIALIZACIÓN CON LOCALSTORAGE (Persistencia)
+    const [nombreCliente, setNombreCliente] = useState(() => localStorage.getItem('lya_cliente_nombre') || null);
+    const [telefonoCliente, setTelefonoCliente] = useState(() => localStorage.getItem('lya_cliente_telefono') || null);
+    
     const [carrito, setCarrito] = useState([]);
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
@@ -440,6 +442,16 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
 
+    // 2. EFECTO DE RECONEXIÓN
+    useEffect(() => {
+        if (nombreCliente && mesa) {
+            const cuentaActiva = mesa.cuentas.find(c => c.cliente === nombreCliente);
+            if (cuentaActiva) {
+                setPedidoEnviado(true);
+            }
+        }
+    }, [nombreCliente, mesa]);
+
     // --- EFECTO: DETECTAR CIERRE DE CUENTA ---
     useEffect(() => {
         if (miCuentaAcumulada) {
@@ -463,7 +475,11 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         return () => clearInterval(intervalo);
     }, [mostrarDespedida, tiempoDespedida]);
 
+    // 3. FUNCIÓN DE SALIDA
     const handleSalidaCompleta = () => {
+        localStorage.removeItem('lya_cliente_nombre');
+        localStorage.removeItem('lya_cliente_telefono');
+
         setNombreCliente(null);
         setTelefonoCliente(null);
         setUltimoEstadoCuenta(null);
@@ -472,6 +488,24 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         setMostrarDespedida(false);
         setTiempoDespedida(10);
         onSalir();
+    };
+
+    // 4. FUNCIONES DE INGRESO
+    const handleLoginExitoso = (nombre, telefono) => {
+        localStorage.setItem('lya_cliente_nombre', nombre);
+        if (telefono) localStorage.setItem('lya_cliente_telefono', telefono);
+        
+        setNombreCliente(nombre);
+        setTelefonoCliente(telefono);
+    };
+
+    const handleIngresoConCuentaExistente = (n, t) => {
+        localStorage.setItem('lya_cliente_nombre', n);
+        if (t) localStorage.setItem('lya_cliente_telefono', t);
+
+        setNombreCliente(n);
+        setTelefonoCliente(t);
+        setPedidoEnviado(true);
     };
 
     // --- EFECTO: LIMPIAR CARRITO SI SE PAUSA UN PRODUCTO ---
@@ -533,65 +567,43 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
 
     const eliminarItem = (tempId) => { setCarrito(prev => prev.filter(item => item.tempId !== tempId)); };
     
-    // --- LÓGICA DE CONFIRMACIÓN SEGURA (CON RETRASO VISUAL) ---
     const confirmarPedido = async () => { 
-        // 1. Verificación básica inicial
         if (!navigator.onLine) {
             setErrorConfirmacion('offline');
             return;
         }
-
         setEnviando(true);
-
         try {
-            // 2. PAUSA INTENCIONAL (UX) + VERIFICACIÓN REAL
-            // Esperamos mínimo 1 segundo para que el usuario VEA el spinner girar.
-            // Y al mismo tiempo hacemos el fetch al favicon de google para comprobar internet real.
-            
             await new Promise((resolve, reject) => {
-                const minTime = new Promise(res => setTimeout(res, 1000)); // 1 seg de espera visual
+                const minTime = new Promise(res => setTimeout(res, 1000));
                 const checkInternet = fetch("https://www.google.com/favicon.ico?" + new Date().getTime(), {
                     mode: "no-cors",
                     cache: "no-store"
                 });
-
-                // Esperamos a que ambas terminen (el tiempo mínimo Y el chequeo)
                 Promise.all([minTime, checkInternet])
                     .then(() => resolve())
                     .catch(() => reject(new Error("Sin internet real")));
             });
-
         } catch (e) {
-            // Si falla el ping
             setEnviando(false);
             setErrorConfirmacion('offline');
             return; 
         }
 
-        // 3. Si pasó el ping y la espera, enviamos el pedido
         try {
             await onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); 
-            
             setPedidoEnviado(true); 
             setCarrito([]); 
             setEnviando(false);
-            setErrorConfirmacion(null); // Limpiamos cualquier error previo
+            setErrorConfirmacion(null);
         } catch (err) {
             console.error("Error al confirmar pedido:", err);
-            // 4. Si falla el servidor
             setErrorConfirmacion('error');
             setEnviando(false);
         }
     };
     
-    const handleIngresoConCuentaExistente = (n, t) => {
-        setNombreCliente(n);
-        setTelefonoCliente(t);
-        setPedidoEnviado(true);
-    };
-
     const cerrarModalError = () => {
-        // Solo cerramos si NO estamos enviando actualmente
         if (!enviando) {
             setErrorConfirmacion(null);
         }
@@ -610,7 +622,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     if (!nombreCliente) { 
         return <PantallaLogin 
             mesaNombre={mesa.nombre} 
-            onIngresar={(n, t) => { setNombreCliente(n); setTelefonoCliente(t); }} 
+            onIngresar={handleLoginExitoso} 
             onVerCuentaDirecta={handleIngresoConCuentaExistente} 
             onSalir={onSalir} 
             cuentasActivas={mesa.cuentas} 
@@ -647,20 +659,64 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={60} className="text-green-600" /></div>
                 <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Activo!</h2>
                 <p className="text-gray-600 mb-6">Hola <strong>{nombreCliente}</strong>.</p>
+                
                 {esParaLlevar ? (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left space-y-4">
-                        <div className="flex items-start gap-3"><ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600">Estamos preparando tus alimentos para llevar.</p></div>
-                        <div className="flex items-start gap-3"><DollarSign className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600 font-bold">Por favor, acércate a caja para realizar tu pago y esperar tu entrega.</p></div>
-                        {telefonoCliente && (<div className="flex items-start gap-3"><Phone className="text-green-600 mt-1 shrink-0" size={20}/><div><p className="text-sm text-gray-600">Te llamaremos al <strong>{telefonoCliente}</strong> cuando esté listo.</p><p className="text-xs text-gray-400 italic mt-1">(Solo si el personal se encuentra disponible para llamar).</p></div></div>)}
-                        <div className="flex gap-3 items-start bg-green-50 p-3 rounded-lg border border-green-100"><Info className="text-green-700 shrink-0 mt-0.5" size={18} /><p className="text-xs text-green-800 font-medium leading-relaxed">Por preferencia, te recomendamos <strong>esperar cerca o acercarte a caja</strong> a preguntar por tu pedido para evitar demoras.</p></div>
+                        
+                        <div className="flex items-start gap-3">
+                            <ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-600 text-justify">
+                                Estamos preparando tus alimentos para llevar.
+                            </p>
+                        </div>
+                        
+                        <div className="flex items-start gap-3">
+                            <DollarSign className="text-green-600 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-600 font-bold text-justify">
+                                Por favor, acércate a caja para realizar tu pago y esperar tu entrega.
+                            </p>
+                        </div>
+                        
+                        {/* MENSAJE DE TELÉFONO AGREGADO/AJUSTADO */}
+                        {telefonoCliente && (
+                            <div className="flex items-start gap-3">
+                                <Phone className="text-green-600 mt-1 shrink-0" size={20}/>
+                                <div>
+                                    <p className="text-sm text-gray-600 text-justify">
+                                        Te llamaremos al <strong>{telefonoCliente}</strong> cuando tu pedido esté listo.
+                                    </p>
+                                    <p className="text-xs text-gray-400 italic mt-1 text-justify">
+                                        (Siempre y cuando el personal esté desocupado o disponible para llamar).
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div className="flex gap-3 items-start bg-green-50 p-3 rounded-lg border border-green-100">
+                            <Info className="text-green-700 shrink-0 mt-0.5" size={18} />
+                            <p className="text-xs text-green-800 font-medium leading-relaxed text-justify">
+                                Por preferencia, te recomendamos <strong>esperar cerca o acercarte a caja</strong> a preguntar por tu pedido para evitar demoras.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
-                        <div className="flex items-start gap-3 mb-4"><Coffee className="text-green-600 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-600">Tus alimentos llegarán pronto a tu mesa. ¡Disfruta!</p></div>
-                        <div className="flex items-start gap-3"><Package className="text-orange-500 mt-1 shrink-0" size={20}/><p className="text-sm text-gray-500 italic">¿Deseas llevar algo a casa? Si necesitas empaquetar algún producto o pedir algo extra para llevar, por favor coméntalo a nuestro personal o en caja.</p></div>
+                        <div className="flex items-start gap-3 mb-4">
+                            <Coffee className="text-green-600 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-600 text-justify">
+                                Tus alimentos llegarán pronto a tu mesa. ¡Disfruta!
+                            </p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <Package className="text-orange-500 mt-1 shrink-0" size={20}/>
+                            <p className="text-sm text-gray-500 italic text-justify">
+                                ¿Deseas llevar algo a casa? Si necesitas empaquetar algún producto o pedir algo extra para llevar, por favor coméntalo a nuestro personal o en caja.
+                            </p>
+                        </div>
                     </div>
                 )}
                 
+                {/* ESTE SE QUEDA CENTRADO (NO TIENE text-justify) */}
                 <div className="flex flex-col gap-4 w-full max-w-xs">
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center shadow-sm">
                         <div className="flex justify-center mb-2 text-blue-500"><Info size={24} /></div>
@@ -692,6 +748,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         ); 
     }
 
+    // ... (RESTO DEL COMPONENTE IGUAL QUE ANTES) ...
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
             <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
@@ -786,11 +843,10 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 tipo="eliminar" 
             />
 
-            {/* --- MODAL DE ERROR DE CONEXIÓN (Diseño Mejorado) --- */}
+            {/* --- MODAL DE ERROR DE CONEXIÓN --- */}
             {errorConfirmacion && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in">
-                        {/* Header del Modal */}
                         <div className={`p-6 text-center ${errorConfirmacion === 'offline' ? 'bg-red-50' : 'bg-orange-50'}`}>
                             <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm ${errorConfirmacion === 'offline' ? 'bg-red-100 text-red-500' : 'bg-orange-100 text-orange-500'}`}>
                                 {errorConfirmacion === 'offline' ? <WifiOff size={32} /> : <ServerOff size={32} />}
@@ -805,7 +861,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                             </p>
                         </div>
 
-                        {/* Cuerpo del Modal (Solución) */}
                         <div className="p-6">
                             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 mb-6">
                                 <div className="text-blue-500 shrink-0 mt-0.5"><HelpCircle size={20} /></div>
