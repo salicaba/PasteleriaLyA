@@ -3,7 +3,7 @@ import {
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
     LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
-    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader 
+    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
@@ -107,13 +107,14 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     );
 };
 
-// --- CARRITO FLOTANTE (Con soporte de Loading y bloqueo) ---
+// --- CARRITO FLOTANTE (Con corrección de cálculo en tiempo real) ---
 const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, enviando }) => {
     const [confirmando, setConfirmando] = useState(false);
     const [expandido, setExpandido] = useState(false); 
     
-    const total = cuenta.reduce((acc, item) => acc + (item.precio * item.cantidad), 0);
-    const totalItems = cuenta.reduce((acc, i) => acc + i.cantidad, 0);
+    // Aseguramos que los valores sean números para el cálculo total del carrito
+    const total = cuenta.reduce((acc, item) => acc + (Number(item.precio) * Number(item.cantidad)), 0);
+    const totalItems = cuenta.reduce((acc, i) => acc + Number(i.cantidad), 0);
 
     if (cuenta.length === 0) return null;
 
@@ -127,7 +128,8 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                         {cuenta.map((item, i) => (
                             <div key={i} className="flex justify-between text-sm mb-2 border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                                 <span className="text-gray-700"><span className="font-bold">{item.cantidad}x</span> {item.nombre}</span>
-                                <span className="font-bold text-gray-900">${(item.precio * item.cantidad).toFixed(2)}</span>
+                                {/* CAMBIO: Forzamos Number() para asegurar el cálculo */}
+                                <span className="font-bold text-gray-900">${(Number(item.precio) * Number(item.cantidad)).toFixed(2)}</span>
                             </div>
                         ))}
                         <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-gray-300">
@@ -190,7 +192,12 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                                 <div key={item.tempId} className="flex items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-100">
                                     <div className="flex-1 pr-2">
                                         <p className="font-bold text-sm text-gray-800 line-clamp-1">{item.nombre}</p>
-                                        <p className="text-xs text-orange-600 font-bold">${item.precio}</p>
+                                        
+                                        {/* CAMBIO: Cálculo directo y seguro con Number() */}
+                                        <p className="text-xs text-orange-600 font-bold">
+                                            ${(Number(item.precio) * Number(item.cantidad)).toFixed(2)}
+                                        </p>
+                                        
                                     </div>
                                     <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
                                         <button onClick={() => item.cantidad > 1 ? onUpdateCantidad(item.tempId, -1) : onEliminar(item.tempId)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 transition"><MinusCircle size={18}/></button>
@@ -216,7 +223,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
 };
 
 // --- VISTA MI CUENTA TOTAL ---
-const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) => {
+const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVerMenu }) => {
     
     if (!cuentaAcumulada) return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
@@ -270,7 +277,15 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                                                         <span className="text-gray-700 font-medium">{item.nombre}</span>
                                                     </div>
                                                 </div>
-                                                <span className="font-bold text-gray-900">${(item.precio * (item.cantidad || 1))}</span>
+                                                {/* AQUÍ MANTUVE EL DESGLOSE COMO LO PEDISTE ANTES */}
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-gray-400 font-medium">
+                                                        ${item.precio} x {item.cantidad || 1}
+                                                    </p>
+                                                    <span className="font-bold text-gray-900">
+                                                        ${(item.precio * (item.cantidad || 1)).toFixed(2)}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -291,7 +306,14 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                                                         <span className="text-gray-700 font-medium">{item.nombre}</span>
                                                     </div>
                                                 </div>
-                                                <span className="font-bold text-gray-900">${(item.precio * (item.cantidad || 1))}</span>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] text-blue-400 font-medium">
+                                                        ${item.precio} x {item.cantidad || 1}
+                                                    </p>
+                                                    <span className="font-bold text-gray-900">
+                                                        ${(item.precio * (item.cantidad || 1)).toFixed(2)}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -302,6 +324,14 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida }) =>
                 </div>
                 
                 <div className="space-y-4 mt-6">
+                    {/* BOTÓN PARA VER MENÚ (SOLO LECTURA) */}
+                    <button 
+                        onClick={onVerMenu} 
+                        className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border border-blue-100 hover:bg-blue-100 transition shadow-sm"
+                    >
+                        <BookOpen size={20} /> Ver Menú (Solo Lectura)
+                    </button>
+
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center shadow-sm animate-fade-in-up">
                         <p className="text-yellow-800 font-bold text-sm flex flex-col items-center gap-1">
                             <span>💁‍♂️</span>
@@ -405,9 +435,34 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const [nombreCliente, setNombreCliente] = useState(() => localStorage.getItem('lya_cliente_nombre') || null);
     const [telefonoCliente, setTelefonoCliente] = useState(() => localStorage.getItem('lya_cliente_telefono') || null);
     
-    const [carrito, setCarrito] = useState([]);
+    // --- CAMBIO 1: INICIALIZAR EL CARRITO DESDE LOCALSTORAGE ---
+    // --- CAMBIO: INICIALIZAR Y LIMPIAR EL CARRITO DESDE LOCALSTORAGE ---
+const [carrito, setCarrito] = useState(() => {
+    try {
+        const guardado = localStorage.getItem('lya_carrito_temp');
+        if (guardado) {
+            const datosSucios = JSON.parse(guardado);
+            // AQUÍ ESTÁ EL TRUCO:
+            // Convertimos todo a números INMEDIATAMENTE al cargar la página.
+            // Así prevenimos que entren "Textos" al sistema.
+            return datosSucios.map(item => ({
+                ...item,
+                precio: Number(item.precio),
+                cantidad: Number(item.cantidad)
+            }));
+        }
+        return [];
+    } catch (e) {
+        return [];
+    }
+});
+
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
+    
+    // --- NUEVO ESTADO PARA MENÚ SOLO LECTURA ---
+    const [viendoMenuSoloLectura, setViendoMenuSoloLectura] = useState(false);
+
     const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'info' });
     const [confirmarSalida, setConfirmarSalida] = useState(false);
     
@@ -441,6 +496,11 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         if (!mesa || !nombreCliente) return null;
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
+
+    // --- CAMBIO 2: EFECTO PARA GUARDAR EL CARRITO AUTOMÁTICAMENTE ---
+    useEffect(() => {
+        localStorage.setItem('lya_carrito_temp', JSON.stringify(carrito));
+    }, [carrito]);
 
     // 2. EFECTO DE RECONEXIÓN
     useEffect(() => {
@@ -479,12 +539,14 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const handleSalidaCompleta = () => {
         localStorage.removeItem('lya_cliente_nombre');
         localStorage.removeItem('lya_cliente_telefono');
+        localStorage.removeItem('lya_carrito_temp'); // --- CAMBIO 4: LIMPIAR AL SALIR ---
 
         setNombreCliente(null);
         setTelefonoCliente(null);
         setUltimoEstadoCuenta(null);
         setPedidoEnviado(false);
         setViendoCuentaTotal(false);
+        setViendoMenuSoloLectura(false); // Resetear modo lectura
         setMostrarDespedida(false);
         setTiempoDespedida(10);
         onSalir();
@@ -547,9 +609,9 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         setCarrito(prev => {
             const itemEnCarrito = prev.find(item => item.id === producto.id);
             if (itemEnCarrito) { 
-                return prev.map(item => item.id === producto.id ? { ...item, cantidad: item.cantidad + qty } : item); 
+                return prev.map(item => item.id === producto.id ? { ...item, cantidad: Number(item.cantidad) + Number(qty) } : item); 
             }
-            return [...prev, { ...producto, cantidad: qty, tempId: Date.now() }];
+            return [...prev, { ...producto, precio: Number(producto.precio), cantidad: Number(qty), tempId: Date.now() }];
         });
 
         lanzarNotificacion(`¡${producto.nombre} agregado! ${cantidadFinal > 1 ? `(x${cantidadFinal})` : ''}`, 'exito', 2000);
@@ -558,7 +620,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
     const actualizarCantidad = (tempId, delta) => {
         setCarrito(prev => prev.map(item => {
             if (item.tempId === tempId) {
-                const nuevaCantidad = item.cantidad + delta;
+                const nuevaCantidad = Number(item.cantidad) + delta;
                 return { ...item, cantidad: Math.max(1, nuevaCantidad) };
             }
             return item;
@@ -594,6 +656,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
             await onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); 
             setPedidoEnviado(true); 
             setCarrito([]); 
+            localStorage.removeItem('lya_carrito_temp'); // --- CAMBIO 3: LIMPIAR AL CONFIRMAR ---
             setEnviando(false);
             setErrorConfirmacion(null);
         } catch (err) {
@@ -636,6 +699,10 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                     cuentaAcumulada={miCuentaAcumulada} 
                     onVolver={() => setViendoCuentaTotal(false)}
                     onSolicitarSalida={() => setConfirmarSalida(true)}
+                    onVerMenu={() => {
+                        setViendoCuentaTotal(false);
+                        setViendoMenuSoloLectura(true);
+                    }}
                 />
                 <ModalConfirmacion 
                     isOpen={confirmarSalida}
@@ -649,7 +716,8 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         ); 
     }
 
-    if (pedidoEnviado) { 
+    // --- SE MUESTRA SOLO SI EL PEDIDO FUE ENVIADO Y NO ESTÁ VIENDO EL MENÚ EN MODO SOLO LECTURA ---
+    if (pedidoEnviado && !viendoMenuSoloLectura) { 
         return (
             <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up relative">
                 <button onClick={() => setConfirmarSalida(true)} className="absolute top-6 right-6 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition">
@@ -677,7 +745,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                             </p>
                         </div>
                         
-                        {/* MENSAJE DE TELÉFONO AGREGADO/AJUSTADO */}
                         {telefonoCliente && (
                             <div className="flex items-start gap-3">
                                 <Phone className="text-green-600 mt-1 shrink-0" size={20}/>
@@ -716,7 +783,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                     </div>
                 )}
                 
-                {/* ESTE SE QUEDA CENTRADO (NO TIENE text-justify) */}
                 <div className="flex flex-col gap-4 w-full max-w-xs">
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center shadow-sm">
                         <div className="flex justify-center mb-2 text-blue-500"><Info size={24} /></div>
@@ -734,6 +800,11 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                     <button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
                         <Receipt size={18}/> Ver mi Cuenta
                     </button>
+                    
+                    {/* BOTÓN NUEVO: VER MENÚ SOLO LECTURA */}
+                    <button onClick={() => setViendoMenuSoloLectura(true)} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                        <BookOpen size={18}/> Ver Menú (Solo Lectura)
+                    </button>
                 </div>
 
                 <ModalConfirmacion 
@@ -748,23 +819,41 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
         ); 
     }
 
-    // ... (RESTO DEL COMPONENTE IGUAL QUE ANTES) ...
     return (
         <div className="min-h-screen bg-gray-50 pb-32">
             <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
             
-            <div className="bg-white p-4 sticky top-0 z-20 shadow-sm flex justify-between items-center border-b border-gray-100">
+            {/* AVISO DE MODO SOLO LECTURA */}
+            {viendoMenuSoloLectura && (
+                <div className="bg-blue-600 text-white px-4 py-3 sticky top-0 z-30 shadow-md text-center">
+                    <p className="text-sm font-bold flex items-center justify-center gap-2">
+                        <Info size={18} className="shrink-0" />
+                        Modo Consulta: Para pedir más, avisa al personal.
+                    </p>
+                </div>
+            )}
+
+            <div className={`bg-white p-4 ${viendoMenuSoloLectura ? 'sticky top-[48px]' : 'sticky top-0'} z-20 shadow-sm flex justify-between items-center border-b border-gray-100`}>
                 <div>
                     <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
                     <p className="text-xs text-gray-500">Hola, <span className="font-bold text-orange-600">{nombreCliente}</span></p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {miCuentaAcumulada && (<button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100"><DollarSign size={14}/> {miCuentaAcumulada.total}</button>)}
-                    <button onClick={() => setConfirmarSalida(true)} className="text-xs bg-gray-100 p-2 rounded text-gray-500 hover:bg-red-50 hover:text-red-500 transition">Salir</button>
+                    {/* Botón Salir cambia a Volver si está en modo lectura */}
+                    {viendoMenuSoloLectura ? (
+                        <button onClick={() => setViendoMenuSoloLectura(false)} className="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-blue-100 hover:bg-blue-100">
+                            <ArrowLeft size={14}/> Volver a mi Pedido
+                        </button>
+                    ) : (
+                        <>
+                            {miCuentaAcumulada && (<button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100"><DollarSign size={14}/> {miCuentaAcumulada.total}</button>)}
+                            <button onClick={() => setConfirmarSalida(true)} className="text-xs bg-gray-100 p-2 rounded text-gray-500 hover:bg-red-50 hover:text-red-500 transition">Salir</button>
+                        </>
+                    )}
                 </div>
             </div>
 
-            <div className="bg-white/95 backdrop-blur-sm sticky top-[73px] z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
+            <div className={`bg-white/95 backdrop-blur-sm ${viendoMenuSoloLectura ? 'sticky top-[121px]' : 'sticky top-[73px]'} z-10 px-4 py-3 border-b border-gray-200 shadow-sm`}>
                 <div className="relative mb-3">
                     <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                     <input 
@@ -801,7 +890,8 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                                         <CardProducto 
                                             producto={prod} 
                                             onClick={() => setProductoVerDetalles(prod)} 
-                                            onAdd={(p) => agregarAlCarrito(p)} 
+                                            /* --- AQUI ESTA EL CAMBIO: Enviamos null si es solo lectura --- */
+                                            onAdd={viendoMenuSoloLectura ? null : (p) => agregarAlCarrito(p)} 
                                         />
                                     </div>
                                 ))}
@@ -819,19 +909,23 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => 
                 )}
             </div>
 
-            <CarritoFlotante 
-                cuenta={carrito} 
-                onUpdateCantidad={actualizarCantidad} 
-                onEliminar={eliminarItem} 
-                onConfirmar={confirmarPedido} 
-                enviando={enviando}
-            />
+            {/* OCULTAR CARRITO FLOTANTE SI ESTÁ EN MODO SOLO LECTURA */}
+            {!viendoMenuSoloLectura && (
+                <CarritoFlotante 
+                    cuenta={carrito} 
+                    onUpdateCantidad={actualizarCantidad} 
+                    onEliminar={eliminarItem} 
+                    onConfirmar={confirmarPedido} 
+                    enviando={enviando}
+                />
+            )}
             
             <ModalInfoProducto 
                 isOpen={!!productoVerDetalles} 
                 onClose={() => setProductoVerDetalles(null)} 
                 producto={productoVerDetalles} 
-                onAgregar={agregarAlCarrito} 
+                /* --- AQUI TAMBIEN EL CAMBIO --- */
+                onAgregar={viendoMenuSoloLectura ? null : agregarAlCarrito} 
             />
 
             <ModalConfirmacion 

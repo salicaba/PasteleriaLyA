@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
-// --- NOTIFICACIÓN FLOTANTE ---
 // --- NOTIFICACIÓN FLOTANTE (CENTRADA Y CORREGIDA) ---
 export const Notificacion = ({ data, onClose }) => {
     if (!data.visible) return null;
@@ -20,20 +19,12 @@ export const Notificacion = ({ data, onClose }) => {
     };
 
     return (
-        // 1. Contenedor invisible que ocupa todo el ancho y centra el contenido
-        // Usamos 'pointer-events-none' para que puedas dar clic a cosas detrás del área vacía
         <div className="fixed top-0 left-0 w-full z-[300] flex justify-center pt-4 md:pt-6 pointer-events-none">
-            
-            {/* 2. La tarjeta de notificación en sí */}
-            {/* Usamos 'pointer-events-auto' para que el botón de cerrar sí funcione */}
             <div className={`pointer-events-auto flex items-center gap-3 px-4 md:px-6 py-3 md:py-4 rounded-xl shadow-2xl border-b-4 animate-bounce-in transition-all duration-300 max-w-[90vw] md:max-w-md ${estilos[data.tipo] || estilos.info}`}>
-                
                 {data.tipo === 'error' ? <AlertCircle size={20} className="flex-shrink-0" /> : <CheckCircle size={20} className="flex-shrink-0" />}
-                
                 <span className="font-semibold text-xs md:text-sm break-words flex-1 text-center">
                     {data.mensaje}
                 </span>
-                
                 <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 transition-opacity flex-shrink-0">
                     <X size={16} />
                 </button>
@@ -108,7 +99,7 @@ export const CardProducto = ({ producto, onClick, onAdd }) => {
     );
 };
 
-// --- MODAL INFO DE PRODUCTO ---
+// --- MODAL INFO DE PRODUCTO (MODIFICADO AQUÍ) ---
 export const ModalInfoProducto = ({ isOpen, onClose, producto, onAgregar }) => {
     if (!isOpen || !producto) return null;
     const [cantidad, setCantidad] = useState(1);
@@ -137,27 +128,30 @@ export const ModalInfoProducto = ({ isOpen, onClose, producto, onAgregar }) => {
                     <div className="relative"><p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{producto.descripcion || "Sin descripción detallada."}</p></div>
                 </div>
 
-                <div className="bg-white border-t border-gray-100 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300">
-                    {!mostrarControles ? (
-                        <button onClick={() => setMostrarControles(true)} className="w-full p-4 hover:bg-gray-50 transition-colors flex flex-col items-center justify-center group outline-none">
-                            <div className="w-8 h-1 bg-gray-200 rounded-full mb-2 group-hover:bg-orange-200 transition-colors"></div>
-                            <span className="text-sm font-bold text-orange-600 flex items-center gap-2 animate-pulse">Quiero pedir esto <ChevronUp size={16}/></span>
-                        </button>
-                    ) : (
-                        <div className="p-5 animate-fade-in-up">
-                            <div className="flex justify-center mb-2"><button onClick={() => setMostrarControles(false)} className="text-gray-400 hover:text-gray-600 p-1"><ChevronDown size={20}/></button></div>
-                            <div className="flex items-center justify-between gap-4 mb-4">
-                                <span className="text-sm font-bold text-gray-500">Cantidad</span>
-                                <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-1 shadow-sm">
-                                    <button onClick={() => setCantidad(Math.max(1, cantidad - 1))} className="p-3 hover:bg-white rounded-lg text-gray-600 transition shadow-sm"><Minus size={18}/></button>
-                                    <span className="font-bold text-xl w-8 text-center text-gray-800">{cantidad}</span>
-                                    <button onClick={() => setCantidad(cantidad + 1)} className="p-3 hover:bg-white rounded-lg text-orange-600 transition shadow-sm"><Plus size={18}/></button>
+                {/* --- AQUI ESTA LA MAGIA: Si no hay onAgregar, no se muestra nada abajo --- */}
+                {onAgregar && (
+                    <div className="bg-white border-t border-gray-100 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] transition-all duration-300">
+                        {!mostrarControles ? (
+                            <button onClick={() => setMostrarControles(true)} className="w-full p-4 hover:bg-gray-50 transition-colors flex flex-col items-center justify-center group outline-none">
+                                <div className="w-8 h-1 bg-gray-200 rounded-full mb-2 group-hover:bg-orange-200 transition-colors"></div>
+                                <span className="text-sm font-bold text-orange-600 flex items-center gap-2 animate-pulse">Quiero pedir esto <ChevronUp size={16}/></span>
+                            </button>
+                        ) : (
+                            <div className="p-5 animate-fade-in-up">
+                                <div className="flex justify-center mb-2"><button onClick={() => setMostrarControles(false)} className="text-gray-400 hover:text-gray-600 p-1"><ChevronDown size={20}/></button></div>
+                                <div className="flex items-center justify-between gap-4 mb-4">
+                                    <span className="text-sm font-bold text-gray-500">Cantidad</span>
+                                    <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-1 shadow-sm">
+                                        <button onClick={() => setCantidad(Math.max(1, cantidad - 1))} className="p-3 hover:bg-white rounded-lg text-gray-600 transition shadow-sm"><Minus size={18}/></button>
+                                        <span className="font-bold text-xl w-8 text-center text-gray-800">{cantidad}</span>
+                                        <button onClick={() => setCantidad(cantidad + 1)} className="p-3 hover:bg-white rounded-lg text-orange-600 transition shadow-sm"><Plus size={18}/></button>
+                                    </div>
                                 </div>
+                                <button onClick={() => { onAgregar(producto, cantidad); onClose(); }} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base"><ShoppingBag size={18}/> Agregar - ${(producto.precio * cantidad).toFixed(2)}</button>
                             </div>
-                            <button onClick={() => { onAgregar(producto, cantidad); onClose(); }} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base"><ShoppingBag size={18}/> Agregar - ${(producto.precio * cantidad).toFixed(2)}</button>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -186,9 +180,7 @@ export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Est�
             <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md overflow-hidden animate-bounce-in transform border-t-8 ${estilos.borde}`}> 
                 <div className="p-6 text-center">
                     {estilos.icono}
-                    {/* TÍTULO CENTRADO */}
                     <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">{titulo}</h3>
-                    {/* MENSAJE CENTRADO Y CON PADDING */}
                     <p className="text-gray-500 mb-6 text-sm text-center px-4">{mensaje}</p>
                     <div className="flex space-x-3 justify-center">
                         <button onClick={onClose} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition">Cancelar</button>
@@ -266,4 +258,82 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
 };
 
 export const ModalVentasDia = ({ dia, mes, anio, ventas, cerrar, onVerDetalle }) => { if (!dia) return null; const ventasDelDia = ventas.filter(v => { const [y, m, d] = v.fecha.split('-').map(Number); return d === parseInt(dia) && m === (mes + 1) && y === anio; }); return ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg max-h-[80vh] overflow-hidden flex flex-col animate-fade-in-up"><div className="bg-pink-900 p-4 flex justify-between items-center text-white sticky top-0 z-10 shrink-0"><h3 className="font-bold text-lg flex items-center gap-2"><CalendarIcon size={20} /> Ventas del {dia}/{mes + 1}/{anio}</h3><button onClick={cerrar}><X /></button></div><div className="p-4 overflow-y-auto flex-1 bg-gray-50 custom-scrollbar">{ventasDelDia.length === 0 ? <div className="text-center text-gray-500 py-10">No hay ventas registradas.</div> : (<div className="space-y-3">{ventasDelDia.map((v, i) => (<div key={i} onClick={() => onVerDetalle(v)} className="bg-white p-4 rounded-lg border shadow-sm flex justify-between items-center cursor-pointer hover:shadow-md hover:border-pink-300 transition-all group"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.origen === 'Pastelería' ? 'bg-pink-100 text-pink-700' : 'bg-orange-100 text-orange-700'}`}>{v.origen}</span><span className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs flex items-center gap-1"><Eye size={12} /> Ver detalles</span></div><p className="font-bold text-gray-800">{v.cliente}</p>{v.tipoProducto && <p className="text-xs text-gray-500">{v.tipoProducto}</p>}</div><div className="text-right"><span className="block font-bold text-green-600 text-lg">${v.total}</span><span className="text-[10px] text-gray-400 font-mono">{v.folioLocal || v.folio || v.id}</span></div></div>))}</div>)}</div></div></div> ); };
-export const ModalAgendaDia = ({ fechaIso, pedidos, cerrar, onVerDetalle }) => { if (!fechaIso) return null; const [anio, mes, dia] = fechaIso.split('-').map(Number); const entregasDelDia = pedidos.filter(p => p.fechaEntrega === fechaIso && p.estado !== 'Cancelado'); return ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg max-h-[80vh] overflow-hidden flex flex-col animate-fade-in-up border-t-8 border-pink-500"><div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 sticky top-0 z-10 shrink-0"><div><h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"><CalendarRange size={24} className="text-pink-600"/> Agenda {dia}/{mes}/{anio}</h3><p className="text-xs text-gray-500 mt-1">{entregasDelDia.length} pedidos por entregar</p></div><button onClick={cerrar} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button></div><div className="p-4 overflow-y-auto flex-1 bg-pink-50/30 custom-scrollbar">{entregasDelDia.length === 0 ? (<div className="text-center py-10 text-gray-400"><Cake size={48} className="mx-auto mb-2 opacity-20"/><p>Día libre. No hay entregas programadas.</p></div>) : (<div className="space-y-3">{entregasDelDia.map((p, i) => (<div key={i} onClick={() => onVerDetalle(p)} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center cursor-pointer hover:shadow-md hover:border-pink-300 transition-all group relative overflow-hidden"><div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-500"></div><div className="flex-1 pl-3"><div className="flex items-center gap-2 mb-1"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 uppercase tracking-wider">{p.tipoProducto}</span><span className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs flex items-center gap-1"><Eye size={12} /> Detalles</span></div><p className="font-bold text-gray-800 text-lg">{p.cliente}</p><p className="text-xs text-gray-500 line-clamp-1 italic">{p.detalles || 'Sin detalles especificados'}</p></div><div className="text-right"><span className={`px-2 py-1 rounded text-xs font-bold ${p.estado === 'Entregado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.estado}</span></div></div>))}</div>)}</div></div></div> ); };
+// ... (imports existentes)
+
+// --- MODAL AGENDA DÍA (ACTUALIZADO: Botón solo en fechas futuras) ---
+export const ModalAgendaDia = ({ fechaIso, pedidos, cerrar, onVerDetalle, onNuevoPedido }) => {
+    if (!fechaIso) return null;
+    
+    const [anio, mes, dia] = fechaIso.split('-').map(Number);
+    const entregasDelDia = pedidos.filter(p => p.fechaEntrega === fechaIso && p.estado !== 'Cancelado');
+
+    // --- LÓGICA NUEVA: VALIDAR FECHA ---
+    const hoy = new Date();
+    // Convertimos 'hoy' a string YYYY-MM-DD local para comparar
+    const hoyString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+    
+    // El botón solo se muestra si la fecha seleccionada (fechaIso) es igual o mayor a hoy
+    const mostrarBotonCrear = fechaIso >= hoyString;
+    // -----------------------------------
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg max-h-[80vh] overflow-hidden flex flex-col animate-fade-in-up border-t-8 border-pink-500">
+                
+                {/* Header */}
+                <div className="bg-white p-4 flex justify-between items-center border-b border-gray-100 sticky top-0 z-10 shrink-0">
+                    <div>
+                        <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
+                            <CalendarRange size={24} className="text-pink-600"/> Agenda {dia}/{mes}/{anio}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">{entregasDelDia.length} pedidos por entregar</p>
+                    </div>
+                    <button onClick={cerrar} className="bg-gray-100 p-2 rounded-full hover:bg-gray-200"><X size={20}/></button>
+                </div>
+
+                {/* Lista de Pedidos */}
+                <div className="p-4 overflow-y-auto flex-1 bg-pink-50/30 custom-scrollbar">
+                    {entregasDelDia.length === 0 ? (
+                        <div className="text-center py-6 text-gray-400">
+                            <Cake size={48} className="mx-auto mb-2 opacity-20"/>
+                            <p>No hay entregas programadas.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {entregasDelDia.map((p, i) => (
+                                <div key={i} onClick={() => onVerDetalle(p)} className="bg-white p-4 rounded-xl border border-pink-100 shadow-sm flex justify-between items-center cursor-pointer hover:shadow-md hover:border-pink-300 transition-all group relative overflow-hidden">
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-500"></div>
+                                    <div className="flex-1 pl-3">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 uppercase tracking-wider">{p.tipoProducto}</span>
+                                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs flex items-center gap-1"><Eye size={12} /> Detalles</span>
+                                        </div>
+                                        <p className="font-bold text-gray-800 text-lg">{p.cliente}</p>
+                                        <p className="text-xs text-gray-500 line-clamp-1 italic">{p.detalles || 'Sin detalles especificados'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`px-2 py-1 rounded text-xs font-bold ${p.estado === 'Entregado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.estado}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* --- Footer: Botón Condicional --- */}
+                {mostrarBotonCrear && (
+                    <div className="p-4 bg-white border-t border-gray-100 shrink-0">
+                        <button 
+                            onClick={() => { cerrar(); onNuevoPedido(fechaIso); }} 
+                            className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"
+                        >
+                            <PlusCircle size={20} />
+                            Crear Pedido para el día {dia}
+                        </button>
+                    </div>
+                )}
+
+            </div>
+        </div>
+    );
+};

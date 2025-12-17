@@ -1,5 +1,16 @@
 import { jsPDF } from "jspdf";
 
+const URL_PRODUCCION = 'https://pastelerialya-cd733.web.app'; 
+
+export const OBTENER_URL_BASE = () => {
+    // Si estamos probando en tu compu, usa localhost.
+    // Si ya está subido, usa la dirección de internet.
+    if (window.location.hostname.includes('localhost')) {
+        return window.location.origin; 
+    }
+    return URL_PRODUCCION;
+};
+
 export const getFechaHoy = () => {
     const d = new Date();
     const local = new Date(d.getTime() - (d.getTimezoneOffset() * 60000));
@@ -39,7 +50,9 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
             .divider { border-top: 1px dashed #000; margin: 10px 0; }
             .info-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
             .bold { font-weight: bold; }
-            .item-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+            .item-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; align-items: flex-start; }
+            .item-name-group { display: flex; flex-direction: column; }
+            .item-calc { font-size: 10px; color: #555; margin-top: 2px; }
             .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; margin-top: 10px; border-top: 1px solid #000; padding-top: 5px; }
             .footer { text-align: center; font-size: 10px; margin-top: 20px; }
             
@@ -56,7 +69,10 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
         const items = datos.items || [];
         const itemsHtml = items.map(item => `
             <div class="item-row">
-                <span>${item.cantidad || 1}x ${item.nombre}</span>
+                <div class="item-name-group">
+                    <span>${item.cantidad || 1}x ${item.nombre}</span>
+                    <span class="item-calc">$${item.precio} x ${item.cantidad || 1}</span>
+                </div>
                 <span>$${(item.precio * (item.cantidad || 1)).toFixed(2)}</span>
             </div>
         `).join('');
@@ -185,10 +201,23 @@ export const generarTicketPDF = (datos) => {
             nombre = nombre.substring(0, 20) + "...";
         }
 
+        doc.setFontSize(9); // Asegurar tamaño normal
+        doc.setTextColor(0, 0, 0); // Asegurar color negro
         doc.text(`${cantidad}x ${nombre}`, 5, y);
         doc.text(`$${totalItem}`, 75, y, { align: "right" });
-        y += 5;
+        
+        // --- AQUÍ: Agregado el desglose del precio unitario en PDF ---
+        y += 4;
+        doc.setFontSize(7); // Letra más pequeña para el detalle
+        doc.setTextColor(100, 100, 100); // Color grisáceo
+        doc.text(`$${item.precio} x ${cantidad}`, 5, y);
+        
+        y += 4; // Espacio para el siguiente item (aumentado para caber el desglose)
     });
+
+    // Resetear estilos por si acaso
+    doc.setFontSize(9); 
+    doc.setTextColor(0, 0, 0);
 
     // Línea separadora final
     y += 2;

@@ -176,7 +176,6 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
 };
 
 // --- MODAL CORTE DE CAJA (CORREGIDO PARA MOSTRAR HORA DE PAGO) ---
-// --- MODAL CORTE DE CAJA (HOY) ---
 const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
     // 1. Filtramos
     const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
@@ -191,7 +190,6 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in-up border-t-8 border-pink-500 flex flex-col max-h-[90vh]">
-                {/* ... (Header se queda igual) ... */}
                 <div className="bg-pink-50 p-4 flex justify-between items-center border-b border-pink-100 shrink-0">
                     <div><h3 className="font-bold text-xl text-pink-900 flex items-center gap-2"><Receipt size={24} className="text-pink-600"/> Corte de Caja</h3><p className="text-xs text-pink-700 mt-1">Ingresos registrados hoy.</p></div>
                     <button onClick={onClose} className="bg-white p-2 rounded-full border hover:bg-gray-100"><X size={20}/></button>
@@ -202,7 +200,6 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
                         <div className="text-center py-12 text-gray-400"><DollarSign size={48} className="mx-auto mb-3 opacity-20"/><p>No hay ingresos registrados hoy.</p></div>
                     ) : (
                         <div className="space-y-3">
-                            {/* CAMBIO: Usamos ingresosOrdenados */}
                             {ingresosOrdenados.map((p, i) => {
                                 const montoIngresado = (p.total / p.numPagos) * p.pagosRealizados;
                                 const esLiquidado = p.pagosRealizados === p.numPagos;
@@ -234,6 +231,7 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
 };
 
 // --- VISTA: INICIO (DASHBOARD) ACTUALIZADA ---
+// --- VISTA: INICIO (DASHBOARD) ACTUALIZADA ---
 export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onVerDetalles, onCancelar, onRestaurar, onDeshacerEntrega, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [fechaFiltro, setFechaFiltro] = useState(''); 
@@ -243,8 +241,33 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
 
     // Listas memorizadas
     const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
-    const pedidosEntregados = useMemo(() => pedidos.filter(p => p.estado === 'Entregado'), [pedidos]);
+    // const pedidosEntregados = useMemo(() => pedidos.filter(p => p.estado === 'Entregado'), [pedidos]); // <-- ESTA LÍNEA YA NO LA NECESITAMOS ASÍ, LA CAMBIAMOS ABAJO
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
+
+    // --- CAMBIO AQUÍ: OBTENER LA LISTA DE ENTREGADOS DE HOY ---
+    // Esta lista se calcula igual que hacías con el contador, pero devolviendo los objetos completos
+    const pedidosEntregadosHoy = useMemo(() => {
+        const hoy = new Date();
+        return pedidos.filter(p => {
+            // 1. Tiene que estar entregado
+            if (p.estado !== 'Entregado') return false;
+            
+            // 2. Si tiene fecha real de entrega (el momento exacto del click), usamos esa
+            if (p.fechaEntregaReal) {
+                const fechaReal = new Date(p.fechaEntregaReal);
+                return fechaReal.getDate() === hoy.getDate() &&
+                       fechaReal.getMonth() === hoy.getMonth() &&
+                       fechaReal.getFullYear() === hoy.getFullYear();
+            }
+            
+            // 3. (Fallback) Si es un pedido viejo sin fechaReal, usamos la fecha programada
+            return p.fechaEntrega === getFechaHoy();
+        });
+    }, [pedidos]);
+
+    // El contador ahora es simplemente el tamaño de esa lista
+    const entregadosHoyCount = pedidosEntregadosHoy.length;
+    // -----------------------------------------------------------
 
     // Lógica de filtrado para la tabla principal
     const pedidosFiltrados = useMemo(() => {
@@ -261,27 +284,6 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         if (busqueda) { const texto = busqueda; procesados = procesados.filter(p => p.cliente.toUpperCase().includes(texto) || p.telefono.includes(texto)); }
         return procesados;
     }, [pedidosPendientes, busqueda, fechaFiltro]);
-
-    // --- CORRECCIÓN INTELIGENTE DEL CONTADOR ---
-    const entregadosHoyCount = useMemo(() => {
-        const hoy = new Date();
-        return pedidos.filter(p => {
-            // 1. Tiene que estar entregado
-            if (p.estado !== 'Entregado') return false;
-            
-            // 2. Si tiene fecha real de entrega (el momento exacto del click), usamos esa
-            if (p.fechaEntregaReal) {
-                const fechaReal = new Date(p.fechaEntregaReal);
-                return fechaReal.getDate() === hoy.getDate() &&
-                       fechaReal.getMonth() === hoy.getMonth() &&
-                       fechaReal.getFullYear() === hoy.getFullYear();
-            }
-            
-            // 3. (Fallback) Si es un pedido viejo sin fechaReal, usamos la fecha programada
-            return p.fechaEntrega === getFechaHoy();
-        }).length;
-    }, [pedidos]);
-    // -------------------------------------------
 
     const pedidosCajaHoy = useMemo(() => { const hoy = getFechaHoy(); return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy); }, [pedidos]);
     const totalCajaHoy = useMemo(() => { return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosCajaHoy]);
@@ -300,7 +302,6 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 <div onClick={() => setMostrarEntregados(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group">
                     <div>
                         <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p>
-                        {/* Aquí usamos el nuevo cálculo */}
                         <p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p>
                     </div>
                     <div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><PackageCheck size={30}/></div>
@@ -344,8 +345,6 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                 pedidosFiltrados.map((p, i) => (
                                     <tr key={i} onClick={() => onVerDetalles(p)} className="border-b hover:bg-gray-50 cursor-pointer">
                                         <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
-                                        
-                                        {/* --- CAMBIO AQUÍ: AGREGADO EL TELÉFONO --- */}
                                         <td className="p-4">
                                             <div className="font-bold uppercase text-gray-800">{p.cliente}</div>
                                             <div className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-0.5">
@@ -354,8 +353,6 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                             </div>
                                             <div className="text-xs text-gray-400 mt-0.5">{p.tipoProducto || 'Pastel'}</div>
                                         </td>
-                                        {/* ------------------------------------------ */}
-
                                         <td className="p-4 text-sm font-medium text-gray-600">{formatearFechaLocal(p.fechaEntrega)}<br/><span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span></td>
                                         <td className="p-4 font-bold text-green-600">${p.total}</td>
                                         <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
@@ -374,24 +371,26 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
             </div>
 
             <ModalPapelera isOpen={mostrarPapelera} pedidos={pedidosCancelados} onClose={() => setMostrarPapelera(false)} onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} onVaciar={onVaciarPapelera} onEliminar={onEliminarDePapelera} />
-            {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregados} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
+            
+            {/* AQUÍ PASAMOS LA LISTA FILTRADA 'pedidosEntregadosHoy' EN LUGAR DE LA LISTA COMPLETA */}
+            {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregadosHoy} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
+            
             {mostrarCajaHoy && <ModalCorteCaja pedidosDelDia={pedidosCajaHoy} totalCaja={totalCajaHoy} onClose={() => setMostrarCajaHoy(false)} />}
         </div>
     );
 };
 
-// --- VISTA: NUEVO PEDIDO ---
-export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedidoAEditar, mostrarNotificacion }) => {
+// --- VISTA: NUEVO PEDIDO (MODIFICADA PARA ACEPTAR FECHA) ---
+export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedidoAEditar, mostrarNotificacion, fechaPreseleccionada }) => {
     const [formulario, setFormulario] = useState({ folio: '', cliente: '', telefono: '', tipoProducto: 'Pastel', detalles: '', total: '', numPagos: 1, fechaEntrega: '', horaEntrega: '' });
     const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Pastel');
     const [otroTexto, setOtroTexto] = useState('');
 
-    // --- NUEVO: CALCULAR FECHA MÍNIMA (HOY) PARA EL INPUT ---
+    // --- CALCULAR FECHA MÍNIMA (HOY) ---
     const fechaHoy = new Date();
     // Formato YYYY-MM-DD local
     const fechaMinima = `${fechaHoy.getFullYear()}-${String(fechaHoy.getMonth() + 1).padStart(2, '0')}-${String(fechaHoy.getDate()).padStart(2, '0')}`;
-    // --------------------------------------------------------
-
+    
     useEffect(() => {
         if (pedidoAEditar) {
             setFormulario({ ...pedidoAEditar, horaEntrega: pedidoAEditar.horaEntrega || '' });
@@ -399,10 +398,21 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
             if (esEstandar) setCategoriaSeleccionada(pedidoAEditar.tipoProducto);
             else { setCategoriaSeleccionada('Otro'); setOtroTexto(pedidoAEditar.tipoProducto || ''); }
         } else {
-            setFormulario({ folio: '', cliente: '', telefono: '', tipoProducto: 'Pastel', detalles: '', total: '', numPagos: 1, fechaEntrega: '', horaEntrega: '' });
+            // SI HAY FECHA PRESELECCIONADA (DESDE CALENDARIO), LA USAMOS
+            setFormulario({ 
+                folio: '', 
+                cliente: '', 
+                telefono: '', 
+                tipoProducto: 'Pastel', 
+                detalles: '', 
+                total: '', 
+                numPagos: 1, 
+                fechaEntrega: fechaPreseleccionada || '', 
+                horaEntrega: '' 
+            });
             setCategoriaSeleccionada('Pastel'); setOtroTexto('');
         }
-    }, [pedidoAEditar]);
+    }, [pedidoAEditar, fechaPreseleccionada]);
 
     useEffect(() => {
         if (categoriaSeleccionada === 'Otro') setFormulario(prev => ({ ...prev, tipoProducto: otroTexto }));
@@ -456,7 +466,7 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label>
-                            {/* --- CAMBIO AQUÍ: min={fechaMinima} --- */}
+                            {/* Input con fecha mínima (hoy) para evitar errores, pero si se preselecciona se respeta */}
                             <input required type="date" min={fechaMinima} className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario,fechaEntrega: e.target.value })} />
                         </div>
                         <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><Clock size={16} className="mr-2 text-pink-500" /> Hora Entrega</label><input required type="time" className="w-full p-3 border rounded-lg" value={formulario.horaEntrega} onChange={e => setFormulario({ ...formulario, horaEntrega: e.target.value })} /></div>

@@ -259,6 +259,10 @@ export default function PasteleriaApp() {
   const [cuentaActiva, setCuentaActiva] = useState(null); 
   const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
   
+  // --- NUEVO ESTADO PARA EL BOTÓN DE "CREAR PEDIDO" DESDE AGENDA ---
+  const [fechaParaNuevoPedido, setFechaParaNuevoPedido] = useState(null);
+  // -----------------------------------------------------------------
+  
   const mesaSeleccionadaObj = useMemo(() => mesas.find(m => m.id === mesaSeleccionadaId), [mesas, mesaSeleccionadaId]);
 
   const [pedidoAEditar, setPedidoAEditar] = useState(null);
@@ -659,6 +663,9 @@ export default function PasteleriaApp() {
         mostrarNotificacion(res.message, "exito");
         setVistaActual('inicio'); 
         setPedidoAEditar(null);
+        // --- LIMPIAMOS LA FECHA PRESELECCIONADA AL GUARDAR ---
+        setFechaParaNuevoPedido(null);
+        // -----------------------------------------------------
     } catch (error) { mostrarNotificacion("Error al guardar", "error"); }
   };
   
@@ -808,7 +815,18 @@ export default function PasteleriaApp() {
   }, [ventasCafeteria]);
 
   const renderContenidoProtegido = () => (
-    <LayoutConSidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={cambiarModoDesdeSidebar} onLogout={handleLogout}>
+    <LayoutConSidebar 
+        modo={modo} 
+        vistaActual={vistaActual} 
+        setVistaActual={(vista) => {
+            // --- WRAPPER PARA LIMPIAR LA FECHA SI CAMBIAS DE VISTA EN EL SIDEBAR ---
+            setVistaActual(vista);
+            if(vista !== 'pedidos') setFechaParaNuevoPedido(null);
+            // -----------------------------------------------------------------------
+        }} 
+        setModo={cambiarModoDesdeSidebar} 
+        onLogout={handleLogout}
+    >
       <Notificacion data={notificacion} onClose={() => setNotificacion({ ...notificacion, visible: false })} />
       
       {modo === 'admin' && ( 
@@ -832,7 +850,18 @@ export default function PasteleriaApp() {
                 onVaciarPapelera={vaciarPapeleraPasteleria}
                 onEliminarDePapelera={eliminarPedidoPermanente}
             />} 
-            {vistaActual === 'pedidos' && <VistaNuevoPedido pedidos={pedidosPasteleria} onGuardarPedido={guardarPedido} generarFolio={generarFolio} pedidoAEditar={pedidoAEditar} mostrarNotificacion={mostrarNotificacion} />} 
+            {vistaActual === 'pedidos' && (
+                <VistaNuevoPedido 
+                    pedidos={pedidosPasteleria} 
+                    onGuardarPedido={guardarPedido} 
+                    generarFolio={generarFolio} 
+                    pedidoAEditar={pedidoAEditar} 
+                    mostrarNotificacion={mostrarNotificacion} 
+                    // --- PASAMOS LA PROP AQUÍ ---
+                    fechaPreseleccionada={fechaParaNuevoPedido}
+                    // ----------------------------
+                />
+            )} 
             {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} 
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
         </> 
@@ -887,7 +916,23 @@ export default function PasteleriaApp() {
       
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
       {datosModalDia && <ModalVentasDia dia={datosModalDia.dia} mes={datosModalDia.mes} anio={datosModalDia.anio} ventas={datosModalDia.ventas} cerrar={() => setDatosModalDia(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
-      {fechaAgendaSeleccionada && <ModalAgendaDia fechaIso={fechaAgendaSeleccionada} pedidos={pedidosPasteleria} cerrar={() => setFechaAgendaSeleccionada(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
+      
+      {/* --- MODAL AGENDA DÍA CON EL NUEVO HANDLER --- */}
+      {fechaAgendaSeleccionada && (
+          <ModalAgendaDia 
+              fechaIso={fechaAgendaSeleccionada} 
+              pedidos={pedidosPasteleria} 
+              cerrar={() => setFechaAgendaSeleccionada(null)} 
+              onVerDetalle={(item) => setPedidoVerDetalles(item)} 
+              onNuevoPedido={(fecha) => {
+                  setFechaParaNuevoPedido(fecha);
+                  setVistaActual('pedidos');
+                  setFechaAgendaSeleccionada(null); // (El modal se cierra, pero aseguramos la redirección)
+              }}
+          />
+      )}
+      {/* ------------------------------------------- */}
+
       <ModalConfirmacion isOpen={!!pedidoACancelar} onClose={() => setPedidoACancelar(null)} onConfirm={confirmarCancelacion} titulo="¿Cancelar Pedido?" mensaje="El pedido se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo. Después se eliminará permanentemente." />
       <ModalConfirmacion isOpen={!!pedidoARestaurar} onClose={() => setPedidoARestaurar(null)} onConfirm={confirmarRestauracion} titulo="¿Restaurar Pedido?" mensaje="El pedido volverá a Pendientes." />
       
