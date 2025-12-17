@@ -40,7 +40,7 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE (CON BLOQUEO) ---
+// --- COMPONENTE RUTA CLIENTE (CON BLOQUEO ESTRICTO) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
@@ -50,7 +50,9 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
     const [online, setOnline] = useState(navigator.onLine);
     const [reintentando, setReintentando] = useState(false);
 
-    // Monitor de conexión
+    // 1. Obtenemos el nombre guardado en el celular
+    const nombreClienteLocal = localStorage.getItem('lya_cliente_nombre');
+
     useEffect(() => {
         const handleOnline = () => setOnline(true);
         const handleOffline = () => setOnline(false);
@@ -62,7 +64,6 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         };
     }, []);
 
-    // Timer de seguridad (12 segundos)
     useEffect(() => {
         let timer;
         if ((loading || !online) && !tiempoExcedido) {
@@ -74,16 +75,32 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
     }, [loading, online, tiempoExcedido]);
     
     const mesaObj = useMemo(() => {
-    if (loading || !online) return null; 
-    
-    if (esLlevar) {
-        // ... lógica de llevar ...
-        return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
-    }
+        if (loading || !online) return null; 
+        
+        if (esLlevar) {
+            const cuentasAdaptadas = sesionesLlevar.map(s => ({
+                id: s.id,
+                cliente: s.nombreCliente,
+                cuenta: s.cuenta,
+                total: s.total,
+                estado: s.estado || 'Activa'
+            }));
+            return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
+        }
+        return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
+    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    // CAMBIO AQUÍ: Buscar ignorando mayúsculas/minúsculas
-    return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
-}, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
+    // 2. VERIFICACIÓN CRÍTICA:
+    // ¿El nombre de este celular está REALMENTE en la lista de pedidos confirmados de la mesa?
+    const tienePedidoActivo = useMemo(() => {
+        if (!mesaObj || !nombreClienteLocal) return false;
+        
+        // Buscamos en la BD si existe este cliente
+        const cuentaEncontrada = mesaObj.cuentas.find(c => c.cliente === nombreClienteLocal);
+        
+        // Si no ha confirmado (no está en la lista) o está cancelado -> FALSE
+        return !!cuentaEncontrada && cuentaEncontrada.estado !== 'Cancelado';
+    }, [mesaObj, nombreClienteLocal]);
 
     const handleReintentar = () => {
         setReintentando(true);
@@ -93,8 +110,10 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         }, 1000);
     };
 
-    // --- BLOQUEO: SERVICIO INACTIVO ---
-    if (!loading && !servicioActivo) {
+    // 3. BLOQUEO:
+    // Si NO hay servicio Y el usuario NO tiene un pedido CONFIRMADO -> ¡Bloqueo!
+    // Esto saca automáticamente a los que están viendo el menú sin haber pedido.
+    if (!loading && !servicioActivo && !tienePedidoActivo) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6 text-center animate-fade-in">
                 <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
