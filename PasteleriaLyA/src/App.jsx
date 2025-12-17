@@ -294,12 +294,28 @@ export default function PasteleriaApp() {
   // --- LIMPIEZA AUTOMÁTICA (PASTELERÍA) ---
   useEffect(() => {
     if (pedidosPasteleria.length > 0) {
-        const fechaHoy = getFechaHoy();
+        const fechaHoy = getFechaHoy(); // Fecha de "hoy" en horario local
+        
         const basuraVieja = pedidosPasteleria.filter(p => {
             if (p.estado !== 'Cancelado') return false;
-            const fechaRef = p.fechaCancelacion ? p.fechaCancelacion.split('T')[0] : p.fecha;
+            
+            // --- CORRECCIÓN AQUÍ ---
+            // Antes: const fechaRef = p.fechaCancelacion ? p.fechaCancelacion.split('T')[0] : p.fecha;
+            
+            // Ahora: Convertimos la fecha UTC a Local para que "ayer en la noche" siga siendo "ayer"
+            let fechaRef = p.fecha;
+            if (p.fechaCancelacion) {
+                const fechaObj = new Date(p.fechaCancelacion);
+                // Ajustamos la zona horaria manualmente (igual que en tu función getFechaHoy)
+                const local = new Date(fechaObj.getTime() - (fechaObj.getTimezoneOffset() * 60000));
+                fechaRef = local.toISOString().split('T')[0];
+            }
+            // -----------------------
+
+            // Si la fecha del pedido es MENOR (anterior) a hoy, se va a la basura
             return fechaRef < fechaHoy;
         });
+
         if (basuraVieja.length > 0) {
             console.log(`🧹 Limpiando ${basuraVieja.length} pedidos viejos de la papelera...`);
             emptyOrdersTrash(basuraVieja)
