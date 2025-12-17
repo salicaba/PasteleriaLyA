@@ -653,6 +653,9 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa, servic
     // Estado para confirmar el cambio de switch
     const [confirmarSwitch, setConfirmarSwitch] = useState(false);
 
+    // --- NUEVO ESTADO: Para controlar si se ve o no el simulador ---
+    const [mostrarSimulador, setMostrarSimulador] = useState(false);
+
     return ( 
         <div className="p-8 h-screen overflow-y-auto relative"> 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -676,7 +679,7 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa, servic
 
             <div className="mb-10"> 
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas</h3>
+                    <h3 className="text-xl font-bold text-orange-800 flex items-center"><Grid className="mr-2" /> Disposición de Mesas QR's</h3>
                     <button onClick={onAgregarMesa} className="bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-bold hover:bg-orange-200 flex items-center gap-2"><PlusCircle size={18} /> Agregar Mesa</button>
                 </div> 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6"> 
@@ -696,20 +699,62 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa, servic
             
             <div className="mt-8 border-t pt-8"> 
                 <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center"><ShoppingBag className="mr-2 text-orange-500" /> Código QR "Para Llevar"</h3> 
-                <div className={`bg-orange-50 p-6 rounded-xl border border-orange-200 flex items-center justify-between ${!servicioActivo ? 'opacity-50 grayscale' : ''}`}> 
-                    <div><h4 className="font-bold text-orange-900">QR General para Mostrador</h4><p className="text-sm text-orange-700 max-w-md">Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.</p></div> 
-                    {/* --- CAMBIO 3: USAMOS LA FUNCIÓN DINÁMICA --- */}
-                    <button onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: `${OBTENER_URL_BASE()}/llevar` })} className="bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center gap-2"><IconoQR size={20} /> Ver/Imprimir QR</button> 
-                </div> 
+                <div className={`bg-orange-50 p-6 rounded-xl border border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 ${!servicioActivo ? 'opacity-50 grayscale' : ''}`}> 
+    
+    {/* Contenedor del Texto: Ocupa todo el ancho en móvil */}
+    <div className="w-full md:flex-1">
+        <h4 className="font-bold text-orange-900 text-lg mb-2">QR General para Mostrador</h4>
+        <p className="text-sm text-orange-700 text-justify leading-relaxed">
+            Utiliza este código para clientes que no ocupan mesa pero desean ordenar para llevar.
+        </p>
+    </div> 
+    
+    {/* Botón: Debajo del texto en móvil (full width), a la derecha en PC */}
+    <button 
+        onClick={() => setQrData({ titulo: "Para Llevar", sub: "Menú Digital General", val: `${OBTENER_URL_BASE()}/llevar` })} 
+        className="w-full md:w-auto bg-orange-600 text-white px-6 py-3 rounded-lg font-bold shadow-lg hover:bg-orange-700 flex items-center justify-center gap-2 transition-transform active:scale-95"
+    >
+        <IconoQR size={20} /> Ver/Imprimir QR
+    </button> 
+</div>
             </div> 
             
-            {/* Modal de simulación (Dev) */}
-            <div className="fixed bottom-6 right-6 bg-white p-4 rounded-xl shadow-2xl border border-gray-200 z-50 w-72 animate-fade-in-up"> 
-                <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2"><p className="text-xs font-bold uppercase text-orange-600 flex items-center gap-2"><Smartphone size={16}/> Simulador QR</p><span className="text-[10px] bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-bold">MODO DEV</span></div> 
-                <p className="text-[11px] text-gray-400 mb-3">Haz clic abajo para abrir la vista del cliente en una nueva pestaña (como si escanearan el QR).</p> 
-                <div className="space-y-2 mb-3 max-h-40 overflow-y-auto custom-scrollbar pr-1">{mesas.map(m => (<button key={m.id} onClick={() => window.open(`/mesa/${m.id}`, '_blank')} className="w-full bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 text-xs font-bold py-2 px-3 rounded-lg border border-gray-200 hover:border-blue-200 transition text-left flex items-center gap-2"><IconoQR size={14} className="opacity-50"/> Simular {m.nombre}</button>))}</div> 
-                <button onClick={() => window.open('/llevar', '_blank')} className="w-full bg-gray-900 text-white text-xs font-bold py-3 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition shadow-lg border border-gray-900"><ShoppingBag size={14}/> Simular "Para Llevar"</button> 
-            </div> 
+            {/* --- AQUÍ ESTÁ EL CAMBIO PRINCIPAL: SIMULADOR FLOTANTE --- */}
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none">
+                {/* El contenedor del panel solo se renderiza si mostrarSimulador es true */}
+                {mostrarSimulador && (
+                    <div className="bg-white p-4 rounded-xl shadow-2xl border border-gray-200 w-72 mb-4 animate-fade-in-up pointer-events-auto"> 
+                        <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
+                            <p className="text-xs font-bold uppercase text-orange-600 flex items-center gap-2"><Smartphone size={16}/> Simulador QR</p>
+                            <button onClick={() => setMostrarSimulador(false)} className="text-gray-400 hover:text-gray-600"><ChevronDown size={16}/></button>
+                        </div> 
+                        <p className="text-[11px] text-gray-400 mb-3">Haz clic abajo para abrir la vista del cliente en una nueva pestaña.</p> 
+                        <div className="space-y-2 mb-3 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                            {mesas.map(m => (
+                                <button key={m.id} onClick={() => window.open(`/mesa/${m.id}`, '_blank')} className="w-full bg-gray-50 hover:bg-blue-50 text-gray-600 hover:text-blue-600 text-xs font-bold py-2 px-3 rounded-lg border border-gray-200 hover:border-blue-200 transition text-left flex items-center gap-2">
+                                    <IconoQR size={14} className="opacity-50"/> Simular {m.nombre}
+                                </button>
+                            ))}
+                        </div> 
+                        <button onClick={() => window.open('/llevar', '_blank')} className="w-full bg-gray-900 text-white text-xs font-bold py-3 rounded-lg hover:bg-gray-800 flex items-center justify-center gap-2 transition shadow-lg border border-gray-900">
+                            <ShoppingBag size={14}/> Simular "Para Llevar"
+                        </button> 
+                    </div> 
+                )}
+
+                {/* Botón flotante siempre visible (pequeño) */}
+                <button 
+                    onClick={() => setMostrarSimulador(!mostrarSimulador)} 
+                    className={`pointer-events-auto h-12 px-4 rounded-full font-bold shadow-xl flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 border ${mostrarSimulador ? 'bg-gray-800 text-white border-gray-900' : 'bg-white text-gray-600 border-orange-200 hover:text-orange-600'}`}
+                    title="Herramientas de Simulación"
+                >
+                    {mostrarSimulador ? (
+                        <>Cerrar <ChevronDown size={18}/></>
+                    ) : (
+                        <><Smartphone size={18} className="text-orange-500"/> <span className="text-xs">Simular</span></>
+                    )}
+                </button>
+            </div>
             
             <ModalQR isOpen={!!qrData} onClose={() => setQrData(null)} titulo={qrData?.titulo} subtitulo={qrData?.sub} valorQR={qrData?.val} /> 
             <ModalConfirmacion isOpen={!!mesaAEliminar} onClose={() => setMesaAEliminar(null)} onConfirm={() => { onEliminarMesa(mesaAEliminar.id); setMesaAEliminar(null); }} titulo={`¿Eliminar ${mesaAEliminar?.nombre}?`} mensaje="Si eliminas esta mesa, el código QR dejará de funcionar. ¿Estás seguro?" /> 
