@@ -3,7 +3,7 @@ import {
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
     LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
-    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen
+    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen, Lock
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
@@ -430,7 +430,7 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
 };
 
 // COMPONENTE PRINCIPAL VISTA CLIENTE
-export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir }) => {
+export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servicioActivo = true, tienePedidoActivo = false }) => {
     // 1. INICIALIZACIÓN CON LOCALSTORAGE (Persistencia)
     const [nombreCliente, setNombreCliente] = useState(() => localStorage.getItem('lya_cliente_nombre') || null);
     const [telefonoCliente, setTelefonoCliente] = useState(() => localStorage.getItem('lya_cliente_telefono') || null);
@@ -679,6 +679,28 @@ const [carrito, setCarrito] = useState(() => {
                 tiempoRestante={tiempoDespedida}
                 onFinalizar={handleSalidaCompleta}
             />
+        );
+    }
+
+    // --- PRIORIDAD 2: BLOQUEO DE SERVICIO ---
+    // Se muestra si el servicio está apagado Y el usuario no tiene un pedido activo confirmado en BD.
+    // (Si tiene pedido activo en BD, lo dejamos pasar para que vea su estatus).
+    if (!servicioActivo && !tienePedidoActivo) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6 text-center animate-fade-in">
+                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <Lock size={40} className="text-gray-400" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-800 mb-2">Servicio Cerrado</h2>
+                <p className="text-gray-500 max-w-xs mx-auto mb-8">
+                    El sistema de pedidos por QR no está disponible en este momento. Por favor, acércate al mostrador.
+                </p>
+                <div className="text-xs text-gray-400 font-medium">
+                    Horario de atención finalizado o en pausa.
+                </div>
+                {/* Opcional: Botón para forzar salida si se quedó pegado */}
+                <button onClick={onSalir} className="mt-8 text-gray-400 underline text-sm">Salir del sistema</button>
+            </div>
         );
     }
 

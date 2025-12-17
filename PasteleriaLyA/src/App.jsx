@@ -40,7 +40,7 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE (CON BLOQUEO ESTRICTO) ---
+// --- COMPONENTE RUTA CLIENTE (CON BLOQUEO MOVIDO AL HIJO) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
@@ -90,15 +90,10 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
     }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    // 2. VERIFICACIÓN CRÍTICA:
-    // ¿El nombre de este celular está REALMENTE en la lista de pedidos confirmados de la mesa?
+    // 2. VERIFICACIÓN CRÍTICA (Ya no bloqueamos aquí, solo pasamos el dato)
     const tienePedidoActivo = useMemo(() => {
         if (!mesaObj || !nombreClienteLocal) return false;
-        
-        // Buscamos en la BD si existe este cliente
         const cuentaEncontrada = mesaObj.cuentas.find(c => c.cliente === nombreClienteLocal);
-        
-        // Si no ha confirmado (no está en la lista) o está cancelado -> FALSE
         return !!cuentaEncontrada && cuentaEncontrada.estado !== 'Cancelado';
     }, [mesaObj, nombreClienteLocal]);
 
@@ -109,32 +104,13 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
             window.location.reload();
         }, 1000);
     };
-
-    // 3. BLOQUEO:
-    // Si NO hay servicio Y el usuario NO tiene un pedido CONFIRMADO -> ¡Bloqueo!
-    // Esto saca automáticamente a los que están viendo el menú sin haber pedido.
-    if (!loading && !servicioActivo && !tienePedidoActivo) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6 text-center animate-fade-in">
-                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                    <Lock size={40} className="text-gray-400" />
-                </div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">Servicio Cerrado</h2>
-                <p className="text-gray-500 max-w-xs mx-auto mb-8">
-                    El sistema de pedidos por QR no está disponible en este momento. Por favor, acércate al mostrador.
-                </p>
-                <div className="text-xs text-gray-400 font-medium">
-                    Horario de atención finalizado o en pausa.
-                </div>
-            </div>
-        );
-    }
     // ----------------------------------
 
     // --- PANTALLA DE CARGA ---
     if ((loading || reintentando) && !tiempoExcedido && online) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 animate-fade-in">
+                 {/* ... (Mismo código de carga que ya tenías) ... */}
                 <div className="relative mb-8">
                     <div className="absolute inset-0 bg-orange-200 rounded-full blur-xl opacity-50 animate-pulse"></div>
                     <div className="relative w-24 h-24 bg-white rounded-full shadow-xl flex items-center justify-center border-4 border-orange-100">
@@ -232,7 +208,16 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         );
     }
 
-    return <VistaCliente mesa={mesaObj} productos={productos} onRealizarPedido={onRealizarPedido} onSalir={onSalir} />;
+    return (
+        <VistaCliente 
+            mesa={mesaObj} 
+            productos={productos} 
+            onRealizarPedido={onRealizarPedido} 
+            onSalir={onSalir} 
+            servicioActivo={servicioActivo}       // <--- NUEVO
+            tienePedidoActivo={tienePedidoActivo} // <--- NUEVO
+        />
+    );
 };
 
 export default function PasteleriaApp() {

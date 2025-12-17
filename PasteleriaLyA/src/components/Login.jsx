@@ -76,23 +76,23 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                         <div className="w-full space-y-3 mb-6">
                             <div className="bg-white/60 p-3 rounded-xl border border-pink-200 w-full flex items-center justify-between px-4 transition-transform hover:scale-[1.02]">
                                 <div className="text-left">
-                                    <p className="text-[10px] font-bold text-pink-700 uppercase tracking-widest">Soporte Técnico</p>
-                                    <p className="font-bold text-gray-900 text-sm">Ing. Sistemas</p>
+                                    <p className="text-[10px] font-bold text-pink-700 uppercase tracking-widest">Administración</p>
+                                    <p className="font-bold text-gray-900 text-sm">Gerente y Dueño</p>
                                 </div>
                                 <div className="flex items-center gap-2 text-pink-700 bg-white/80 px-2 py-1 rounded-lg shadow-sm">
                                     <Phone size={14} />
-                                    <span className="font-bold text-sm tracking-wide">55-8123-9045</span>
+                                    <span className="font-bold text-sm tracking-wide">55-9988-7766</span>
                                 </div>
                             </div>
 
                             <div className="bg-white/60 p-3 rounded-xl border border-purple-200 w-full flex items-center justify-between px-4 transition-transform hover:scale-[1.02]">
                                 <div className="text-left">
-                                    <p className="text-[10px] font-bold text-purple-700 uppercase tracking-widest">Administración</p>
-                                    <p className="font-bold text-gray-900 text-sm">Gerencia</p>
+                                    <p className="text-[10px] font-bold text-purple-700 uppercase tracking-widest">Soporte Técnico</p>
+                                    <p className="font-bold text-gray-900 text-sm">Ing. Software</p>
                                 </div>
                                 <div className="flex items-center gap-2 text-purple-700 bg-white/80 px-2 py-1 rounded-lg shadow-sm">
                                     <UserCog size={14} />
-                                    <span className="font-bold text-sm tracking-wide">55-9988-7766</span>
+                                    <span className="font-bold text-sm tracking-wide">96-0117-6435</span>
                                 </div>
                             </div>
                         </div>
