@@ -7,14 +7,22 @@ const COLLECTION_NAME = 'mesas';
 // Agregar nueva mesa
 export const createMesa = async (numeroMesaActual) => {
     try {
-        const nuevaId = `M-${Date.now().toString().slice(-5)}`;
+        // ANTES: Generaba un ID aleatorio basado en tiempo
+        // const nuevaId = `M-${Date.now().toString().slice(-5)}`;
+        
+        // AHORA: Generamos un ID limpio y legible
+        const numero = numeroMesaActual + 1;
+        const nuevaId = `mesa${numero}`; // Ej: "mesa1"
+        
         const nuevaMesa = { 
             id: nuevaId, 
-            nombre: `Mesa ${numeroMesaActual + 1}`, 
+            nombre: `Mesa ${numero}`, 
             tipo: 'mesa', 
             estado: 'Libre', 
             cuentas: [] 
         };
+        
+        // Usamos nuevaId como la clave del documento
         await setDoc(doc(db, COLLECTION_NAME, nuevaId), nuevaMesa);
         return { success: true, message: "Mesa agregada" };
     } catch (error) {

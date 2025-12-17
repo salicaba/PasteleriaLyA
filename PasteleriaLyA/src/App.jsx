@@ -74,15 +74,16 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
     }, [loading, online, tiempoExcedido]);
     
     const mesaObj = useMemo(() => {
-        if (loading || !online) return null; 
-        
-        if (esLlevar) {
-            if (mesas.length === 0 && sesionesLlevar.length === 0) return null;
-            const cuentasAdaptadas = sesionesLlevar.map(s => ({ ...s, cliente: s.nombreCliente }));
-            return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
-        }
-        return mesas.find(m => m.id === id);
-    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
+    if (loading || !online) return null; 
+    
+    if (esLlevar) {
+        // ... lógica de llevar ...
+        return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
+    }
+
+    // CAMBIO AQUÍ: Buscar ignorando mayúsculas/minúsculas
+    return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
+}, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
     const handleReintentar = () => {
         setReintentando(true);
@@ -395,7 +396,30 @@ export default function PasteleriaApp() {
   
   // --- MANEJO DE MESAS ---
   const agregarMesa = async () => { 
-    try { await createMesa(mesas.length); mostrarNotificacion("Mesa agregada", "exito"); } catch (e) { mostrarNotificacion("Error", "error"); }
+    try { 
+        // 1. Hacemos una lista con los números de las mesas que YA existen
+        const numerosOcupados = mesas.map(m => {
+            // Esto extrae el "1" de "mesa1", "2" de "mesa2", etc.
+            const soloNumeros = m.id.replace(/\D/g, ''); 
+            return parseInt(soloNumeros) || 0;
+        });
+
+        // 2. Buscamos el primer hueco disponible empezando desde el 1
+        let numeroTarget = 1;
+        while (numerosOcupados.includes(numeroTarget)) {
+            numeroTarget++;
+        }
+
+        // 3. Llamamos al servicio
+        // NOTA: Como tu servicio 'createMesa' le suma +1 automáticamente,
+        // nosotros le restamos 1 aquí para que la matemática cuadre.
+        // Si queremos la mesa 1 -> pasamos 0. (0 + 1 = 1)
+        await createMesa(numeroTarget - 1); 
+        
+        mostrarNotificacion("Mesa agregada", "exito"); 
+    } catch (e) { 
+        mostrarNotificacion("Error", "error"); 
+    }
   };
   
   const eliminarMesa = async (id) => { 

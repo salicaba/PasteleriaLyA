@@ -63,6 +63,7 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
 };
 
 // --- COMPONENTE 2: MODAL HISTORIAL ---
+// --- COMPONENTE 2: MODAL HISTORIAL ---
 const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [itemParaRestaurar, setItemParaRestaurar] = useState(null);
@@ -71,18 +72,23 @@ const ModalHistorial = ({ isOpen, onClose, tipo, items, onRestaurar, onVaciarPap
 
     useEffect(() => { if (isOpen) { setBusqueda(''); setConfirmarVaciar(false); } }, [isOpen]);
 
+    // --- AQUÍ ESTÁ EL CAMBIO ---
     const itemsOrdenados = useMemo(() => {
         if (!items) return [];
         return [...items].sort((a, b) => {
-            if (a.hora && b.hora) {
-                return a.hora.localeCompare(b.hora);
-            }
+            // 1. Priorizamos el timestamp numérico (es lo más exacto para ordenar tiempo)
+            // a - b = Ascendente (De la mañana a la noche)
             if (a.timestamp && b.timestamp) {
                 return a.timestamp - b.timestamp;
+            }
+            // 2. Fallback por si acaso falla el timestamp (usamos la hora en texto)
+            if (a.hora && b.hora) {
+                return a.hora.localeCompare(b.hora);
             }
             return 0;
         });
     }, [items]);
+    // ---------------------------
 
     if (!isOpen) return null;
 
