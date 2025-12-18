@@ -8,6 +8,8 @@ import {
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
 
+import fondoImagen from '../assets/Menús.png';
+
 // --- PANTALLA LOGIN ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
@@ -65,8 +67,17 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     };
 
     return (
-        <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6">
-            <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-sm text-center animate-fade-in-up">
+    <div 
+        className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6"
+        style={{ 
+            backgroundImage: `url(${fondoImagen})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+        }}
+    >
+        {/* Para que el texto se lea bien, asegúrate de que el contenedor interno (la tarjeta blanca) tenga bg-white o un fondo semitransparente como bg-white/90 */}
+        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl w-full max-w-sm text-center animate-fade-in-up">
                 <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Coffee size={32} className="text-orange-600" />
                 </div>
@@ -842,8 +853,16 @@ const [carrito, setCarrito] = useState(() => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-32">
-            <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
+    <div 
+        className="min-h-screen bg-gray-50 pb-32"
+        style={{ 
+            backgroundImage: `url(${fondoImagen})`, 
+            backgroundSize: 'cover', 
+            backgroundPosition: 'center',
+            backgroundAttachment: 'fixed' // 'fixed' hace que el fondo se quede quieto mientras haces scroll
+        }}
+    >
+        <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
             
             {/* AVISO DE MODO SOLO LECTURA */}
             {viendoMenuSoloLectura && (
@@ -856,10 +875,16 @@ const [carrito, setCarrito] = useState(() => {
             )}
 
             <div className={`bg-white p-4 ${viendoMenuSoloLectura ? 'sticky top-[48px]' : 'sticky top-0'} z-20 shadow-sm flex justify-between items-center border-b border-gray-100`}>
-                <div>
-                    <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
-                    <p className="text-xs text-gray-500">Hola, <span className="font-bold text-orange-600">{nombreCliente}</span></p>
-                </div>
+    <div>
+        <div className="flex items-center gap-2 mb-0.5">
+            <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
+            {/* AQUÍ AGREGAMOS LA ETIQUETA DE LA MESA */}
+            <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-orange-200">
+                {mesa.nombre}
+            </span>
+        </div>
+        <p className="text-xs text-gray-500">Hola, <span className="font-bold text-gray-800">{nombreCliente}</span></p>
+    </div>
                 <div className="flex items-center gap-2">
                     {/* Botón Salir cambia a Volver si está en modo lectura */}
                     {viendoMenuSoloLectura ? (
@@ -903,8 +928,11 @@ const [carrito, setCarrito] = useState(() => {
 
                     return (
                         <div key={cat} className="mb-8 animate-fade-in-up">
-                            <h3 className="font-bold text-xl text-gray-800 mb-4 flex items-center gap-2 border-b border-gray-100 pb-2">
-                                {cat} <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{prods.length}</span>
+                            <h3 className="font-bold text-xl text-orange-700 bg-white/90 p-3 rounded-xl shadow-sm mb-4 flex items-center gap-2 backdrop-blur-sm">
+                            {cat} 
+                             <span className="text-xs font-normal text-white bg-orange-400 px-2 py-0.5 rounded-full">
+                                 {prods.length}
+                             </span>
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                 {prods.map(prod => (
