@@ -1,19 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, X, CloudUpload, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake } from 'lucide-react';
+import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
-import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getFechaHoy } from '../utils/config';
+import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
 // --- IMPORTACIÓN: RECHARTS ---
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from '../firebase';
-import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
+import { collection, writeBatch, getDocs } from 'firebase/firestore';
 
 // --- IMPORTAMOS LOS ROLES DEFINIDOS ---
 import { ROLES } from '../utils/roles';
 
-// MODAL DETALLE CORTE
+// MODAL DETALLE CORTE (Sin cambios)
 const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
     if (!isOpen) return null;
 
@@ -91,6 +91,9 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
     const [cargando, setCargando] = useState(false);
     const [modalAbierto, setModalAbierto] = useState(null); 
     const [fechaCorte, setFechaCorte] = useState(getFechaHoy());
+    
+    // --- NUEVO ESTADO PARA EL MODAL DE PELIGRO ---
+    const [confirmarLimpieza, setConfirmarLimpieza] = useState(false);
 
     const datosPasteleria = useMemo(() => {
         const filtrados = pedidos.filter(p => p.fecha === fechaCorte && p.estado !== 'Cancelado');
@@ -141,27 +144,39 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
         return { items, total };
     }, [ventasCafeteria, fechaCorte]);
 
-    const subirDatosIniciales = async () => {
-        if (!confirm("¿Subir productos y mesas iniciales a la base de datos?")) return;
-        setCargando(true);
-        try {
-            const batch = writeBatch(db);
-            if (PRODUCTOS_CAFETERIA_INIT.length > 0) { PRODUCTOS_CAFETERIA_INIT.forEach(prod => { const ref = doc(collection(db, "productos")); batch.set(ref, prod); }); }
-            if (MESAS_FISICAS_INIT.length > 0) { MESAS_FISICAS_INIT.forEach(mesa => { const ref = doc(db, "mesas", mesa.id); batch.set(ref, mesa); }); }
-            await batch.commit(); alert("¡Éxito! Datos subidos.");
-        } catch (error) { console.error("Error:", error); alert("Error: " + error.message); }
-        setCargando(false);
+    // 1. Función que solo abre el modal
+    const solicitarBorradoBD = () => {
+        setConfirmarLimpieza(true);
     };
 
-    const borrarBaseDatos = async () => {
-        if (!confirm("⚠️ ¡PELIGRO! ⚠️\n\nEsto borrará TODOS los productos y mesas de la Base de Datos en la nube.\n¿Estás seguro?")) return;
+    // 2. Función REAL que borra (se ejecuta al confirmar en el modal)
+    const ejecutarBorradoBD = async () => {
+        setConfirmarLimpieza(false); // Cerramos el modal
         setCargando(true);
         try {
-            const batch = writeBatch(db);
-            const prodSnapshot = await getDocs(collection(db, "productos")); prodSnapshot.forEach((doc) => batch.delete(doc.ref));
-            const mesasSnapshot = await getDocs(collection(db, "mesas")); mesasSnapshot.forEach((doc) => batch.delete(doc.ref));
-            await batch.commit(); alert("✅ Base de datos limpiada correctamente.");
-        } catch (error) { console.error("Error borrando:", error); alert("Error al borrar: " + error.message); }
+            const borrarColeccionCompleta = async (nombreColeccion) => {
+                const q = collection(db, nombreColeccion);
+                const snapshot = await getDocs(q);
+                
+                const chunk = 400;
+                for (let i = 0; i < snapshot.docs.length; i += chunk) {
+                    const batch = writeBatch(db);
+                    const lote = snapshot.docs.slice(i, i + chunk);
+                    lote.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+            };
+
+            await borrarColeccionCompleta("productos");
+            await borrarColeccionCompleta("mesas");
+            await borrarColeccionCompleta("pedidos");
+            await borrarColeccionCompleta("ventas");
+            
+            alert("✅ Sistema reiniciado correctamente.");
+        } catch (error) { 
+            console.error("Error borrando:", error); 
+            alert("Error al borrar: " + error.message); 
+        }
         setCargando(false);
     };
 
@@ -182,8 +197,8 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                     </div>
                     <div className="h-8 w-px bg-gray-300 hidden md:block"></div>
                     <div className="flex gap-2">
-                        <button onClick={subirDatosIniciales} disabled={cargando} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-300 transition">{cargando ? "Procesando..." : <><CloudUpload size={16}/> Cargar Iniciales</>}</button>
-                        <button onClick={borrarBaseDatos} disabled={cargando} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"><Trash2 size={16}/> Limpiar BD</button>
+                        {/* Botón que ahora abre el modal bonito */}
+                        <button onClick={solicitarBorradoBD} disabled={cargando} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"><Trash2 size={16}/> Limpiar BD</button>
                     </div>
                 </div>
             </div>
@@ -205,6 +220,16 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
 
             <ModalDetalleCorte isOpen={modalAbierto === 'pasteleria'} onClose={() => setModalAbierto(null)} titulo={`Corte Pastelería`} items={datosPasteleria.items} total={datosPasteleria.total} colorTheme="pink" onItemClick={onVerDetalles} fecha={fechaCorte} />
             <ModalDetalleCorte isOpen={modalAbierto === 'cafeteria'} onClose={() => setModalAbierto(null)} titulo={`Corte Cafetería`} items={datosCafeteria.items} total={datosCafeteria.total} colorTheme="orange" onItemClick={onVerDetalles} fecha={fechaCorte} />
+            
+            {/* NUEVO MODAL DE PELIGRO EXTREMO */}
+            <ModalConfirmacion 
+                isOpen={confirmarLimpieza} 
+                onClose={() => setConfirmarLimpieza(false)} 
+                onConfirm={ejecutarBorradoBD} 
+                titulo="⚠️ ¡PELIGRO EXTREMO! ⚠️" 
+                mensaje="Estás a punto de ELIMINAR TODA LA INFORMACIÓN DEL SISTEMA (Productos, Mesas, Pedidos, Ventas). Esto dejará el sistema vacío como de fábrica. Esta acción NO se puede deshacer. ¿Estás 100% seguro?"
+                tipo="eliminar" 
+            />
         </div>
     );
 };
@@ -286,7 +311,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             return (
-                // <--- 1. SOLUCIÓN CSS: AGREGAMOS POINTER-EVENTS-NONE POR SI ACASO
                 <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg pointer-events-none">
                     <p className="font-bold text-gray-700 mb-1">Día {label}</p>
                     {payload.map((entry, index) => (
@@ -304,7 +328,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
         return null;
     };
 
-    // <--- 2. SOLUCIÓN JS: FUNCIÓN QUE RECIBE EL CLICK DIRECTO DE LA BARRA
     const handleBarClick = (data) => {
         if (data && data.label) {
             onAbrirModalDia(data.label, datosReporte.mes, datosReporte.anio, todosLosDatosCompletos);
@@ -353,7 +376,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                         <BarChart
                             data={datosReporte.desglose}
                             margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                            // <--- QUITADO: onClick AQUÍ YA NO SE USA
                         >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb"/>
                             <XAxis 
@@ -380,7 +402,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                                     fill="#ec4899" 
                                     radius={[4, 4, 0, 0]} 
                                     maxBarSize={50}
-                                    // <--- 3. SOLUCIÓN: ONCLICK DIRECTO EN LA BARRA + CURSOR
                                     onClick={handleBarClick}
                                     cursor="pointer"
                                 />
@@ -393,7 +414,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                                     fill="#f97316" 
                                     radius={[4, 4, 0, 0]} 
                                     maxBarSize={50}
-                                    // <--- 3. SOLUCIÓN: ONCLICK DIRECTO EN LA BARRA + CURSOR
                                     onClick={handleBarClick}
                                     cursor="pointer"
                                 />

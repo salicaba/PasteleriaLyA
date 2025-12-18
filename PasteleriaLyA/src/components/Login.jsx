@@ -18,7 +18,6 @@ const SplashScreen = () => {
                 <div className="relative mb-6">
                     <div className="absolute inset-0 bg-gradient-to-tr from-pink-400 to-orange-400 rounded-full blur-lg opacity-60 animate-ping"></div>
                     <div className="w-24 h-24 bg-white rounded-full shadow-xl flex items-center justify-center relative z-10 border-4 border-pink-50">
-                        {/* Usamos animate-bounce, si tienes animate-bounce-slow mejor */}
                         <Coffee size={48} className="text-pink-600 animate-bounce" strokeWidth={1.5} />
                     </div>
                     {/* Estrellitas decorativas */}
@@ -70,17 +69,11 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
     // --- NUEVO: Estado para el Splash Screen ---
     const [mostrarSplash, setMostrarSplash] = useState(true);
 
-    // Efecto para manejar el tiempo de carga inicial y pre-cargar la imagen
+    // Efecto para manejar el tiempo de carga inicial
     useEffect(() => {
-        // 1. Iniciar temporizador de 3.5 segundos
         const timer = setTimeout(() => {
             setMostrarSplash(false);
         }, 3500);
-
-        // 2. Truco para pre-cargar la imagen en caché del navegador mientras se ve el splash
-        // Esto hace que cuando se quite el splash, la imagen ya esté lista.
-        const img = new Image();
-        img.src = fondoLogin;
 
         return () => clearTimeout(timer);
     }, []);
@@ -105,28 +98,33 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
         }, 800);
     };
 
-    // Si está activo el Splash, mostramos eso primero y retornamos para no renderizar el login aún
     if (mostrarSplash) {
         return <SplashScreen />;
     }
 
     return (
-        <div 
-            // Agregamos animate-fade-in para que la entrada sea suave después del splash
-            className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-cover bg-center relative animate-fade-in"
-            style={{ 
-                backgroundImage: `url(${fondoLogin})`,
-                // backgroundSize: '100% 100%' 
-            }}
-        >
-            {/* Capa oscura (Overlay) */}
-            <div className="absolute inset-0 bg-black/40 z-0"></div>
+        // CAMBIO: Agregamos la clase 'animate-gradient-bg' personalizada
+        <div className="min-h-screen flex items-center justify-center p-4 md:p-6 animate-gradient-bg animate-fade-in">
+            
+            {/* Estilos inline para la animación del fondo */}
+            <style>{`
+                .animate-gradient-bg {
+                    background: linear-gradient(-45deg, #ec4899, #f97316, #db2777, #fb923c);
+                    background-size: 400% 400%;
+                    animation: gradient 12s ease infinite;
+                }
+                @keyframes gradient {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+            `}</style>
 
-            {/* TARJETA PRINCIPAL */}
-            <div className="bg-white/30 backdrop-blur-sm w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl overflow-hidden animate-bounce-in relative z-10 min-h-[500px] flex flex-col">
+            {/* TARJETA PRINCIPAL: Fondo blanco sólido */}
+            <div className="bg-white/60 w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl overflow-hidden animate-bounce-in relative z-10 min-h-[500px] flex flex-col">
                 
-                {/* Barra decorativa */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 to-orange-500 z-10"></div>
+                {/* Barra superior con degradado Morado -> Indigo */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 to-indigo-600 z-10"></div>
                 
                 {/* --- LÓGICA DE VISTAS --- */}
                 
@@ -147,23 +145,23 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                         </p>
                         
                         <div className="w-full space-y-3 mb-6">
-                            <div className="bg-white/60 p-3 rounded-xl border border-pink-200 w-full flex items-center justify-between px-4 transition-transform hover:scale-[1.02]">
+                            <div className="bg-gray-50 p-3 rounded-xl border border-purple-100 w-full flex items-center justify-between px-4 transition-transform hover:scale-[1.02]">
                                 <div className="text-left">
                                     <p className="text-[10px] font-bold text-pink-700 uppercase tracking-widest">Administración</p>
                                     <p className="font-bold text-gray-900 text-sm">Gerente y Dueño</p>
                                 </div>
-                                <div className="flex items-center gap-2 text-pink-700 bg-white/80 px-2 py-1 rounded-lg shadow-sm">
+                                <div className="flex items-center gap-2 text-pink-700 bg-white border border-pink-100 px-2 py-1 rounded-lg shadow-sm">
                                     <Phone size={14} />
                                     <span className="font-bold text-sm tracking-wide">55-9988-7766</span>
                                 </div>
                             </div>
 
-                            <div className="bg-white/60 p-3 rounded-xl border border-purple-200 w-full flex items-center justify-between px-4 transition-transform hover:scale-[1.02]">
+                            <div className="bg-gray-50 p-3 rounded-xl border border-purple-200 w-full flex items-center justify-between px-4 transition-transform hover:scale-[1.02]">
                                 <div className="text-left">
                                     <p className="text-[10px] font-bold text-purple-700 uppercase tracking-widest">Soporte Técnico</p>
                                     <p className="font-bold text-gray-900 text-sm">Ing. Software</p>
                                 </div>
-                                <div className="flex items-center gap-2 text-purple-700 bg-white/80 px-2 py-1 rounded-lg shadow-sm">
+                                <div className="flex items-center gap-2 text-purple-700 bg-white border border-purple-100 px-2 py-1 rounded-lg shadow-sm">
                                     <UserCog size={14} />
                                     <span className="font-bold text-sm tracking-wide">96-0117-6435</span>
                                 </div>
@@ -202,7 +200,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                             name="lya_usuario_unico"
                                             id="lya_usuario_unico"
                                             type="text" 
-                                            className="w-full pl-11 pr-4 py-3 bg-white/60 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-sm md:text-base placeholder-gray-500"
+                                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-purple-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-sm md:text-base placeholder-gray-400"
                                             placeholder="Ingresa tu usuario"
                                             value={usuario}
                                             onChange={(e) => setUsuario(e.target.value)}
@@ -221,7 +219,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                             name="lya_password_unico"
                                             id="lya_password_unico"
                                             type={mostrarPassword ? "text" : "password"} 
-                                            className="w-full pl-11 pr-12 py-3 bg-white/60 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-sm md:text-base placeholder-gray-500"
+                                            className="w-full pl-11 pr-12 py-3 bg-gray-50 border border-purple-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-sm md:text-base placeholder-gray-400"
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
@@ -248,7 +246,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                 </div>
 
                                 {error && (
-                                    <div className="bg-red-50/90 text-red-600 text-xs md:text-sm p-3 rounded-lg flex items-center gap-2 animate-fade-in-up border border-red-100 font-bold">
+                                    <div className="bg-red-50 text-red-600 text-xs md:text-sm p-3 rounded-lg flex items-center gap-2 animate-fade-in-up border border-red-100 font-bold">
                                         <AlertCircle size={16} className="shrink-0" /> {error}
                                     </div>
                                 )}
@@ -270,7 +268,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                             </form>
                         </div>
                         
-                        <div className="bg-white/40 p-4 text-center text-[10px] md:text-xs text-gray-800 font-bold border-t border-gray-100/30 mt-auto backdrop-blur-sm">
+                        <div className="bg-gray-50 p-4 text-center text-[10px] md:text-xs text-gray-800 font-bold border-t border-purple-100 mt-auto">
                             © 2025 Pastelería y Cafetería LyA
                         </div>
                     </>

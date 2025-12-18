@@ -8,7 +8,8 @@ import {
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
 
-import fondoImagen from '../assets/Menús.png';
+// Ya no usamos la imagen de fondo, pero dejamos la importación por si acaso o la quitamos si prefieres.
+// import fondoImagen from '../assets/Menús.png'; 
 
 // --- PANTALLA LOGIN ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
@@ -68,17 +69,28 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
 
     return (
     <div 
-        className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6"
-        style={{ 
-            backgroundImage: `url(${fondoImagen})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-        }}
+        // CAMBIO: Fondo animado degradado (Naranja suave a Rosa suave)
+        className="min-h-screen flex flex-col items-center justify-center p-6 animate-gradient-bg"
     >
-        {/* Para que el texto se lea bien, asegúrate de que el contenedor interno (la tarjeta blanca) tenga bg-white o un fondo semitransparente como bg-white/90 */}
-        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-xl w-full max-w-sm text-center animate-fade-in-up">
-                <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+        <style>{`
+            .animate-gradient-bg {
+                background: linear-gradient(-45deg, #fb923c, #f472b6, #fbbf24, #fb7185);
+                background-size: 400% 400%;
+                animation: gradient 15s ease infinite;
+            }
+            @keyframes gradient {
+                0% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+                100% { background-position: 0% 50%; }
+            }
+        `}</style>
+
+        {/* CAMBIO: bg-white sólido para limpieza */}
+        <div className="bg-white/60 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center animate-fade-in-up relative overflow-hidden">
+                {/* Barrita decorativa superior */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-500 to-pink-500"></div>
+
+                <div className="bg-orange-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-orange-100">
                     <Coffee size={32} className="text-orange-600" />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800 mb-1">Bienvenido a <span className="italic font-serif text-orange-600">LyA</span></h1>
@@ -92,16 +104,16 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                             value={nombre} 
                             onChange={handleChangeNombre} 
                             placeholder="Ej. JUAN PÉREZ" 
-                            className={`w-full p-4 border-2 rounded-xl font-bold text-gray-700 focus:outline-none transition-colors uppercase ${mensajeBienvenida ? 'border-green-500 bg-green-50' : 'border-orange-100 focus:border-orange-500'}`} 
+                            className={`w-full p-4 border rounded-xl font-bold text-gray-700 focus:outline-none transition-colors uppercase bg-gray-50 focus:bg-white ${mensajeBienvenida ? 'border-green-500 bg-green-50' : 'border-gray-200 focus:border-orange-500'}`} 
                         />
                         {mensajeBienvenida && (<p className="text-xs text-green-600 font-bold mt-2 flex items-center animate-bounce-in"><UserCheck size={12} className="mr-1"/> {mensajeBienvenida}</p>)}
                     </div>
-                    {esParaLlevar && (<div className="animate-fade-in"><label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono</label><input value={telefono} onChange={handleChangeTelefono} placeholder="10 DÍGITOS" type="tel" inputMode="numeric" className="w-full p-4 border-2 border-orange-100 rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors" /></div>)}
+                    {esParaLlevar && (<div className="animate-fade-in"><label className="text-xs font-bold text-gray-400 uppercase block mb-1">Tu Teléfono</label><input value={telefono} onChange={handleChangeTelefono} placeholder="10 DÍGITOS" type="tel" inputMode="numeric" className="w-full p-4 border border-gray-200 bg-gray-50 focus:bg-white rounded-xl font-bold text-gray-700 focus:border-orange-500 focus:outline-none transition-colors" /></div>)}
                 </div>
-                {error && (<div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold flex items-center gap-2 animate-bounce-in"><AlertCircle size={16} className="shrink-0"/> {error}</div>)}
+                {error && (<div className="bg-red-50 text-red-600 p-3 rounded-xl mb-4 text-sm font-bold flex items-center gap-2 animate-bounce-in border border-red-100"><AlertCircle size={16} className="shrink-0"/> {error}</div>)}
                 
                 {!tieneCuentaActiva ? (
-                    <button type="button" onClick={() => validarYEjecutar(onIngresar)} className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${nombre.trim().includes(' ') && (!esParaLlevar || telefono.length === 10) ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-300 cursor-not-allowed'}`}>
+                    <button type="button" onClick={() => validarYEjecutar(onIngresar)} className={`w-full py-4 rounded-xl font-bold text-white transition-all shadow-lg ${nombre.trim().includes(' ') && (!esParaLlevar || telefono.length === 10) ? 'bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700' : 'bg-gray-300 cursor-not-allowed'}`}>
                         Comenzar a Pedir
                     </button>
                 ) : (
@@ -113,6 +125,10 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                 <button type="button" onClick={onSalir} className="mt-4 w-full py-3 rounded-xl font-bold text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 border border-transparent hover:border-red-100">
                     <LogOut size={18} /> Salir
                 </button>
+            </div>
+            
+            <div className="mt-8 text-white/80 font-bold text-xs">
+                © 2025 Pastelería y Cafetería LyA
             </div>
         </div>
     );
@@ -244,26 +260,35 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
     );
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col">
-            <div className="bg-gray-900 text-white p-6 pb-12 rounded-b-[2.5rem] shadow-lg relative z-10">
+        // CAMBIO: Fondo animado aquí también para consistencia
+        <div className="min-h-screen bg-gray-100 flex flex-col animate-gradient-bg">
+            <style>{`
+                .animate-gradient-bg {
+                    background: linear-gradient(-45deg, #fb923c, #f472b6, #fbbf24, #fb7185);
+                    background-size: 400% 400%;
+                    animation: gradient 15s ease infinite;
+                }
+            `}</style>
+
+            <div className="bg-white/95 backdrop-blur-sm text-gray-800 p-6 pb-12 rounded-b-[2.5rem] shadow-lg relative z-10 border-b border-white/20">
                 <div className="flex justify-between items-center mb-6">
-                    <button onClick={onVolver} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition flex items-center gap-1 text-xs font-bold pl-3 pr-4">
+                    <button onClick={onVolver} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition flex items-center gap-1 text-xs font-bold pl-3 pr-4 shadow-sm">
                         <ArrowLeft size={16}/> Volver
                     </button>
                     <h2 className="text-xl font-bold">Mi Cuenta</h2>
-                    <button onClick={onSolicitarSalida} className="p-2 bg-red-500/20 text-red-200 rounded-full hover:bg-red-500/40 transition">
+                    <button onClick={onSolicitarSalida} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition shadow-sm">
                         <LogOut size={18} />
                     </button>
                 </div>
                 <div className="text-center">
-                    <p className="text-gray-400 text-sm mb-1">Total a Pagar</p>
-                    <p className="text-5xl font-bold text-white">${cuentaAcumulada.total}</p>
-                    <p className="text-orange-400 text-xs font-bold mt-2 uppercase tracking-wide">{cuentaAcumulada.cliente}</p>
+                    <p className="text-gray-400 text-sm mb-1 uppercase font-bold tracking-widest">Total a Pagar</p>
+                    <p className="text-5xl font-bold text-orange-600">${cuentaAcumulada.total}</p>
+                    <p className="text-gray-400 text-xs font-bold mt-2 uppercase tracking-wide">{cuentaAcumulada.cliente}</p>
                 </div>
             </div>
 
             <div className="flex-1 px-6 -mt-8 relative z-20 pb-12 overflow-y-auto">
-                <div className="bg-white rounded-2xl shadow-md p-6 space-y-6">
+                <div className="bg-white rounded-3xl shadow-xl p-6 space-y-6">
                     <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                         <h3 className="text-gray-800 font-bold flex items-center gap-2">
                             <Receipt size={18} className="text-orange-500"/> Detalle de Consumo
@@ -338,7 +363,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
                     {/* BOTÓN PARA VER MENÚ (SOLO LECTURA) */}
                     <button 
                         onClick={onVerMenu} 
-                        className="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border border-blue-100 hover:bg-blue-100 transition shadow-sm"
+                        className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border-2 border-blue-100 hover:bg-blue-50 transition shadow-sm"
                     >
                         <BookOpen size={20} /> Ver Menú (Solo Lectura)
                     </button>
@@ -350,7 +375,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
                         </p>
                     </div>
 
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex flex-col gap-3 items-center justify-center text-center shadow-sm animate-fade-in-up delay-75">
+                    <div className="bg-white/80 border border-blue-100 rounded-xl p-6 flex flex-col gap-3 items-center justify-center text-center shadow-sm animate-fade-in-up delay-75">
                         <div className="bg-blue-100 p-3 rounded-full text-blue-600">
                             <Info size={24} />
                         </div>
@@ -723,17 +748,25 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
 
     if (pedidoEnviado && !viendoMenuSoloLectura) { 
         return (
-            <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up relative">
-                <button onClick={() => setConfirmarSalida(true)} className="absolute top-6 right-6 p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition">
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center animate-gradient-bg relative">
+                <style>{`
+                    .animate-gradient-bg {
+                        background: linear-gradient(-45deg, #fb923c, #f472b6, #fbbf24, #fb7185);
+                        background-size: 400% 400%;
+                        animation: gradient 15s ease infinite;
+                    }
+                `}</style>
+                
+                <button onClick={() => setConfirmarSalida(true)} className="absolute top-6 right-6 p-2 bg-white/50 text-red-600 rounded-full hover:bg-white transition">
                     <LogOut size={20} />
                 </button>
 
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={60} className="text-green-600" /></div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">¡Pedido Activo!</h2>
-                <p className="text-gray-600 mb-6">Hola <strong>{nombreCliente}</strong>.</p>
+                <div className="w-24 h-24 bg-white/80 rounded-full flex items-center justify-center mb-6"><CheckCircle size={60} className="text-green-500" /></div>
+                <h2 className="text-3xl font-bold text-white mb-2 shadow-sm">¡Pedido Activo!</h2>
+                <p className="text-white/90 mb-6 font-medium">Hola <strong>{nombreCliente}</strong>.</p>
                 
                 {esParaLlevar ? (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left space-y-4">
+                    <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mb-8 text-left space-y-4">
                         
                         <div className="flex items-start gap-3">
                             <ShoppingBag className="text-green-600 mt-1 shrink-0" size={20}/>
@@ -771,7 +804,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-sm w-full mb-8 text-left">
+                    <div className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full mb-8 text-left">
                         <div className="flex items-start gap-3 mb-4">
                             <Coffee className="text-green-600 mt-1 shrink-0" size={20}/>
                             <p className="text-sm text-gray-600 text-justify">
@@ -788,7 +821,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                 )}
                 
                 <div className="flex flex-col gap-4 w-full max-w-xs">
-                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center shadow-sm">
+                    <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl text-center shadow-lg">
                         <div className="flex justify-center mb-2 text-blue-500"><Info size={24} /></div>
                         <p className="text-blue-800 text-sm font-bold mb-1">
                             ¿Olvidaste algo?
@@ -796,16 +829,13 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                         <p className="text-blue-700 text-xs font-medium leading-relaxed">
                             Si deseas agregar más productos, por favor <strong>avisa a nuestro personal</strong> o <strong>acércate a caja</strong> para sumarlo a tu comanda actual.
                         </p>
-                        <p className="text-blue-600 text-[10px] mt-2 italic">
-                            ¡Estaremos encantados de atenderte!
-                        </p>
                     </div>
 
-                    <button onClick={() => setViendoCuentaTotal(true)} className="bg-white border-2 border-green-200 text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                    <button onClick={() => setViendoCuentaTotal(true)} className="bg-white text-green-700 font-bold py-3 px-8 rounded-xl hover:bg-green-50 transition flex items-center justify-center gap-2 shadow-lg">
                         <Receipt size={18}/> Ver mi Cuenta
                     </button>
                     
-                    <button onClick={() => setViendoMenuSoloLectura(true)} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                    <button onClick={() => setViendoMenuSoloLectura(true)} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-lg">
                         <BookOpen size={18}/> Ver Menú (Solo Lectura)
                     </button>
                 </div>
@@ -822,20 +852,17 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
         ); 
     }
 
-    // --- AQUÍ ESTÁ EL CAMBIO CLAVE PARA EL FONDO ESTÁTICO ---
     return (
-        <div className="min-h-screen bg-gray-50 relative"> 
+        // CAMBIO: Contenedor principal con la clase de animación y sin imagen fija
+        <div className="min-h-screen bg-gray-50 relative animate-gradient-bg"> 
             
-            {/* CAPA DE FONDO FIJA: ESTO EVITA EL "REBOTE" BLANCO */}
-            <div 
-                className="fixed inset-0 z-0 pointer-events-none" 
-                style={{ 
-                    backgroundImage: `url(${fondoImagen})`, 
-                    backgroundSize: 'cover', 
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                }}
-            />
+            <style>{`
+                .animate-gradient-bg {
+                    background: linear-gradient(-45deg, #fb923c, #f472b6, #fbbf24, #fb7185);
+                    background-size: 400% 400%;
+                    animation: gradient 15s ease infinite;
+                }
+            `}</style>
 
             {/* CONTENIDO SCROLLABLE POR ENCIMA */}
             <div className="relative z-10 pb-32">
@@ -850,6 +877,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     </div>
                 )}
 
+                {/* CAMBIO: Header con bg-white sólido para limpieza */}
                 <div className={`bg-white p-4 ${viendoMenuSoloLectura ? 'sticky top-[48px]' : 'sticky top-0'} z-20 shadow-sm flex justify-between items-center border-b border-gray-100`}>
                     <div>
                         <div className="flex items-center gap-2 mb-0.5">
@@ -874,7 +902,8 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     </div>
                 </div>
 
-                <div className={`bg-white/95 backdrop-blur-sm ${viendoMenuSoloLectura ? 'sticky top-[121px]' : 'sticky top-[73px]'} z-10 px-4 py-3 border-b border-gray-200 shadow-sm`}>
+                {/* CAMBIO: Barra de búsqueda con fondo blanco sólido */}
+                <div className={`bg-white ${viendoMenuSoloLectura ? 'sticky top-[121px]' : 'sticky top-[73px]'} z-10 px-4 py-3 border-b border-gray-200 shadow-sm`}>
                     <div className="relative mb-3">
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                         <input 
@@ -902,7 +931,8 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
 
                         return (
                             <div key={cat} className="mb-8 animate-fade-in-up">
-                                <h3 className="font-bold text-xl text-orange-700 bg-white/90 p-3 rounded-xl shadow-sm mb-4 flex items-center gap-2 backdrop-blur-sm">
+                                {/* CAMBIO: Header de categoría con fondo blanco sólido */}
+                                <h3 className="font-bold text-xl text-orange-700 bg-white p-3 rounded-xl shadow-sm mb-4 flex items-center gap-2 border border-orange-100">
                                 {cat} 
                                 <span className="text-xs font-normal text-white bg-orange-400 px-2 py-0.5 rounded-full">
                                     {prods.length}
@@ -911,6 +941,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                     {prods.map(prod => (
                                         <div key={prod.id} className="h-full">
+                                            {/* Nota: CardProducto ya tiene bg-white en su definición interna (componente compartido), así que resaltará bien */}
                                             <CardProducto 
                                                 producto={prod} 
                                                 onClick={() => setProductoVerDetalles(prod)} 
@@ -924,9 +955,9 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     })}
 
                     {productosFiltrados.length === 0 && (
-                        <div className="text-center py-10 opacity-60">
-                            <Search size={48} className="mx-auto mb-3 text-gray-300"/>
-                            <p className="text-gray-500 font-medium">No encontramos productos con "{busqueda}".</p>
+                        <div className="text-center py-10 opacity-80 bg-white/50 rounded-xl">
+                            <Search size={48} className="mx-auto mb-3 text-gray-400"/>
+                            <p className="text-gray-600 font-medium">No encontramos productos con "{busqueda}".</p>
                             <button onClick={() => {setBusqueda(''); setCategoriaFiltro('Todas');}} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Ver todo el menú</button>
                         </div>
                     )}
