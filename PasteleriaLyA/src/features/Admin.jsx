@@ -471,6 +471,7 @@ const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
 };
 
 // --- GESTIÓN USUARIOS ACTUALIZADA ---
+// --- GESTIÓN USUARIOS ACTUALIZADA ---
 export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
     const [modalOpen, setModalOpen] = useState(false); 
     const [usuarioEditar, setUsuarioEditar] = useState(null); 
@@ -483,40 +484,52 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
     const cafeteros = usuarios.filter(u => u.rol === ROLES.CAFETERIA);
 
     // Componente reutilizable para cada tarjeta de grupo
-    const GrupoCard = ({ titulo, lista, colorBg, colorBorder, colorText, icon: Icon, colorIcon, iconBg }) => (
-        <div className={`${colorBg} rounded-3xl p-6 border ${colorBorder} h-full flex flex-col`}>
-            <h3 className={`font-bold text-xl ${colorText} mb-4 flex items-center gap-2`}>
-                <Icon size={24}/> {titulo} 
-                <span className={`text-xs px-2 py-1 rounded-full bg-white/50 border border-white/50 ${colorText}`}>{lista.length}</span>
-            </h3>
-            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
-                {lista.map(user => (
-                    <div key={user.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden">
-                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorText.replace('text-', 'bg-').replace('800', '400')}`}></div>
-                        <div className="flex items-center gap-3 pl-2 overflow-hidden">
-                            <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center ${colorIcon} font-bold text-sm border border-opacity-20 shadow-sm shrink-0`}>
-                                {user.nombre.charAt(0)}
+    const GrupoCard = ({ titulo, lista, colorBg, colorBorder, colorText, icon: Icon, colorIcon, iconBg }) => {
+        
+        // Función para obtener el color del borde basado en el texto
+        // Ejemplo: 'text-rose-800' se convierte en 'border-rose-500'
+        const borderColor = colorText.replace('text-', 'border-').replace('800', '500');
+
+        return (
+            <div className={`${colorBg} rounded-3xl p-6 border ${colorBorder} h-full flex flex-col`}>
+                <h3 className={`font-bold text-xl ${colorText} mb-4 flex items-center gap-2`}>
+                    <Icon size={24}/> {titulo} 
+                    <span className={`text-xs px-2 py-1 rounded-full bg-white/50 border border-white/50 ${colorText}`}>{lista.length}</span>
+                </h3>
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
+                    {lista.map(user => (
+                        <div 
+                            key={user.id} 
+                            // AQUI ESTÁ EL CAMBIO: Agregamos border-l-4 y el color dinámico
+                            className={`bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderColor} flex justify-between items-center group hover:shadow-md transition relative overflow-hidden`}
+                        >
+                            {/* Eliminé el div absoluto que hacía la línea finita, ahora usamos el borde real de la caja */}
+                            
+                            <div className="flex items-center gap-3 pl-2 overflow-hidden">
+                                <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center ${colorIcon} font-bold text-sm border border-opacity-20 shadow-sm shrink-0`}>
+                                    {user.nombre.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-gray-800 text-sm truncate">{user.nombre}</p>
+                                    <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit truncate">{user.usuario}</p>
+                                </div>
                             </div>
-                            <div className="min-w-0">
-                                <p className="font-bold text-gray-800 text-sm truncate">{user.nombre}</p>
-                                <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit truncate">{user.usuario}</p>
+                            <div className="flex gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={16}/></button>
+                                <button onClick={() => setUsuarioEliminar(user)} className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={16}/></button>
                             </div>
                         </div>
-                        <div className="flex gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={16}/></button>
-                            <button onClick={() => setUsuarioEliminar(user)} className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={16}/></button>
+                    ))}
+                    {lista.length === 0 && (
+                        <div className="text-center py-8 opacity-40">
+                            <Icon size={32} className="mx-auto mb-2 text-gray-400"/>
+                            <p className="text-gray-500 italic text-xs">Sin usuarios.</p>
                         </div>
-                    </div>
-                ))}
-                {lista.length === 0 && (
-                    <div className="text-center py-8 opacity-40">
-                        <Icon size={32} className="mx-auto mb-2 text-gray-400"/>
-                        <p className="text-gray-500 italic text-xs">Sin usuarios.</p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return ( 
         <div className="p-4 md:p-8 h-full overflow-y-auto"> 
@@ -531,7 +544,7 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
             {/* GRID DE 4 CUADRITOS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-auto pb-4">
                 
-                {/* 1. ADMINS - AHORA EN GRIS/NEGRO PARA DIFERENCIARSE */}
+                {/* 1. ADMINS */}
                 <GrupoCard 
                     titulo="Administradores" 
                     lista={administradores} 
