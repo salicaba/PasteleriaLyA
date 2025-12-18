@@ -442,52 +442,37 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
 
 // COMPONENTE PRINCIPAL VISTA CLIENTE
 export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servicioActivo = true, tienePedidoActivo = false }) => {
-    // 1. INICIALIZACIÓN CON LOCALSTORAGE (Persistencia)
     const [nombreCliente, setNombreCliente] = useState(() => localStorage.getItem('lya_cliente_nombre') || null);
     const [telefonoCliente, setTelefonoCliente] = useState(() => localStorage.getItem('lya_cliente_telefono') || null);
     
-    // --- CAMBIO 1: INICIALIZAR EL CARRITO DESDE LOCALSTORAGE ---
-    // --- CAMBIO: INICIALIZAR Y LIMPIAR EL CARRITO DESDE LOCALSTORAGE ---
-const [carrito, setCarrito] = useState(() => {
-    try {
-        const guardado = localStorage.getItem('lya_carrito_temp');
-        if (guardado) {
-            const datosSucios = JSON.parse(guardado);
-            // AQUÍ ESTÁ EL TRUCO:
-            // Convertimos todo a números INMEDIATAMENTE al cargar la página.
-            // Así prevenimos que entren "Textos" al sistema.
-            return datosSucios.map(item => ({
-                ...item,
-                precio: Number(item.precio),
-                cantidad: Number(item.cantidad)
-            }));
+    const [carrito, setCarrito] = useState(() => {
+        try {
+            const guardado = localStorage.getItem('lya_carrito_temp');
+            if (guardado) {
+                const datosSucios = JSON.parse(guardado);
+                return datosSucios.map(item => ({
+                    ...item,
+                    precio: Number(item.precio),
+                    cantidad: Number(item.cantidad)
+                }));
+            }
+            return [];
+        } catch (e) {
+            return [];
         }
-        return [];
-    } catch (e) {
-        return [];
-    }
-});
+    });
 
     const [pedidoEnviado, setPedidoEnviado] = useState(false);
     const [viendoCuentaTotal, setViendoCuentaTotal] = useState(false); 
-    
-    // --- NUEVO ESTADO PARA MENÚ SOLO LECTURA ---
     const [viendoMenuSoloLectura, setViendoMenuSoloLectura] = useState(false);
-
     const [notificacion, setNotificacion] = useState({ visible: false, mensaje: '', tipo: 'info' });
     const [confirmarSalida, setConfirmarSalida] = useState(false);
-    
-    // --- ESTADOS PARA VERIFICACIÓN DE CONEXIÓN Y CARGA ---
     const [enviando, setEnviando] = useState(false);
-    const [errorConfirmacion, setErrorConfirmacion] = useState(null); // 'offline' | 'error'
-
+    const [errorConfirmacion, setErrorConfirmacion] = useState(null); 
     const timerRef = useRef(null);
-
-    // --- ESTADOS PARA EL CIERRE DE CUENTA ---
     const [ultimoEstadoCuenta, setUltimoEstadoCuenta] = useState(null);
     const [mostrarDespedida, setMostrarDespedida] = useState(false);
     const [tiempoDespedida, setTiempoDespedida] = useState(10); 
-
     const [busqueda, setBusqueda] = useState('');
     const [categoriaFiltro, setCategoriaFiltro] = useState('Todas');
     const [productoVerDetalles, setProductoVerDetalles] = useState(null);
@@ -508,12 +493,10 @@ const [carrito, setCarrito] = useState(() => {
         return mesa.cuentas.find(c => c.cliente === nombreCliente);
     }, [mesa, nombreCliente]);
 
-    // --- CAMBIO 2: EFECTO PARA GUARDAR EL CARRITO AUTOMÁTICAMENTE ---
     useEffect(() => {
         localStorage.setItem('lya_carrito_temp', JSON.stringify(carrito));
     }, [carrito]);
 
-    // 2. EFECTO DE RECONEXIÓN
     useEffect(() => {
         if (nombreCliente && mesa) {
             const cuentaActiva = mesa.cuentas.find(c => c.cliente === nombreCliente);
@@ -523,7 +506,6 @@ const [carrito, setCarrito] = useState(() => {
         }
     }, [nombreCliente, mesa]);
 
-    // --- EFECTO: DETECTAR CIERRE DE CUENTA ---
     useEffect(() => {
         if (miCuentaAcumulada) {
             setUltimoEstadoCuenta(miCuentaAcumulada);
@@ -533,7 +515,6 @@ const [carrito, setCarrito] = useState(() => {
         }
     }, [miCuentaAcumulada, nombreCliente, ultimoEstadoCuenta, mostrarDespedida, confirmarSalida]);
 
-    // --- EFECTO: CONTADOR DE DESPEDIDA ---
     useEffect(() => {
         let intervalo;
         if (mostrarDespedida && tiempoDespedida > 0) {
@@ -546,28 +527,25 @@ const [carrito, setCarrito] = useState(() => {
         return () => clearInterval(intervalo);
     }, [mostrarDespedida, tiempoDespedida]);
 
-    // 3. FUNCIÓN DE SALIDA
     const handleSalidaCompleta = () => {
         localStorage.removeItem('lya_cliente_nombre');
         localStorage.removeItem('lya_cliente_telefono');
-        localStorage.removeItem('lya_carrito_temp'); // --- CAMBIO 4: LIMPIAR AL SALIR ---
+        localStorage.removeItem('lya_carrito_temp'); 
 
         setNombreCliente(null);
         setTelefonoCliente(null);
         setUltimoEstadoCuenta(null);
         setPedidoEnviado(false);
         setViendoCuentaTotal(false);
-        setViendoMenuSoloLectura(false); // Resetear modo lectura
+        setViendoMenuSoloLectura(false); 
         setMostrarDespedida(false);
         setTiempoDespedida(10);
         onSalir();
     };
 
-    // 4. FUNCIONES DE INGRESO
     const handleLoginExitoso = (nombre, telefono) => {
         localStorage.setItem('lya_cliente_nombre', nombre);
         if (telefono) localStorage.setItem('lya_cliente_telefono', telefono);
-        
         setNombreCliente(nombre);
         setTelefonoCliente(telefono);
     };
@@ -575,13 +553,11 @@ const [carrito, setCarrito] = useState(() => {
     const handleIngresoConCuentaExistente = (n, t) => {
         localStorage.setItem('lya_cliente_nombre', n);
         if (t) localStorage.setItem('lya_cliente_telefono', t);
-
         setNombreCliente(n);
         setTelefonoCliente(t);
         setPedidoEnviado(true);
     };
 
-    // --- EFECTO: LIMPIAR CARRITO SI SE PAUSA UN PRODUCTO ---
     useEffect(() => {
         if (carrito.length > 0) {
             const itemsValidos = carrito.filter(itemCarrito => {
@@ -667,7 +643,7 @@ const [carrito, setCarrito] = useState(() => {
             await onRealizarPedido(mesa.id, nombreCliente, carrito, telefonoCliente); 
             setPedidoEnviado(true); 
             setCarrito([]); 
-            localStorage.removeItem('lya_carrito_temp'); // --- CAMBIO 3: LIMPIAR AL CONFIRMAR ---
+            localStorage.removeItem('lya_carrito_temp'); 
             setEnviando(false);
             setErrorConfirmacion(null);
         } catch (err) {
@@ -693,9 +669,6 @@ const [carrito, setCarrito] = useState(() => {
         );
     }
 
-    // --- PRIORIDAD 2: BLOQUEO DE SERVICIO ---
-    // Se muestra si el servicio está apagado Y el usuario no tiene un pedido activo confirmado en BD.
-    // (Si tiene pedido activo en BD, lo dejamos pasar para que vea su estatus).
     if (!servicioActivo && !tienePedidoActivo) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6 text-center animate-fade-in">
@@ -709,7 +682,6 @@ const [carrito, setCarrito] = useState(() => {
                 <div className="text-xs text-gray-400 font-medium">
                     Horario de atención finalizado o en pausa.
                 </div>
-                {/* Opcional: Botón para forzar salida si se quedó pegado */}
                 <button onClick={onSalir} className="mt-8 text-gray-400 underline text-sm">Salir del sistema</button>
             </div>
         );
@@ -749,7 +721,6 @@ const [carrito, setCarrito] = useState(() => {
         ); 
     }
 
-    // --- SE MUESTRA SOLO SI EL PEDIDO FUE ENVIADO Y NO ESTÁ VIENDO EL MENÚ EN MODO SOLO LECTURA ---
     if (pedidoEnviado && !viendoMenuSoloLectura) { 
         return (
             <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center p-8 text-center animate-fade-in-up relative">
@@ -834,7 +805,6 @@ const [carrito, setCarrito] = useState(() => {
                         <Receipt size={18}/> Ver mi Cuenta
                     </button>
                     
-                    {/* BOTÓN NUEVO: VER MENÚ SOLO LECTURA */}
                     <button onClick={() => setViendoMenuSoloLectura(true)} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-blue-700 transition flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
                         <BookOpen size={18}/> Ver Menú (Solo Lectura)
                     </button>
@@ -852,204 +822,205 @@ const [carrito, setCarrito] = useState(() => {
         ); 
     }
 
+    // --- AQUÍ ESTÁ EL CAMBIO CLAVE PARA EL FONDO ESTÁTICO ---
     return (
-    <div 
-        className="min-h-screen bg-gray-50 pb-32"
-        style={{ 
-            backgroundImage: `url(${fondoImagen})`, 
-            backgroundSize: 'cover', 
-            backgroundPosition: 'center',
-            backgroundAttachment: 'fixed' // 'fixed' hace que el fondo se quede quieto mientras haces scroll
-        }}
-    >
-        <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
+        <div className="min-h-screen bg-gray-50 relative"> 
             
-            {/* AVISO DE MODO SOLO LECTURA */}
-            {viendoMenuSoloLectura && (
-                <div className="bg-blue-600 text-white px-4 py-3 sticky top-0 z-30 shadow-md text-center">
-                    <p className="text-sm font-bold flex items-center justify-center gap-2">
-                        <Info size={18} className="shrink-0" />
-                        Modo Consulta: Para pedir más, avisa al personal.
-                    </p>
-                </div>
-            )}
+            {/* CAPA DE FONDO FIJA: ESTO EVITA EL "REBOTE" BLANCO */}
+            <div 
+                className="fixed inset-0 z-0 pointer-events-none" 
+                style={{ 
+                    backgroundImage: `url(${fondoImagen})`, 
+                    backgroundSize: 'cover', 
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat'
+                }}
+            />
 
-            <div className={`bg-white p-4 ${viendoMenuSoloLectura ? 'sticky top-[48px]' : 'sticky top-0'} z-20 shadow-sm flex justify-between items-center border-b border-gray-100`}>
-    <div>
-        <div className="flex items-center gap-2 mb-0.5">
-            <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
-            {/* AQUÍ AGREGAMOS LA ETIQUETA DE LA MESA */}
-            <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-orange-200">
-                {mesa.nombre}
-            </span>
-        </div>
-        <p className="text-xs text-gray-500">Hola, <span className="font-bold text-gray-800">{nombreCliente}</span></p>
-    </div>
-                <div className="flex items-center gap-2">
-                    {/* Botón Salir cambia a Volver si está en modo lectura */}
-                    {viendoMenuSoloLectura ? (
-                        <button onClick={() => setViendoMenuSoloLectura(false)} className="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-blue-100 hover:bg-blue-100">
-                            <ArrowLeft size={14}/> Volver a mi Pedido
-                        </button>
-                    ) : (
-                        <>
-                            {miCuentaAcumulada && (<button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100"><DollarSign size={14}/> {miCuentaAcumulada.total}</button>)}
-                            <button onClick={() => setConfirmarSalida(true)} className="text-xs bg-gray-100 p-2 rounded text-gray-500 hover:bg-red-50 hover:text-red-500 transition">Salir</button>
-                        </>
+            {/* CONTENIDO SCROLLABLE POR ENCIMA */}
+            <div className="relative z-10 pb-32">
+                <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
+                
+                {viendoMenuSoloLectura && (
+                    <div className="bg-blue-600 text-white px-4 py-3 sticky top-0 z-30 shadow-md text-center">
+                        <p className="text-sm font-bold flex items-center justify-center gap-2">
+                            <Info size={18} className="shrink-0" />
+                            Modo Consulta: Para pedir más, avisa al personal.
+                        </p>
+                    </div>
+                )}
+
+                <div className={`bg-white p-4 ${viendoMenuSoloLectura ? 'sticky top-[48px]' : 'sticky top-0'} z-20 shadow-sm flex justify-between items-center border-b border-gray-100`}>
+                    <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <h2 className="font-bold text-gray-800 leading-tight">Menú Digital</h2>
+                            <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide border border-orange-200">
+                                {mesa.nombre}
+                            </span>
+                        </div>
+                        <p className="text-xs text-gray-500">Hola, <span className="font-bold text-gray-800">{nombreCliente}</span></p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {viendoMenuSoloLectura ? (
+                            <button onClick={() => setViendoMenuSoloLectura(false)} className="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-blue-100 hover:bg-blue-100">
+                                <ArrowLeft size={14}/> Volver a mi Pedido
+                            </button>
+                        ) : (
+                            <>
+                                {miCuentaAcumulada && (<button onClick={() => setViendoCuentaTotal(true)} className="bg-orange-50 text-orange-600 p-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-orange-100"><DollarSign size={14}/> {miCuentaAcumulada.total}</button>)}
+                                <button onClick={() => setConfirmarSalida(true)} className="text-xs bg-gray-100 p-2 rounded text-gray-500 hover:bg-red-50 hover:text-red-500 transition">Salir</button>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                <div className={`bg-white/95 backdrop-blur-sm ${viendoMenuSoloLectura ? 'sticky top-[121px]' : 'sticky top-[73px]'} z-10 px-4 py-3 border-b border-gray-200 shadow-sm`}>
+                    <div className="relative mb-3">
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="¿Qué se te antoja hoy?" 
+                            className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                        />
+                        {busqueda && (
+                            <button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>
+                        )}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                        <button onClick={() => setCategoriaFiltro('Todas')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>Todas</button>
+                        {ORDEN_CATEGORIAS.map(cat => (<button key={cat} onClick={() => setCategoriaFiltro(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}>{cat}</button>))}
+                    </div>
+                </div>
+
+                <div className="p-4">
+                    {ORDEN_CATEGORIAS.map(cat => {
+                        if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null;
+                        const prods = productosFiltrados.filter(p => p.categoria === cat);
+                        if (prods.length === 0) return null;
+
+                        return (
+                            <div key={cat} className="mb-8 animate-fade-in-up">
+                                <h3 className="font-bold text-xl text-orange-700 bg-white/90 p-3 rounded-xl shadow-sm mb-4 flex items-center gap-2 backdrop-blur-sm">
+                                {cat} 
+                                <span className="text-xs font-normal text-white bg-orange-400 px-2 py-0.5 rounded-full">
+                                    {prods.length}
+                                </span>
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    {prods.map(prod => (
+                                        <div key={prod.id} className="h-full">
+                                            <CardProducto 
+                                                producto={prod} 
+                                                onClick={() => setProductoVerDetalles(prod)} 
+                                                onAdd={viendoMenuSoloLectura ? null : (p) => agregarAlCarrito(p)} 
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {productosFiltrados.length === 0 && (
+                        <div className="text-center py-10 opacity-60">
+                            <Search size={48} className="mx-auto mb-3 text-gray-300"/>
+                            <p className="text-gray-500 font-medium">No encontramos productos con "{busqueda}".</p>
+                            <button onClick={() => {setBusqueda(''); setCategoriaFiltro('Todas');}} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Ver todo el menú</button>
+                        </div>
                     )}
                 </div>
-            </div>
 
-            <div className={`bg-white/95 backdrop-blur-sm ${viendoMenuSoloLectura ? 'sticky top-[121px]' : 'sticky top-[73px]'} z-10 px-4 py-3 border-b border-gray-200 shadow-sm`}>
-                <div className="relative mb-3">
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                    <input 
-                        type="text" 
-                        placeholder="¿Qué se te antoja hoy?" 
-                        className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400"
-                        value={busqueda}
-                        onChange={(e) => setBusqueda(e.target.value)}
+                {!viendoMenuSoloLectura && (
+                    <CarritoFlotante 
+                        cuenta={carrito} 
+                        onUpdateCantidad={actualizarCantidad} 
+                        onEliminar={eliminarItem} 
+                        onConfirmar={confirmarPedido} 
+                        enviando={enviando}
                     />
-                    {busqueda && (
-                        <button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>
-                    )}
-                </div>
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <button onClick={() => setCategoriaFiltro('Todas')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>Todas</button>
-                    {ORDEN_CATEGORIAS.map(cat => (<button key={cat} onClick={() => setCategoriaFiltro(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}>{cat}</button>))}
-                </div>
-            </div>
+                )}
+                
+                <ModalInfoProducto 
+                    isOpen={!!productoVerDetalles} 
+                    onClose={() => setProductoVerDetalles(null)} 
+                    producto={productoVerDetalles} 
+                    onAgregar={viendoMenuSoloLectura ? null : agregarAlCarrito} 
+                />
 
-            <div className="p-4">
-                {ORDEN_CATEGORIAS.map(cat => {
-                    if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null;
-                    const prods = productosFiltrados.filter(p => p.categoria === cat);
-                    if (prods.length === 0) return null;
+                <ModalConfirmacion 
+                    isOpen={confirmarSalida}
+                    onClose={() => setConfirmarSalida(false)}
+                    onConfirm={handleSalidaCompleta}
+                    titulo="¿Cerrar Sesión?"
+                    mensaje="Si ya confirmó algo, tu cuenta seguirá abierta y activa en el sistema para que nuestro personal lo atienda. Puedes volver a ingresar con tu nombre."
+                    tipo="eliminar" 
+                />
 
-                    return (
-                        <div key={cat} className="mb-8 animate-fade-in-up">
-                            <h3 className="font-bold text-xl text-orange-700 bg-white/90 p-3 rounded-xl shadow-sm mb-4 flex items-center gap-2 backdrop-blur-sm">
-                            {cat} 
-                             <span className="text-xs font-normal text-white bg-orange-400 px-2 py-0.5 rounded-full">
-                                 {prods.length}
-                             </span>
-                            </h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                {prods.map(prod => (
-                                    <div key={prod.id} className="h-full">
-                                        <CardProducto 
-                                            producto={prod} 
-                                            onClick={() => setProductoVerDetalles(prod)} 
-                                            /* --- AQUI ESTA EL CAMBIO: Enviamos null si es solo lectura --- */
-                                            onAdd={viendoMenuSoloLectura ? null : (p) => agregarAlCarrito(p)} 
-                                        />
+                {errorConfirmacion && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                        <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in">
+                            <div className={`p-6 text-center ${errorConfirmacion === 'offline' ? 'bg-red-50' : 'bg-orange-50'}`}>
+                                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm ${errorConfirmacion === 'offline' ? 'bg-red-100 text-red-500' : 'bg-orange-100 text-orange-500'}`}>
+                                    {errorConfirmacion === 'offline' ? <WifiOff size={32} /> : <ServerOff size={32} />}
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-800 mb-1">
+                                    {errorConfirmacion === 'offline' ? '¡Sin Conexión!' : 'Algo salió mal'}
+                                </h3>
+                                <p className="text-sm text-gray-600 leading-relaxed">
+                                    {errorConfirmacion === 'offline' 
+                                        ? 'Parece que perdiste la conexión a internet justo antes de enviar tu pedido.' 
+                                        : 'Hubo un problema técnico al comunicarse con la cocina.'}
+                                </p>
+                            </div>
+
+                            <div className="p-6">
+                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 mb-6">
+                                    <div className="text-blue-500 shrink-0 mt-0.5"><HelpCircle size={20} /></div>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-700 uppercase mb-1">¿Qué puedes hacer?</p>
+                                        <p className="text-sm text-gray-600">
+                                            {esParaLlevar
+                                                ? 'Por favor, acércate a CAJA y muéstrales esta pantalla para que tomen tu pedido manualmente.'
+                                                : 'Por favor, llama a un MESERO y muéstrale esta pantalla. Él tomará tu orden enseguida.'}
+                                        </p>
                                     </div>
-                                ))}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button 
+                                        onClick={cerrarModalError}
+                                        disabled={enviando}
+                                        className="py-3 px-4 rounded-xl border-2 border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    >
+                                        Cerrar
+                                    </button>
+                                    <button 
+                                        onClick={confirmarPedido}
+                                        disabled={enviando}
+                                        className={`py-3 px-4 rounded-xl font-bold transition-colors shadow-lg shadow-gray-200 flex items-center justify-center gap-2 ${
+                                            enviando 
+                                            ? 'bg-gray-700 text-gray-300 cursor-wait' 
+                                            : 'bg-gray-900 text-white hover:bg-gray-800'
+                                        }`}
+                                    >
+                                        {enviando ? (
+                                            <>
+                                                <Loader size={18} className="animate-spin" /> Verificando...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RefreshCw size={18} /> Reintentar
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    );
-                })}
-
-                {productosFiltrados.length === 0 && (
-                    <div className="text-center py-10 opacity-60">
-                        <Search size={48} className="mx-auto mb-3 text-gray-300"/>
-                        <p className="text-gray-500 font-medium">No encontramos productos con "{busqueda}".</p>
-                        <button onClick={() => {setBusqueda(''); setCategoriaFiltro('Todas');}} className="mt-4 text-orange-600 text-sm font-bold hover:underline">Ver todo el menú</button>
                     </div>
                 )}
             </div>
-
-            {/* OCULTAR CARRITO FLOTANTE SI ESTÁ EN MODO SOLO LECTURA */}
-            {!viendoMenuSoloLectura && (
-                <CarritoFlotante 
-                    cuenta={carrito} 
-                    onUpdateCantidad={actualizarCantidad} 
-                    onEliminar={eliminarItem} 
-                    onConfirmar={confirmarPedido} 
-                    enviando={enviando}
-                />
-            )}
-            
-            <ModalInfoProducto 
-                isOpen={!!productoVerDetalles} 
-                onClose={() => setProductoVerDetalles(null)} 
-                producto={productoVerDetalles} 
-                /* --- AQUI TAMBIEN EL CAMBIO --- */
-                onAgregar={viendoMenuSoloLectura ? null : agregarAlCarrito} 
-            />
-
-            <ModalConfirmacion 
-                isOpen={confirmarSalida}
-                onClose={() => setConfirmarSalida(false)}
-                onConfirm={handleSalidaCompleta}
-                titulo="¿Cerrar Sesión?"
-                mensaje="Si ya confirmó algo, tu cuenta seguirá abierta y activa en el sistema para que nuestro personal lo atienda. Puedes volver a ingresar con tu nombre."
-                tipo="eliminar" 
-            />
-
-            {/* --- MODAL DE ERROR DE CONEXIÓN --- */}
-            {errorConfirmacion && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scale-in">
-                        <div className={`p-6 text-center ${errorConfirmacion === 'offline' ? 'bg-red-50' : 'bg-orange-50'}`}>
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm ${errorConfirmacion === 'offline' ? 'bg-red-100 text-red-500' : 'bg-orange-100 text-orange-500'}`}>
-                                {errorConfirmacion === 'offline' ? <WifiOff size={32} /> : <ServerOff size={32} />}
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-1">
-                                {errorConfirmacion === 'offline' ? '¡Sin Conexión!' : 'Algo salió mal'}
-                            </h3>
-                            <p className="text-sm text-gray-600 leading-relaxed">
-                                {errorConfirmacion === 'offline' 
-                                    ? 'Parece que perdiste la conexión a internet justo antes de enviar tu pedido.' 
-                                    : 'Hubo un problema técnico al comunicarse con la cocina.'}
-                            </p>
-                        </div>
-
-                        <div className="p-6">
-                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 mb-6">
-                                <div className="text-blue-500 shrink-0 mt-0.5"><HelpCircle size={20} /></div>
-                                <div>
-                                    <p className="text-xs font-bold text-gray-700 uppercase mb-1">¿Qué puedes hacer?</p>
-                                    <p className="text-sm text-gray-600">
-                                        {esParaLlevar
-                                            ? 'Por favor, acércate a CAJA y muéstrales esta pantalla para que tomen tu pedido manualmente.'
-                                            : 'Por favor, llama a un MESERO y muéstrale esta pantalla. Él tomará tu orden enseguida.'}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                <button 
-                                    onClick={cerrarModalError}
-                                    disabled={enviando}
-                                    className="py-3 px-4 rounded-xl border-2 border-gray-200 font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                                >
-                                    Cerrar
-                                </button>
-                                <button 
-                                    onClick={confirmarPedido}
-                                    disabled={enviando}
-                                    className={`py-3 px-4 rounded-xl font-bold transition-colors shadow-lg shadow-gray-200 flex items-center justify-center gap-2 ${
-                                        enviando 
-                                        ? 'bg-gray-700 text-gray-300 cursor-wait' 
-                                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                                    }`}
-                                >
-                                    {enviando ? (
-                                        <>
-                                            <Loader size={18} className="animate-spin" /> Verificando...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <RefreshCw size={18} /> Reintentar
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, X, CloudUpload, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock } from 'lucide-react';
+import { BarChart3, X, CloudUpload, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, Sparkles, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, PRODUCTOS_CAFETERIA_INIT, MESAS_FISICAS_INIT, getFechaHoy } from '../utils/config';
 
@@ -9,6 +9,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 // --- IMPORTACIONES DE FIREBASE ---
 import { db } from '../firebase';
 import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
+
+// --- IMPORTAMOS LOS ROLES DEFINIDOS ---
+import { ROLES } from '../utils/roles';
 
 // MODAL DETALLE CORTE
 const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
@@ -406,14 +409,215 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
 
 // COMPONENTE MODAL USUARIO Y VISTA GESTIÓN USUARIOS (SIN CAMBIOS)
 const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
-    const [form, setForm] = useState({ nombre: '', usuario: '', password: '', rol: 'empleado' });
-    useEffect(() => { if (usuarioAEditar) { setForm(usuarioAEditar); } else { setForm({ nombre: '', usuario: '', password: '', rol: 'empleado' }); } }, [usuarioAEditar, isOpen]);
-    const generarCredenciales = () => { if (!form.nombre.trim()) return; const limpiarTexto = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, ""); const partes = form.nombre.trim().split(/\s+/); const nombre1 = partes[0] ? limpiarTexto(partes[0]) : ""; const apellido = partes.length > 1 ? limpiarTexto(partes[1]) : ""; if (!form.usuario) { let usuarioBase = nombre1; if (apellido) usuarioBase += `.${apellido}`; const usuarioSugerido = `${usuarioBase.toLowerCase()}@lya.com`; setForm(prev => ({ ...prev, usuario: usuarioSugerido })); } if (!form.password) { const random = Math.floor(1000 + Math.random() * 9000); const passSugerida = `LyA.${random}`; setForm(prev => ({ ...prev, password: passSugerida })); } };
+    // Usamos 'empleado general' como default
+    const [form, setForm] = useState({ nombre: '', usuario: '', password: '', rol: ROLES.GENERAL });
+
+    useEffect(() => { 
+        if (usuarioAEditar) { setForm(usuarioAEditar); } 
+        else { setForm({ nombre: '', usuario: '', password: '', rol: ROLES.GENERAL }); } 
+    }, [usuarioAEditar, isOpen]);
+
+    const generarCredenciales = () => { 
+        if (!form.nombre.trim()) return; 
+        const limpiarTexto = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, ""); 
+        const partes = form.nombre.trim().split(/\s+/); 
+        const nombre1 = partes[0] ? limpiarTexto(partes[0]) : ""; 
+        const apellido = partes.length > 1 ? limpiarTexto(partes[1]) : ""; 
+        if (!form.usuario) { 
+            let usuarioBase = nombre1; 
+            if (apellido) usuarioBase += `.${apellido}`; 
+            const usuarioSugerido = `${usuarioBase.toLowerCase()}@lya.com`; 
+            setForm(prev => ({ ...prev, usuario: usuarioSugerido })); 
+        } 
+        if (!form.password) { 
+            const random = Math.floor(1000 + Math.random() * 9000); 
+            const passSugerida = `LyA.${random}`; 
+            setForm(prev => ({ ...prev, password: passSugerida })); 
+        } 
+    };
+
     if (!isOpen) return null;
-    const handleSubmit = (e) => { e.preventDefault(); let usuarioFinal = form.usuario.trim(); if (!usuarioFinal.endsWith('@lya.com')) { if (!usuarioFinal.includes('@')) { usuarioFinal += '@lya.com'; } } onGuardar({ ...form, usuario: usuarioFinal }); onClose(); };
-    return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-[250] flex items-center justify-center p-4 backdrop-blur-sm"> <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up border-t-8 border-gray-900"> <div className="bg-gray-50 p-6 flex justify-between items-center border-b border-gray-100"> <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"> {usuarioAEditar ? <Edit size={20} className="text-pink-600"/> : <UserPlus size={20} className="text-pink-600"/>} {usuarioAEditar ? 'Editar Usuario' : 'Nuevo Usuario'} </h3> <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition"><X size={20}/></button> </div> <form onSubmit={handleSubmit} className="p-6 space-y-5"> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre y Primer Apellido</label> <input required className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none transition-colors uppercase font-bold text-gray-700" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value.toUpperCase()})} onBlur={generarCredenciales} placeholder="EJ. JUAN PÉREZ" /> <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"> <Sparkles size={10} className="text-yellow-500"/> Se generarán credenciales automáticamente </p> </div> <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100"> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Usuario (Login)</label> <input required className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" value={form.usuario} onChange={e => setForm({...form, usuario: e.target.value})} placeholder="juan.perez@lya.com" /> </div> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Contraseña</label> <input required type="text" className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Generada..." /> </div> </div> <div> <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Asignar Rol</label> <div className="grid grid-cols-2 gap-3"> <button type="button" onClick={() => setForm({...form, rol: 'admin'})} className={`p-3 rounded-xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${form.rol === 'admin' ? 'bg-pink-50 border-pink-500 text-pink-700' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}> <Shield size={20}/> Admin </button> <button type="button" onClick={() => setForm({...form, rol: 'empleado'})} className={`p-3 rounded-xl border-2 text-sm font-bold flex flex-col items-center justify-center gap-1 transition-all ${form.rol === 'empleado' ? 'bg-orange-50 border-orange-500 text-orange-700' : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}> <Briefcase size={20}/> Empleado </button> </div> </div> <button type="submit" className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 flex justify-center items-center gap-2"> <Check size={20}/> {usuarioAEditar ? 'Guardar Cambios' : 'Crear Usuario'} </button> </form> </div> </div> );
+
+    const handleSubmit = (e) => { 
+        e.preventDefault(); 
+        let usuarioFinal = form.usuario.trim(); 
+        if (!usuarioFinal.endsWith('@lya.com')) { 
+            if (!usuarioFinal.includes('@')) { usuarioFinal += '@lya.com'; } 
+        } 
+        onGuardar({ ...form, usuario: usuarioFinal }); 
+        onClose(); 
+    };
+
+    // Helper para botones de rol
+    const BotonRol = ({ rolValue, label, colorBorder, icon: Icon }) => (
+        <button 
+            type="button" 
+            onClick={() => setForm({...form, rol: rolValue})} 
+            className={`p-3 rounded-xl border-2 text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all flex-1 
+            ${form.rol === rolValue ? `bg-gray-50 ${colorBorder} text-gray-800` : 'bg-white border-gray-100 text-gray-400 hover:border-gray-300'}`}
+        >
+            <Icon size={18}/> <span className="text-center">{label}</span>
+        </button>
+    );
+
+    return ( 
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[250] flex items-center justify-center p-4 backdrop-blur-sm"> 
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in-up border-t-8 border-gray-900"> 
+                <div className="bg-gray-50 p-6 flex justify-between items-center border-b border-gray-100"> 
+                    <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2"> 
+                        {usuarioAEditar ? <Edit size={20} className="text-pink-600"/> : <UserPlus size={20} className="text-pink-600"/>} 
+                        {usuarioAEditar ? 'Editar Usuario' : 'Nuevo Usuario'} 
+                    </h3> 
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition"><X size={20}/></button> 
+                </div> 
+                <form onSubmit={handleSubmit} className="p-6 space-y-5"> 
+                    <div> 
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nombre y Primer Apellido</label> 
+                        <input required className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none transition-colors uppercase font-bold text-gray-700" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value.toUpperCase()})} onBlur={generarCredenciales} placeholder="EJ. JUAN PÉREZ" /> 
+                    </div> 
+                    <div className="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100"> 
+                        <div> 
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Usuario</label> 
+                            <input required className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" value={form.usuario} onChange={e => setForm({...form, usuario: e.target.value})} placeholder="juan.perez@lya.com" /> 
+                        </div> 
+                        <div> 
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Contraseña</label> 
+                            <input required type="text" className="w-full p-2 border border-gray-200 rounded-lg bg-white text-sm font-mono text-gray-600 focus:border-pink-500 focus:outline-none" value={form.password} onChange={e => setForm({...form, password: e.target.value})} placeholder="Generada..." /> 
+                        </div> 
+                    </div> 
+                    
+                    <div> 
+                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Asignar Rol</label> 
+                        <div className="grid grid-cols-2 gap-2"> 
+                            <BotonRol rolValue={ROLES.ADMIN} label="ADMIN" colorBorder="border-pink-500" icon={Shield} />
+                            <BotonRol rolValue={ROLES.GENERAL} label="GENERAL" colorBorder="border-purple-500" icon={Briefcase} />
+                            <BotonRol rolValue={ROLES.PASTELERIA} label="PASTELERÍA" colorBorder="border-pink-400" icon={Cake} />
+                            <BotonRol rolValue={ROLES.CAFETERIA} label="CAFETERÍA" colorBorder="border-orange-500" icon={Coffee} />
+                        </div> 
+                    </div> 
+
+                    <button type="submit" className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 flex justify-center items-center gap-2"> 
+                        <Check size={20}/> {usuarioAEditar ? 'Guardar Cambios' : 'Crear Usuario'} 
+                    </button> 
+                </form> 
+            </div> 
+        </div> 
+    );
 };
 
+// --- GESTIÓN USUARIOS ACTUALIZADA ---
 export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
-    const [modalOpen, setModalOpen] = useState(false); const [usuarioEditar, setUsuarioEditar] = useState(null); const [usuarioEliminar, setUsuarioEliminar] = useState(null); const administradores = usuarios.filter(u => u.rol === 'admin'); const empleados = usuarios.filter(u => u.rol === 'empleado'); return ( <div className="p-4 md:p-8 h-full overflow-y-auto"> <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4"> <div> <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2"> <Users className="text-pink-600" /> Gestión de Usuarios </h2> <p className="text-gray-500 text-sm mt-1">Administra quién tiene acceso al sistema.</p> </div> <button onClick={() => { setUsuarioEditar(null); setModalOpen(true); }} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition transform active:scale-95 w-full sm:w-auto justify-center"> <UserPlus size={20}/> Nuevo Usuario </button> </div> <div className="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div className="bg-pink-50/50 rounded-3xl p-6 border border-pink-100 h-fit"> <h3 className="font-bold text-xl text-pink-800 mb-4 flex items-center gap-2"> <Shield size={24}/> Administradores <span className="text-xs bg-pink-200 text-pink-800 px-2 py-1 rounded-full">{administradores.length}</span> </h3> <div className="space-y-3"> {administradores.map(user => ( <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden"> <div className="absolute left-0 top-0 bottom-0 w-1 bg-pink-400"></div> <div className="flex items-center gap-3 pl-2"> <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-lg border border-pink-200 shadow-sm"> {user.nombre.charAt(0)} </div> <div> <p className="font-bold text-gray-800">{user.nombre}</p> <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit">{user.usuario}</p> </div> </div> <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"> <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={18}/></button> <button onClick={() => setUsuarioEliminar(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={18}/></button> </div> </div> ))} {administradores.length === 0 && ( <div className="text-center py-8 opacity-50"> <Shield size={40} className="mx-auto mb-2 text-gray-300"/> <p className="text-gray-400 italic text-sm">No hay administradores.</p> </div> )} </div> </div> <div className="bg-orange-50/50 rounded-3xl p-6 border border-orange-100 h-fit"> <h3 className="font-bold text-xl text-orange-800 mb-4 flex items-center gap-2"> <Briefcase size={24}/> Empleados <span className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded-full">{empleados.length}</span> </h3> <div className="space-y-3"> {empleados.map(user => ( <div key={user.id} className="bg-white p-4 rounded-xl shadow-sm border border-orange-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden"> <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div> <div className="flex items-center gap-3 pl-2"> <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-lg border border-orange-200 shadow-sm"> {user.nombre.charAt(0)} </div> <div> <p className="font-bold text-gray-800">{user.nombre}</p> <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit">{user.usuario}</p> </div> </div> <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"> <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={18}/></button> <button onClick={() => setUsuarioEliminar(user)} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={18}/></button> </div> </div> ))} {empleados.length === 0 && ( <div className="text-center py-8 opacity-50"> <Briefcase size={40} className="mx-auto mb-2 text-gray-300"/> <p className="text-gray-400 italic text-sm">No hay empleados registrados.</p> </div> )} </div> </div> </div> <ModalUsuario isOpen={modalOpen} onClose={() => setModalOpen(false)} onGuardar={onGuardar} usuarioAEditar={usuarioEditar} /> <ModalConfirmacion isOpen={!!usuarioEliminar} onClose={() => setUsuarioEliminar(null)} onConfirm={() => { onEliminar(usuarioEliminar.id); setUsuarioEliminar(null); }} titulo="¿Eliminar Usuario?" mensaje={`Se eliminará permanentemente la cuenta de "${usuarioEliminar?.nombre}".`} /> </div> );
+    const [modalOpen, setModalOpen] = useState(false); 
+    const [usuarioEditar, setUsuarioEditar] = useState(null); 
+    const [usuarioEliminar, setUsuarioEliminar] = useState(null); 
+    
+    // Clasificamos usuarios en 4 grupos
+    const administradores = usuarios.filter(u => u.rol === ROLES.ADMIN);
+    const generales = usuarios.filter(u => u.rol === ROLES.GENERAL);
+    const pasteleros = usuarios.filter(u => u.rol === ROLES.PASTELERIA);
+    const cafeteros = usuarios.filter(u => u.rol === ROLES.CAFETERIA);
+
+    // Componente reutilizable para cada tarjeta de grupo
+    const GrupoCard = ({ titulo, lista, colorBg, colorBorder, colorText, icon: Icon, colorIcon, iconBg }) => (
+        <div className={`${colorBg} rounded-3xl p-6 border ${colorBorder} h-full flex flex-col`}>
+            <h3 className={`font-bold text-xl ${colorText} mb-4 flex items-center gap-2`}>
+                <Icon size={24}/> {titulo} 
+                <span className={`text-xs px-2 py-1 rounded-full bg-white/50 border border-white/50 ${colorText}`}>{lista.length}</span>
+            </h3>
+            <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
+                {lista.map(user => (
+                    <div key={user.id} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group hover:shadow-md transition relative overflow-hidden">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorText.replace('text-', 'bg-').replace('800', '400')}`}></div>
+                        <div className="flex items-center gap-3 pl-2 overflow-hidden">
+                            <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center ${colorIcon} font-bold text-sm border border-opacity-20 shadow-sm shrink-0`}>
+                                {user.nombre.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="font-bold text-gray-800 text-sm truncate">{user.nombre}</p>
+                                <p className="text-[9px] uppercase font-bold text-gray-400 tracking-wider bg-gray-50 px-1 rounded w-fit truncate">{user.usuario}</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => { setUsuarioEditar(user); setModalOpen(true); }} className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded-lg transition"><Edit size={16}/></button>
+                            <button onClick={() => setUsuarioEliminar(user)} className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-600 rounded-lg transition"><Trash2 size={16}/></button>
+                        </div>
+                    </div>
+                ))}
+                {lista.length === 0 && (
+                    <div className="text-center py-8 opacity-40">
+                        <Icon size={32} className="mx-auto mb-2 text-gray-400"/>
+                        <p className="text-gray-500 italic text-xs">Sin usuarios.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    return ( 
+        <div className="p-4 md:p-8 h-full overflow-y-auto"> 
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4"> 
+                <div> 
+                    <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2"> <Users className="text-pink-600" /> Gestión de Usuarios </h2> 
+                    <p className="text-gray-500 text-sm mt-1">Administra quién tiene acceso al sistema.</p> 
+                </div> 
+                <button onClick={() => { setUsuarioEditar(null); setModalOpen(true); }} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition transform active:scale-95 w-full sm:w-auto justify-center"> <UserPlus size={20}/> Nuevo Usuario </button> 
+            </div> 
+            
+            {/* GRID DE 4 CUADRITOS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-auto pb-4">
+                
+                {/* 1. ADMINS */}
+                <GrupoCard 
+                    titulo="Administradores" 
+                    lista={administradores} 
+                    colorBg="bg-pink-50/50" 
+                    colorBorder="border-pink-100" 
+                    colorText="text-pink-800" 
+                    icon={Shield} 
+                    colorIcon="text-pink-600" 
+                    iconBg="bg-pink-100"
+                />
+
+                {/* 2. GENERALES */}
+                <GrupoCard 
+                    titulo="Empleados Generales" 
+                    lista={generales} 
+                    colorBg="bg-purple-50/50" 
+                    colorBorder="border-purple-100" 
+                    colorText="text-purple-800" 
+                    icon={Briefcase} 
+                    colorIcon="text-purple-600" 
+                    iconBg="bg-purple-100"
+                />
+
+                {/* 3. PASTELERÍA */}
+                <GrupoCard 
+                    titulo="Staff Pastelería" 
+                    lista={pasteleros} 
+                    colorBg="bg-rose-50/50" 
+                    colorBorder="border-rose-100" 
+                    colorText="text-rose-800" 
+                    icon={Cake} 
+                    colorIcon="text-rose-600" 
+                    iconBg="bg-rose-100"
+                />
+
+                {/* 4. CAFETERÍA */}
+                <GrupoCard 
+                    titulo="Staff Cafetería" 
+                    lista={cafeteros} 
+                    colorBg="bg-orange-50/50" 
+                    colorBorder="border-orange-100" 
+                    colorText="text-orange-800" 
+                    icon={Coffee} 
+                    colorIcon="text-orange-600" 
+                    iconBg="bg-orange-100"
+                />
+
+            </div> 
+            
+            <ModalUsuario isOpen={modalOpen} onClose={() => setModalOpen(false)} onGuardar={onGuardar} usuarioAEditar={usuarioEditar} /> 
+            <ModalConfirmacion isOpen={!!usuarioEliminar} onClose={() => setUsuarioEliminar(null)} onConfirm={() => { onEliminar(usuarioEliminar.id); setUsuarioEliminar(null); }} titulo="¿Eliminar Usuario?" mensaje={`Se eliminará permanentemente la cuenta de "${usuarioEliminar?.nombre}".`} /> 
+        </div> 
+    );
 };

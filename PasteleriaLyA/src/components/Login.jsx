@@ -1,8 +1,61 @@
-import React, { useState } from 'react';
-import { User, Lock, ArrowRight, Eye, EyeOff, AlertCircle, Loader, ShieldCheck, ArrowLeft, Phone, UserCog } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Lock, ArrowRight, Eye, EyeOff, AlertCircle, Loader, ShieldCheck, ArrowLeft, Phone, UserCog, Coffee, Sparkles } from 'lucide-react';
 
 // IMPORTA TU IMAGEN
 import fondoLogin from '../assets/Login.png'; 
+
+// --- COMPONENTE DE PANTALLA DE CARGA (SPLASH SCREEN) ---
+const SplashScreen = () => {
+    return (
+        <div className="fixed inset-0 z-50 bg-[#fff5f0] flex flex-col items-center justify-center overflow-hidden">
+            {/* Decoración de fondo (Manchas de color suaves) */}
+            <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-pink-200 rounded-full blur-3xl opacity-40 animate-pulse"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-orange-200 rounded-full blur-3xl opacity-40 animate-pulse delay-700"></div>
+
+            {/* Contenedor Central Animado */}
+            <div className="relative flex flex-col items-center z-10">
+                {/* Círculo con Icono */}
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-pink-400 to-orange-400 rounded-full blur-lg opacity-60 animate-ping"></div>
+                    <div className="w-24 h-24 bg-white rounded-full shadow-xl flex items-center justify-center relative z-10 border-4 border-pink-50">
+                        {/* Usamos animate-bounce, si tienes animate-bounce-slow mejor */}
+                        <Coffee size={48} className="text-pink-600 animate-bounce" strokeWidth={1.5} />
+                    </div>
+                    {/* Estrellitas decorativas */}
+                    <div className="absolute -top-2 -right-2 animate-spin">
+                        <Sparkles className="text-orange-400" size={24} />
+                    </div>
+                </div>
+
+                {/* Texto de Marca */}
+                <h1 className="text-5xl font-bold text-gray-800 mb-2 tracking-wide" style={{ fontFamily: "'Dancing Script', cursive" }}>
+                    LyA
+                </h1>
+                <p className="text-xs font-bold text-pink-700 tracking-[0.2em] uppercase mb-8">
+                    Pastelería & Cafetería
+                </p>
+
+                {/* Indicador de Carga */}
+                <div className="flex flex-col items-center gap-2">
+                    <div className="w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        {/* Barra de progreso animada simulada */}
+                        <div className="h-full bg-gradient-to-r from-pink-500 to-orange-500 rounded-full w-full origin-left animate-[grow_3s_ease-in-out]"></div>
+                    </div>
+                    <p className="text-[10px] text-gray-500 font-medium animate-pulse mt-1">
+                        Preparando el horno...
+                    </p>
+                </div>
+            </div>
+
+            <style>{`
+                @keyframes grow {
+                    0% { width: 0%; }
+                    100% { width: 100%; }
+                }
+            `}</style>
+        </div>
+    );
+};
 
 export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
     const [usuario, setUsuario] = useState('');
@@ -13,6 +66,24 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
     
     // Estado para mostrar la vista de recuperación
     const [mostrarRecuperacion, setMostrarRecuperacion] = useState(false);
+
+    // --- NUEVO: Estado para el Splash Screen ---
+    const [mostrarSplash, setMostrarSplash] = useState(true);
+
+    // Efecto para manejar el tiempo de carga inicial y pre-cargar la imagen
+    useEffect(() => {
+        // 1. Iniciar temporizador de 3.5 segundos
+        const timer = setTimeout(() => {
+            setMostrarSplash(false);
+        }, 3500);
+
+        // 2. Truco para pre-cargar la imagen en caché del navegador mientras se ve el splash
+        // Esto hace que cuando se quite el splash, la imagen ya esté lista.
+        const img = new Image();
+        img.src = fondoLogin;
+
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -34,21 +105,24 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
         }, 800);
     };
 
+    // Si está activo el Splash, mostramos eso primero y retornamos para no renderizar el login aún
+    if (mostrarSplash) {
+        return <SplashScreen />;
+    }
+
     return (
         <div 
-            className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-cover bg-center relative"
+            // Agregamos animate-fade-in para que la entrada sea suave después del splash
+            className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-cover bg-center relative animate-fade-in"
             style={{ 
                 backgroundImage: `url(${fondoLogin})`,
-                // backgroundSize: '100% 100%' // Descomenta si prefieres estirar la imagen
+                // backgroundSize: '100% 100%' 
             }}
         >
             {/* Capa oscura (Overlay) */}
             <div className="absolute inset-0 bg-black/40 z-0"></div>
 
             {/* TARJETA PRINCIPAL */}
-            {/* Aquí mantuve el /20 que te gustó (bg-white/20 es muy transparente, asegúrate que sea legible) */}
-            {/* Si te referías a bg-black/20 en el overlay o bg-white/80, ajusta aquí.  */}
-            {/* Voy a poner bg-white/85 como base equilibrada, si usaste /20 en el código anterior cámbialo aquí a tu gusto (ej: bg-white/20) */}
             <div className="bg-white/30 backdrop-blur-sm w-full max-w-sm md:max-w-md rounded-3xl shadow-2xl overflow-hidden animate-bounce-in relative z-10 min-h-[500px] flex flex-col">
                 
                 {/* Barra decorativa */}
@@ -58,7 +132,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                 
                 {mostrarRecuperacion ? (
                     // ==========================================
-                    // VISTA RECUPERACIÓN (Colores mejorados)
+                    // VISTA RECUPERACIÓN
                     // ==========================================
                     <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-8 text-center animate-fade-in-up">
                         
@@ -68,7 +142,6 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                         
                         <h3 className="text-xl font-bold text-gray-900 mb-2">Recuperar Acceso</h3>
                         
-                        {/* Texto más oscuro para leerse mejor */}
                         <p className="text-gray-800 text-xs mb-6 leading-relaxed px-4 font-semibold">
                             Por seguridad, contacta a uno de los responsables para restablecer tus credenciales.
                         </p>
@@ -107,7 +180,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
 
                 ) : (
                     // ==========================================
-                    // VISTA LOGIN (Colores mejorados)
+                    // VISTA LOGIN
                     // ==========================================
                     <>
                         <div className="p-6 md:p-8 pt-10 md:pt-12 flex-1 flex flex-col justify-center animate-fade-in-up">
@@ -115,17 +188,14 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                 <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>
                                     LyA
                                 </h1>
-                                {/* Cambié el gris claro por un morado oscuro/negro para contraste */}
                                 <p className="text-purple-900 text-xs md:text-sm tracking-widest uppercase font-bold">Sistema de Gestión</p>
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6" autoComplete="off">
                                 <div className="space-y-2">
-                                    {/* Etiqueta con color rosa oscuro en lugar de gris */}
                                     <label className="text-xs font-bold text-pink-700 uppercase ml-1">Usuario</label>
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            {/* Ícono con color rosa fuerte */}
                                             <User size={20} className="text-pink-600" />
                                         </div>
                                         <input 
@@ -145,7 +215,6 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                 <div className="space-y-2">
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            {/* Ícono con color rosa fuerte */}
                                             <Lock size={20} className="text-pink-600" />
                                         </div>
                                         <input 
