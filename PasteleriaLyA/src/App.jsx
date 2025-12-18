@@ -6,13 +6,15 @@ import {
 } from 'lucide-react';
 
 import { PRODUCTOS_CAFETERIA_INIT, SESIONES_LLEVAR_INIT, VENTAS_CAFETERIA_INIT, getFechaHoy, formatearFechaLocal } from './utils/config';
-// --- IMPORTAMOS LAS UTILIDADES DE ROLES ---
 import { obtenerRutaInicial, formatearRol } from './utils/roles';
 
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
 import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } from './features/Pasteleria';
 import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa } from './features/Cafeteria';
-import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios } from './features/Admin';
+
+// --- 1. IMPORTAMOS VistaBaseDatos AQUÍ ---
+import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios, VistaBaseDatos } from './features/Admin';
+
 import { VistaCliente } from './features/Cliente';
 import { VistaLogin } from './components/Login';
 
@@ -25,7 +27,7 @@ import { subscribeToUsers, saveUser, deleteUser } from './services/users.service
 import { subscribeToSessions, createSession, updateSession, deleteSession, saveSession } from './services/sessions.service';
 import { suscribirEstadoServicio } from './services/config.service';
 
-// --- COMPONENTE: TEXTO CARGANDO ANIMADO ---
+// --- COMPONENTE: TEXTO CARGANDO ANIMADO (SIN CAMBIOS) ---
 const TextoCargandoAnimado = () => {
     const [puntos, setPuntos] = useState('');
     useEffect(() => {
@@ -34,7 +36,6 @@ const TextoCargandoAnimado = () => {
         }, 500); 
         return () => clearInterval(intervalo);
     }, []);
-    
     return (
         <div className="flex items-center justify-center gap-0.5" style={{ transform: 'translateX(6px)' }}>
             <span>Cargando</span>
@@ -43,7 +44,7 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE ---
+// --- COMPONENTE RUTA CLIENTE (SIN CAMBIOS) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
@@ -225,10 +226,7 @@ export default function PasteleriaApp() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('lya_session_active') === 'true');
-  
-  // --- ESTADO PARA EL ROL ---
   const [userRole, setUserRole] = useState(() => localStorage.getItem('lya_user_role') || 'admin');
-  
   const [vistaActual, setVistaActual] = useState('inicio');
 
   const modo = useMemo(() => {
@@ -238,15 +236,9 @@ export default function PasteleriaApp() {
       return 'admin';
   }, [location]);
 
-  // =========================================================================
-  // --- [SOLUCIÓN] EFECTO DE RESETEO DE VISTA AL CAMBIAR DE ÁREA ---
-  // =========================================================================
   useEffect(() => {
-      // Cada vez que cambia el 'modo' (ej: de admin a pasteleria), 
-      // regresamos a la vista 'inicio' para evitar pantallas blancas.
       setVistaActual('inicio');
   }, [modo]);
-  // =========================================================================
 
   // ESTADOS DE DATOS
   const [productosCafeteria, setProductosCafeteria] = useState([]);
@@ -274,7 +266,6 @@ export default function PasteleriaApp() {
   const [mesaSeleccionadaId, setMesaSeleccionadaId] = useState(null); 
   const [cuentaActiva, setCuentaActiva] = useState(null); 
   const [fechaAgendaSeleccionada, setFechaAgendaSeleccionada] = useState(null);
-  
   const [fechaParaNuevoPedido, setFechaParaNuevoPedido] = useState(null);
   
   const mesaSeleccionadaObj = useMemo(() => mesas.find(m => m.id === mesaSeleccionadaId), [mesas, mesaSeleccionadaId]);
@@ -586,6 +577,9 @@ export default function PasteleriaApp() {
             {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} onVerDetalles={(item) => setPedidoVerDetalles(item)} />} 
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
             {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
+            
+            {/* 2. AGREGAMOS EL RENDERIZADO DE LA NUEVA VISTA */}
+            {vistaActual === 'basedatos' && <VistaBaseDatos />}
         </> 
       )}
       

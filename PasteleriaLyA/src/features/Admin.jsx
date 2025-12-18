@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake } from 'lucide-react';
+import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake, Database, ServerCrash, AlertTriangle } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
@@ -86,14 +86,10 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
     );
 };
 
-// VISTA INICIO ADMIN
+// VISTA INICIO ADMIN (SIN EL BOTÓN DE BORRAR)
 export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) => {
-    const [cargando, setCargando] = useState(false);
     const [modalAbierto, setModalAbierto] = useState(null); 
     const [fechaCorte, setFechaCorte] = useState(getFechaHoy());
-    
-    // --- NUEVO ESTADO PARA EL MODAL DE PELIGRO ---
-    const [confirmarLimpieza, setConfirmarLimpieza] = useState(false);
 
     const datosPasteleria = useMemo(() => {
         const filtrados = pedidos.filter(p => p.fecha === fechaCorte && p.estado !== 'Cancelado');
@@ -144,42 +140,6 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
         return { items, total };
     }, [ventasCafeteria, fechaCorte]);
 
-    // 1. Función que solo abre el modal
-    const solicitarBorradoBD = () => {
-        setConfirmarLimpieza(true);
-    };
-
-    // 2. Función REAL que borra (se ejecuta al confirmar en el modal)
-    const ejecutarBorradoBD = async () => {
-        setConfirmarLimpieza(false); // Cerramos el modal
-        setCargando(true);
-        try {
-            const borrarColeccionCompleta = async (nombreColeccion) => {
-                const q = collection(db, nombreColeccion);
-                const snapshot = await getDocs(q);
-                
-                const chunk = 400;
-                for (let i = 0; i < snapshot.docs.length; i += chunk) {
-                    const batch = writeBatch(db);
-                    const lote = snapshot.docs.slice(i, i + chunk);
-                    lote.forEach(doc => batch.delete(doc.ref));
-                    await batch.commit();
-                }
-            };
-
-            await borrarColeccionCompleta("productos");
-            await borrarColeccionCompleta("mesas");
-            await borrarColeccionCompleta("pedidos");
-            await borrarColeccionCompleta("ventas");
-            
-            alert("✅ Sistema reiniciado correctamente.");
-        } catch (error) { 
-            console.error("Error borrando:", error); 
-            alert("Error al borrar: " + error.message); 
-        }
-        setCargando(false);
-    };
-
     const esHoy = fechaCorte === getFechaHoy();
 
     return (
@@ -194,11 +154,6 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                         <div className="bg-gray-100 p-2 rounded-lg text-gray-500"><Calendar size={20} /></div>
                         <div className="flex flex-col"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Fecha de Corte</label><input type="date" value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer" /></div>
                         { !esHoy && (<button onClick={() => setFechaCorte(getFechaHoy())} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition">IR A HOY</button>)}
-                    </div>
-                    <div className="h-8 w-px bg-gray-300 hidden md:block"></div>
-                    <div className="flex gap-2">
-                        {/* Botón que ahora abre el modal bonito */}
-                        <button onClick={solicitarBorradoBD} disabled={cargando} className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-red-200 transition border border-red-200"><Trash2 size={16}/> Limpiar BD</button>
                     </div>
                 </div>
             </div>
@@ -220,21 +175,11 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
 
             <ModalDetalleCorte isOpen={modalAbierto === 'pasteleria'} onClose={() => setModalAbierto(null)} titulo={`Corte Pastelería`} items={datosPasteleria.items} total={datosPasteleria.total} colorTheme="pink" onItemClick={onVerDetalles} fecha={fechaCorte} />
             <ModalDetalleCorte isOpen={modalAbierto === 'cafeteria'} onClose={() => setModalAbierto(null)} titulo={`Corte Cafetería`} items={datosCafeteria.items} total={datosCafeteria.total} colorTheme="orange" onItemClick={onVerDetalles} fecha={fechaCorte} />
-            
-            {/* NUEVO MODAL DE PELIGRO EXTREMO */}
-            <ModalConfirmacion 
-                isOpen={confirmarLimpieza} 
-                onClose={() => setConfirmarLimpieza(false)} 
-                onConfirm={ejecutarBorradoBD} 
-                titulo="⚠️ ¡PELIGRO EXTREMO! ⚠️" 
-                mensaje="Estás a punto de ELIMINAR TODA LA INFORMACIÓN DEL SISTEMA (Productos, Mesas, Pedidos, Ventas). Esto dejará el sistema vacío como de fábrica. Esta acción NO se puede deshacer. ¿Estás 100% seguro?"
-                tipo="eliminar" 
-            />
         </div>
     );
 };
 
-// --- VISTA REPORTE UNIVERSAL CON RECHARTS (CORREGIDA) ---
+// --- VISTA REPORTE UNIVERSAL CON RECHARTS ---
 export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo, onAbrirModalDia }) => {
     const [mesSeleccionado, setMesSeleccionado] = useState('2025-12');
     const [rangoInicio, setRangoInicio] = useState('');
@@ -586,24 +531,24 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
             {/* GRID DE 4 CUADRITOS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-auto pb-4">
                 
-                {/* 1. ADMINS */}
+                {/* 1. ADMINS - AHORA EN GRIS/NEGRO PARA DIFERENCIARSE */}
                 <GrupoCard 
                     titulo="Administradores" 
                     lista={administradores} 
-                    colorBg="bg-pink-50/50" 
-                    colorBorder="border-pink-100" 
-                    colorText="text-pink-800" 
+                    colorBg="bg-gray-200" 
+                    colorBorder="border-gray-400" 
+                    colorText="text-gray-800" 
                     icon={Shield} 
-                    colorIcon="text-pink-600" 
-                    iconBg="bg-pink-100"
+                    colorIcon="text-gray-900" 
+                    iconBg="bg-gray-300"
                 />
 
                 {/* 2. GENERALES */}
                 <GrupoCard 
                     titulo="Empleados Generales" 
                     lista={generales} 
-                    colorBg="bg-purple-50/50" 
-                    colorBorder="border-purple-100" 
+                    colorBg="bg-purple-200" 
+                    colorBorder="border-purple-400" 
                     colorText="text-purple-800" 
                     icon={Briefcase} 
                     colorIcon="text-purple-600" 
@@ -614,8 +559,8 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                 <GrupoCard 
                     titulo="Staff Pastelería" 
                     lista={pasteleros} 
-                    colorBg="bg-rose-50/50" 
-                    colorBorder="border-rose-100" 
+                    colorBg="bg-rose-200" 
+                    colorBorder="border-rose-400" 
                     colorText="text-rose-800" 
                     icon={Cake} 
                     colorIcon="text-rose-600" 
@@ -626,8 +571,8 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                 <GrupoCard 
                     titulo="Staff Cafetería" 
                     lista={cafeteros} 
-                    colorBg="bg-orange-50/50" 
-                    colorBorder="border-orange-100" 
+                    colorBg="bg-orange-200" 
+                    colorBorder="border-orange-400" 
                     colorText="text-orange-800" 
                     icon={Coffee} 
                     colorIcon="text-orange-600" 
@@ -639,5 +584,91 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
             <ModalUsuario isOpen={modalOpen} onClose={() => setModalOpen(false)} onGuardar={onGuardar} usuarioAEditar={usuarioEditar} /> 
             <ModalConfirmacion isOpen={!!usuarioEliminar} onClose={() => setUsuarioEliminar(null)} onConfirm={() => { onEliminar(usuarioEliminar.id); setUsuarioEliminar(null); }} titulo="¿Eliminar Usuario?" mensaje={`Se eliminará permanentemente la cuenta de "${usuarioEliminar?.nombre}".`} /> 
         </div> 
+    );
+};
+
+// --- NUEVO COMPONENTE: GESTIÓN DE BASE DE DATOS ---
+export const VistaBaseDatos = () => {
+    const [confirmarLimpieza, setConfirmarLimpieza] = useState(false);
+    const [cargando, setCargando] = useState(false);
+
+    // Función de borrado (movida aquí)
+    const ejecutarBorradoBD = async () => {
+        setConfirmarLimpieza(false);
+        setCargando(true);
+        try {
+            const borrarColeccionCompleta = async (nombreColeccion) => {
+                const q = collection(db, nombreColeccion);
+                const snapshot = await getDocs(q);
+                const chunk = 400;
+                for (let i = 0; i < snapshot.docs.length; i += chunk) {
+                    const batch = writeBatch(db);
+                    const lote = snapshot.docs.slice(i, i + chunk);
+                    lote.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+            };
+
+            await borrarColeccionCompleta("productos");
+            await borrarColeccionCompleta("mesas");
+            await borrarColeccionCompleta("pedidos");
+            await borrarColeccionCompleta("ventas");
+            
+            alert("✅ Sistema reiniciado correctamente.");
+        } catch (error) { 
+            console.error("Error borrando:", error); 
+            alert("Error al borrar: " + error.message); 
+        }
+        setCargando(false);
+    };
+
+    return (
+        <div className="p-4 md:p-8">
+            <div className="mb-8">
+                <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                    <Database className="text-blue-600" /> Administración de Datos
+                </h2>
+                <p className="text-gray-500 text-sm mt-1">Herramientas de mantenimiento y configuración técnica.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* TARJETA: LIMPIAR BASE DE DATOS */}
+                <div className="bg-white border border-red-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -mr-4 -mt-4 z-0 transition-transform group-hover:scale-110"></div>
+                    <div className="relative z-10">
+                        <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mb-4 shadow-sm">
+                            <ServerCrash size={24} />
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-800 mb-1">Restablecimiento de Fábrica</h3>
+                        <p className="text-xs text-gray-500 mb-6 leading-relaxed">
+                            Elimina todos los productos, mesas, pedidos y ventas para reiniciar el sistema desde cero.
+                        </p>
+                        <button 
+                            onClick={() => setConfirmarLimpieza(true)} 
+                            disabled={cargando}
+                            className="w-full py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg shadow-red-200"
+                        >
+                            {cargando ? 'Procesando...' : <><Trash2 size={18}/> Limpiar Base de Datos</>}
+                        </button>
+                    </div>
+                </div>
+
+                {/* TARJETA: PRÓXIMAMENTE (PLACEHOLDER) */}
+                <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center opacity-50 hover:opacity-100 transition cursor-not-allowed bg-gray-50">
+                    <AlertTriangle size={32} className="text-gray-300 mb-2" />
+                    <p className="text-sm font-bold text-gray-400">Próximamente</p>
+                    <p className="text-xs text-gray-300">Más herramientas de DB</p>
+                </div>
+            </div>
+
+            <ModalConfirmacion 
+                isOpen={confirmarLimpieza} 
+                onClose={() => setConfirmarLimpieza(false)} 
+                onConfirm={ejecutarBorradoBD} 
+                titulo="⚠️ ¡PELIGRO EXTREMO! ⚠️" 
+                mensaje="Estás a punto de ELIMINAR TODA LA INFORMACIÓN DEL SISTEMA (Productos, Mesas, Pedidos, Ventas). Esto dejará el sistema vacío como de fábrica. Esta acción NO se puede deshacer. ¿Estás 100% seguro?"
+                tipo="eliminar" 
+            />
+        </div>
     );
 };

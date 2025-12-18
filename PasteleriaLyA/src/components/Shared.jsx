@@ -3,14 +3,14 @@ import {
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
     Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle, Shield,
-    Minus, Plus, Info, ChevronUp, ChevronDown, Loader
+    Minus, Plus, Info, ChevronUp, ChevronDown, Loader, Database // <--- 1. AGREGAMOS EL ICONO DATABASE
 } from 'lucide-react';
 import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
 // --- IMPORTAMOS LA UTILIDAD DE ROLES ---
 import { tienePermiso } from '../utils/roles';
 
-// --- NOTIFICACIÓN FLOTANTE (CENTRADA Y CORREGIDA) ---
+// --- NOTIFICACIÓN FLOTANTE ---
 export const Notificacion = ({ data, onClose }) => {
     if (!data.visible) return null;
     
@@ -194,7 +194,19 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
             {isOpen && (<button onClick={toggleSidebar} className="absolute top-4 right-4 p-1 hover:bg-white/20 rounded-full md:hidden"><X size={20} className="text-white" /></button>)} 
             
             <nav className="flex-1 overflow-y-auto px-3 md:px-4 py-2 space-y-1 custom-scrollbar no-scrollbar"> 
-                {modo === 'admin' && ( <> <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Comparativo" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> <BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/> </> )} 
+                
+                {/* --- 2. AGREGAMOS EL BOTÓN EN MODO ADMIN --- */}
+                {modo === 'admin' && ( 
+                    <> 
+                        <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Comparativo" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/> 
+                        
+                        {/* AQUÍ ESTÁ EL NUEVO BOTÓN */}
+                        <BotonNav icon={<Database size={18}/>} label="Base de Datos" active={vistaActual === 'basedatos'} onClick={() => handleNavClick(() => setVistaActual('basedatos'))} colorTheme={themeBtn}/> 
+                    </> 
+                )} 
+
                 {modo === 'pasteleria' && ( <> <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> <BotonNav icon={<PlusCircle size={18}/>} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => handleNavClick(() => setVistaActual('pedidos'))} colorTheme={themeBtn}/> <BotonNav icon={<CalendarRange size={18}/>} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => handleNavClick(() => setVistaActual('agenda'))} colorTheme={themeBtn}/> <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> </> )} 
                 {modo === 'cafeteria' && ( <> <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> <BotonNav icon={<Grid size={18}/>} label="Punto de Venta (QR)" active={vistaActual === 'mesas'} onClick={() => handleNavClick(() => setVistaActual('mesas'))} colorTheme={themeBtn}/> <BotonNav icon={<UtensilsCrossed size={18}/>} label="Gestión de Menú" active={vistaActual === 'menu'} onClick={() => handleNavClick(() => setVistaActual('menu'))} colorTheme={themeBtn}/> <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> </> )} 
                 
@@ -341,21 +353,20 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
 
 export const ModalVentasDia = ({ dia, mes, anio, ventas, cerrar, onVerDetalle }) => { if (!dia) return null; const ventasDelDia = ventas.filter(v => { const [y, m, d] = v.fecha.split('-').map(Number); return d === parseInt(dia) && m === (mes + 1) && y === anio; }); return ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4 backdrop-blur-sm"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-md md:max-w-lg max-h-[80vh] overflow-hidden flex flex-col animate-fade-in-up"><div className="bg-pink-900 p-4 flex justify-between items-center text-white sticky top-0 z-10 shrink-0"><h3 className="font-bold text-lg flex items-center gap-2"><CalendarIcon size={20} /> Ventas del {dia}/{mes + 1}/{anio}</h3><button onClick={cerrar}><X /></button></div><div className="p-4 overflow-y-auto flex-1 bg-gray-50 custom-scrollbar">{ventasDelDia.length === 0 ? <div className="text-center text-gray-500 py-10">No hay ventas registradas.</div> : (<div className="space-y-3">{ventasDelDia.map((v, i) => (<div key={i} onClick={() => onVerDetalle(v)} className="bg-white p-4 rounded-lg border shadow-sm flex justify-between items-center cursor-pointer hover:shadow-md hover:border-pink-300 transition-all group"><div className="flex-1"><div className="flex items-center gap-2 mb-1"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.origen === 'Pastelería' ? 'bg-pink-100 text-pink-700' : 'bg-orange-100 text-orange-700'}`}>{v.origen}</span><span className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 text-xs flex items-center gap-1"><Eye size={12} /> Ver detalles</span></div><p className="font-bold text-gray-800">{v.cliente}</p>{v.tipoProducto && <p className="text-xs text-gray-500">{v.tipoProducto}</p>}</div><div className="text-right"><span className="block font-bold text-green-600 text-lg">${v.total}</span><span className="text-[10px] text-gray-400 font-mono">{v.folioLocal || v.folio || v.id}</span></div></div>))}</div>)}</div></div></div> ); };
 
-// --- MODAL AGENDA DÍA (ACTUALIZADO: Botón solo en fechas futuras) ---
+// --- MODAL AGENDA DÍA ---
 export const ModalAgendaDia = ({ fechaIso, pedidos, cerrar, onVerDetalle, onNuevoPedido }) => {
     if (!fechaIso) return null;
     
     const [anio, mes, dia] = fechaIso.split('-').map(Number);
     const entregasDelDia = pedidos.filter(p => p.fechaEntrega === fechaIso && p.estado !== 'Cancelado');
 
-    // --- LÓGICA NUEVA: VALIDAR FECHA ---
+    // --- LÓGICA: VALIDAR FECHA ---
     const hoy = new Date();
     // Convertimos 'hoy' a string YYYY-MM-DD local para comparar
     const hoyString = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
     
     // El botón solo se muestra si la fecha seleccionada (fechaIso) es igual o mayor a hoy
     const mostrarBotonCrear = fechaIso >= hoyString;
-    // -----------------------------------
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80] p-4 backdrop-blur-sm">

@@ -8,9 +8,6 @@ import {
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
 
-// Ya no usamos la imagen de fondo, pero dejamos la importación por si acaso o la quitamos si prefieres.
-// import fondoImagen from '../assets/Menús.png'; 
-
 // --- PANTALLA LOGIN ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
@@ -68,10 +65,7 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     };
 
     return (
-    <div 
-        // CAMBIO: Fondo animado degradado (Naranja suave a Rosa suave)
-        className="min-h-screen flex flex-col items-center justify-center p-6 animate-gradient-bg"
-    >
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-gradient-bg">
         <style>{`
             .animate-gradient-bg {
                 background: linear-gradient(-45deg, #fb923c, #f472b6, #fbbf24, #fb7185);
@@ -85,9 +79,7 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
             }
         `}</style>
 
-        {/* CAMBIO: bg-white sólido para limpieza */}
-        <div className="bg-white/60 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center animate-fade-in-up relative overflow-hidden">
-                {/* Barrita decorativa superior */}
+        <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center animate-fade-in-up relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-500 to-pink-500"></div>
 
                 <div className="bg-orange-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-orange-100">
@@ -134,12 +126,11 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     );
 };
 
-// --- CARRITO FLOTANTE (Con corrección de cálculo en tiempo real) ---
+// --- CARRITO FLOTANTE ---
 const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, enviando }) => {
     const [confirmando, setConfirmando] = useState(false);
     const [expandido, setExpandido] = useState(false); 
     
-    // Aseguramos que los valores sean números para el cálculo total del carrito
     const total = cuenta.reduce((acc, item) => acc + (Number(item.precio) * Number(item.cantidad)), 0);
     const totalItems = cuenta.reduce((acc, i) => acc + Number(i.cantidad), 0);
 
@@ -155,7 +146,6 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                         {cuenta.map((item, i) => (
                             <div key={i} className="flex justify-between text-sm mb-2 border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                                 <span className="text-gray-700"><span className="font-bold">{item.cantidad}x</span> {item.nombre}</span>
-                                {/* CAMBIO: Forzamos Number() para asegurar el cálculo */}
                                 <span className="font-bold text-gray-900">${(Number(item.precio) * Number(item.cantidad)).toFixed(2)}</span>
                             </div>
                         ))}
@@ -219,12 +209,9 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                                 <div key={item.tempId} className="flex items-center justify-between bg-gray-50 p-2 rounded-xl border border-gray-100">
                                     <div className="flex-1 pr-2">
                                         <p className="font-bold text-sm text-gray-800 line-clamp-1">{item.nombre}</p>
-                                        
-                                        {/* CAMBIO: Cálculo directo y seguro con Number() */}
                                         <p className="text-xs text-orange-600 font-bold">
                                             ${(Number(item.precio) * Number(item.cantidad)).toFixed(2)}
                                         </p>
-                                        
                                     </div>
                                     <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
                                         <button onClick={() => item.cantidad > 1 ? onUpdateCantidad(item.tempId, -1) : onEliminar(item.tempId)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 transition"><MinusCircle size={18}/></button>
@@ -260,7 +247,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
     );
 
     return (
-        // CAMBIO: Fondo animado aquí también para consistencia
         <div className="min-h-screen bg-gray-100 flex flex-col animate-gradient-bg">
             <style>{`
                 .animate-gradient-bg {
@@ -313,7 +299,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
                                                         <span className="text-gray-700 font-medium">{item.nombre}</span>
                                                     </div>
                                                 </div>
-                                                {/* AQUÍ MANTUVE EL DESGLOSE COMO LO PEDISTE ANTES */}
                                                 <div className="text-right">
                                                     <p className="text-[10px] text-gray-400 font-medium">
                                                         ${item.precio} x {item.cantidad || 1}
@@ -360,7 +345,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
                 </div>
                 
                 <div className="space-y-4 mt-6">
-                    {/* BOTÓN PARA VER MENÚ (SOLO LECTURA) */}
                     <button 
                         onClick={onVerMenu} 
                         className="w-full bg-white text-blue-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 border-2 border-blue-100 hover:bg-blue-50 transition shadow-sm"
@@ -392,16 +376,25 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
     );
 };
 
-// --- PANTALLA DE DESPEDIDA ---
+// --- PANTALLA DE DESPEDIDA (MODIFICADA: EFECTO PALPITAR) ---
 const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
     const esCancelado = cuentaCerrada.estado === 'Cancelado';
 
     if (esCancelado) {
         return (
             <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-8 text-center text-red-900 animate-fade-in-up">
-                <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-6 animate-bounce-in">
-                    <XCircle size={60} className="text-red-600" />
+                
+                {/* CAMBIO: Contenedor relativo para el efecto de palpitar */}
+                <div className="relative mb-6">
+                    {/* Círculo pulsante detrás (Onda expansiva) */}
+                    <div className="absolute inset-0 bg-red-300 rounded-full animate-ping opacity-75"></div>
+                    
+                    {/* Icono Principal */}
+                    <div className="relative w-24 h-24 bg-red-100 rounded-full flex items-center justify-center z-10">
+                        <XCircle size={60} className="text-red-600" />
+                    </div>
                 </div>
+
                 <h2 className="text-3xl font-bold mb-2">Pedido Cancelado</h2>
                 <p className="text-red-700 text-lg mb-8 max-w-xs mx-auto">
                     Tu orden ha sido cancelada por el establecimiento.
@@ -431,8 +424,16 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
 
     return (
         <div className="min-h-screen bg-green-600 flex flex-col items-center justify-center p-8 text-center text-white animate-fade-in-up">
-            <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6 animate-bounce-slow">
-                <CheckCircle size={60} className="text-white" />
+            
+            {/* CAMBIO: Contenedor relativo para el efecto de palpitar */}
+            <div className="relative mb-6">
+                {/* Círculo pulsante detrás (Onda expansiva blanca) */}
+                <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-50"></div>
+                
+                {/* Icono Principal */}
+                <div className="relative w-24 h-24 bg-white/20 rounded-full flex items-center justify-center z-10 backdrop-blur-sm">
+                    <CheckCircle size={60} className="text-white" />
+                </div>
             </div>
             
             <h2 className="text-4xl font-bold mb-2">¡Gracias por tu visita!</h2>
@@ -761,7 +762,14 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     <LogOut size={20} />
                 </button>
 
-                <div className="w-24 h-24 bg-white/80 rounded-full flex items-center justify-center mb-6"><CheckCircle size={60} className="text-green-500" /></div>
+                {/* CAMBIO: Efecto palpitar en Pedido Activo */}
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 bg-white rounded-full animate-ping opacity-40"></div>
+                    <div className="relative w-24 h-24 bg-white/80 rounded-full flex items-center justify-center z-10 backdrop-blur-sm">
+                        <CheckCircle size={60} className="text-green-500" />
+                    </div>
+                </div>
+
                 <h2 className="text-3xl font-bold text-white mb-2 shadow-sm">¡Pedido Activo!</h2>
                 <p className="text-white/90 mb-6 font-medium">Hola <strong>{nombreCliente}</strong>.</p>
                 
@@ -853,7 +861,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
     }
 
     return (
-        // CAMBIO: Contenedor principal con la clase de animación y sin imagen fija
         <div className="min-h-screen bg-gray-50 relative animate-gradient-bg"> 
             
             <style>{`
@@ -864,7 +871,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                 }
             `}</style>
 
-            {/* CONTENIDO SCROLLABLE POR ENCIMA */}
             <div className="relative z-10 pb-32">
                 <Notificacion data={notificacion} onClose={() => setNotificacion({...notificacion, visible: false})} />
                 
@@ -877,7 +883,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     </div>
                 )}
 
-                {/* CAMBIO: Header con bg-white sólido para limpieza */}
                 <div className={`bg-white p-4 ${viendoMenuSoloLectura ? 'sticky top-[48px]' : 'sticky top-0'} z-20 shadow-sm flex justify-between items-center border-b border-gray-100`}>
                     <div>
                         <div className="flex items-center gap-2 mb-0.5">
@@ -902,7 +907,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     </div>
                 </div>
 
-                {/* CAMBIO: Barra de búsqueda con fondo blanco sólido */}
                 <div className={`bg-white ${viendoMenuSoloLectura ? 'sticky top-[121px]' : 'sticky top-[73px]'} z-10 px-4 py-3 border-b border-gray-200 shadow-sm`}>
                     <div className="relative mb-3">
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
@@ -931,7 +935,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
 
                         return (
                             <div key={cat} className="mb-8 animate-fade-in-up">
-                                {/* CAMBIO: Header de categoría con fondo blanco sólido */}
                                 <h3 className="font-bold text-xl text-orange-700 bg-white p-3 rounded-xl shadow-sm mb-4 flex items-center gap-2 border border-orange-100">
                                 {cat} 
                                 <span className="text-xs font-normal text-white bg-orange-400 px-2 py-0.5 rounded-full">
@@ -941,7 +944,6 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                     {prods.map(prod => (
                                         <div key={prod.id} className="h-full">
-                                            {/* Nota: CardProducto ya tiene bg-white en su definición interna (componente compartido), así que resaltará bien */}
                                             <CardProducto 
                                                 producto={prod} 
                                                 onClick={() => setProductoVerDetalles(prod)} 
