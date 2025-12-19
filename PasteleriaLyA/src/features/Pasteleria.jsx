@@ -394,29 +394,96 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
         else setFormulario(prev => ({ ...prev, tipoProducto: categoriaSeleccionada }));
     }, [categoriaSeleccionada, otroTexto]);
 
-    const manejarSubmit = (e) => {
-        e.preventDefault();
-        if (formulario.telefono.length !== 10) { mostrarNotificacion("El teléfono debe tener 10 dígitos.", "error"); return; }
-        if (formulario.cliente.trim().length < 3) { mostrarNotificacion("Nombre muy corto.", "error"); return; }
-        if (categoriaSeleccionada === 'Otro' && otroTexto.trim() === '') { mostrarNotificacion("Especifica qué producto es.", "error"); return; }
-        const folioFinal = pedidoAEditar ? formulario.folio : generarFolio();
+    // --- CORRECCIÓN EN LA FUNCIÓN manejarSubmit ---
+const manejarSubmit = (e) => {
+    e.preventDefault();
+    
+    // --- Validaciones ---
+    if (formulario.telefono.length !== 10) { 
+        mostrarNotificacion("El teléfono debe tener 10 dígitos.", "error"); 
+        return; 
+    }
+    if (formulario.cliente.trim().length < 3) { 
+        mostrarNotificacion("Nombre muy corto.", "error"); 
+        return; 
+    }
+    if (categoriaSeleccionada === 'Otro' && otroTexto.trim() === '') { 
+        mostrarNotificacion("Especifica qué producto es.", "error"); 
+        return; 
+    }
+    
+    const folioFinal = pedidoAEditar ? formulario.folio : generarFolio();
+    
+    // --- LÓGICA CORREGIDA PARA PAGOS ---
+    let pagosRealizadosFinal = 0;
+
+    if (pedidoAEditar) {
+        // 1. Recuperamos el dinero REAL que había pagado el cliente
+        const totalAnterior = parseFloat(pedidoAEditar.total) || 0;
+        const numPagosAnterior = parseInt(pedidoAEditar.numPagos) || 1;
+        const pagosMarcadosAnteriormente = parseFloat(pedidoAEditar.pagosRealizados) || 0;
         
-        onGuardarPedido({
-            ...formulario,
-            folio: folioFinal,
-            total: parseFloat(formulario.total) || 0,
-            numPagos: parseInt(formulario.numPagos) || 1,
-            pagosRealizados: pedidoAEditar ? (pedidoAEditar.pagosRealizados || 0) : 0,
-            fecha: pedidoAEditar ? pedidoAEditar.fecha : getFechaHoy(),
-            estado: pedidoAEditar ? pedidoAEditar.estado : 'Pendiente',
-            origen: 'Pastelería'
-        });
+        // Dinero realmente pagado con el precio anterior
+        const dineroYaPagado = (totalAnterior / numPagosAnterior) * pagosMarcadosAnteriormente;
+
+        // 2. Calculamos el nuevo costo por pago
+        const totalNuevo = parseFloat(formulario.total) || 0;
+        const numPagosNuevo = parseInt(formulario.numPagos) || 1;
         
-        if (!pedidoAEditar) {
-            setFormulario({ folio: '', cliente: '', telefono: '', tipoProducto: 'Pastel', detalles: '', total: '', numPagos: 1, fechaEntrega: '', horaEntrega: '' });
-            setCategoriaSeleccionada('Pastel'); setOtroTexto('');
+        if (totalNuevo > 0 && numPagosNuevo > 0) {
+            const costoPorPagoNuevo = totalNuevo / numPagosNuevo;
+            
+            // 3. Calculamos cuántos pagos del NUEVO sistema equivalen al dinero pagado
+            pagosRealizadosFinal = dineroYaPagado / costoPorPagoNuevo;
+
+            // Redondeamos hacia abajo (si pagó 1.5 pagos, solo cuenta como 1 pago completo)
+            // Pero también debemos considerar pagos parciales si el negocio lo requiere
+            if (pagosRealizadosFinal >= 0) {
+                // Mantener hasta 2 decimales para visualización
+                pagosRealizadosFinal = Math.floor(pagosRealizadosFinal * 100) / 100;
+            }
+            
+            // Si el dinero pagado supera el nuevo total, limitamos a los pagos completos
+            if (pagosRealizadosFinal > numPagosNuevo) {
+                pagosRealizadosFinal = numPagosNuevo;
+            }
         }
-    };
+    } else {
+        // Para pedidos nuevos, comenzamos con 0 pagos
+        pagosRealizadosFinal = 0;
+    }
+    
+    // Asegurarnos de que no sea negativo
+    pagosRealizadosFinal = Math.max(0, pagosRealizadosFinal);
+    
+    onGuardarPedido({
+        ...formulario,
+        folio: folioFinal,
+        total: parseFloat(formulario.total) || 0,
+        numPagos: parseInt(formulario.numPagos) || 1,
+        // ¡CORRECCIÓN CRÍTICA! Usamos pagosRealizadosFinal en lugar de pedidoAEditar.pagosRealizados
+        pagosRealizados: pedidoAEditar ? pagosRealizadosFinal : 0,
+        fecha: pedidoAEditar ? pedidoAEditar.fecha : getFechaHoy(),
+        estado: pedidoAEditar ? pedidoAEditar.estado : 'Pendiente',
+        origen: 'Pastelería'
+    });
+    
+    if (!pedidoAEditar) {
+        setFormulario({ 
+            folio: '', 
+            cliente: '', 
+            telefono: '', 
+            tipoProducto: 'Pastel', 
+            detalles: '', 
+            total: '', 
+            numPagos: 1, 
+            fechaEntrega: '', 
+            horaEntrega: '' 
+        });
+        setCategoriaSeleccionada('Pastel'); 
+        setOtroTexto('');
+    }
+};
 
     const montoPorPago = formulario.total && formulario.numPagos > 0 ? (parseFloat(formulario.total) / parseInt(formulario.numPagos)).toFixed(2) : '0.00';
 
