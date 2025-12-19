@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt } from 'lucide-react';
+import { 
+    Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, 
+    Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, 
+    ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt 
+} from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
@@ -9,7 +13,7 @@ const formatearHora = (isoString) => {
     return new Date(isoString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 };
 
-// --- COMPONENTE MODAL PAPELERA (CON VACIAR, ELIMINAR UNO Y HORA) ---
+// --- COMPONENTE MODAL PAPELERA ---
 const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVaciar }) => {
     const [busqueda, setBusqueda] = useState('');
     const [pedidoParaRestaurar, setPedidoParaRestaurar] = useState(null);
@@ -25,7 +29,6 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
 
     if (!isOpen) return null;
 
-    // 1. FILTRAR Y LUEGO ORDENAR CRONOLÓGICAMENTE (NORMAL)
     const pedidosFiltrados = pedidos
         .filter(p => 
             p.estado === 'Cancelado' && 
@@ -33,7 +36,6 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
              p.folio.toLowerCase().includes(busqueda.toLowerCase()))
         )
         .sort((a, b) => {
-            // Ordenar por fecha de cancelación (Ascendente: Mañana -> Noche)
             const fechaA = a.fechaCancelacion || '';
             const fechaB = b.fechaCancelacion || '';
             return fechaA.localeCompare(fechaB);
@@ -43,7 +45,6 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
         <>
             <div className="fixed inset-0 bg-black bg-opacity-50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-fade-in-up border-t-8 border-red-500">
-                    
                     <div className="p-6 bg-red-50 text-red-800 flex justify-between items-start border-b border-red-100">
                         <div>
                             <h3 className="font-bold text-2xl flex items-center mb-1">
@@ -108,16 +109,14 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
     );
 };
 
-// --- MODAL ENTREGADOS (CON HORA DE ENTREGA Y CIERRE AUTOMÁTICO) ---
+// --- MODAL ENTREGADOS ---
 const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     const [busqueda, setBusqueda] = useState('');
     const [pedidoParaDeshacer, setPedidoParaDeshacer] = useState(null);
 
-    // 1. FILTRAR Y LUEGO ORDENAR CRONOLÓGICAMENTE (NORMAL)
     const filtrados = pedidosEntregados
         .filter(p => p.cliente.toUpperCase().includes(busqueda) || (p.telefono && p.telefono.includes(busqueda)))
         .sort((a, b) => {
-            // Ordenar por fecha real de entrega (Ascendente: Mañana -> Noche)
             const fechaA = a.fechaEntregaReal || '';
             const fechaB = b.fechaEntregaReal || '';
             return fechaA.localeCompare(fechaB);
@@ -175,12 +174,9 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     );
 };
 
-// --- MODAL CORTE DE CAJA (CORREGIDO PARA MOSTRAR HORA DE PAGO) ---
+// --- MODAL CORTE DE CAJA ---
 const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
-    // 1. Filtramos
     const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
-    
-    // 2. ORDENAMOS POR HORA DE PAGO (A-Z para que salga de mañana a noche)
     const ingresosOrdenados = [...ingresos].sort((a, b) => {
         const horaA = a.horaPago || '00:00';
         const horaB = b.horaPago || '00:00';
@@ -213,7 +209,6 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${esLiquidado ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                                     {esPagoUnico ? 'PAGO ÚNICO' : esLiquidado ? 'LIQUIDADO' : `ABONO (${p.pagosRealizados}/${p.numPagos})`}
                                                 </span>
-                                                {/* HORA */}
                                                 {p.horaPago && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {p.horaPago}</span>}
                                             </div>
                                         </div>
@@ -230,8 +225,7 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
     );
 };
 
-// --- VISTA: INICIO (DASHBOARD) ACTUALIZADA ---
-// --- VISTA: INICIO (DASHBOARD) ACTUALIZADA ---
+// --- VISTA: INICIO (DASHBOARD) ---
 export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onVerDetalles, onCancelar, onRestaurar, onDeshacerEntrega, onVaciarPapelera, onEliminarDePapelera }) => {
     const [busqueda, setBusqueda] = useState('');
     const [fechaFiltro, setFechaFiltro] = useState(''); 
@@ -239,37 +233,25 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
     const [mostrarEntregados, setMostrarEntregados] = useState(false);
     const [mostrarCajaHoy, setMostrarCajaHoy] = useState(false);
 
-    // Listas memorizadas
     const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
-    // const pedidosEntregados = useMemo(() => pedidos.filter(p => p.estado === 'Entregado'), [pedidos]); // <-- ESTA LÍNEA YA NO LA NECESITAMOS ASÍ, LA CAMBIAMOS ABAJO
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
 
-    // --- CAMBIO AQUÍ: OBTENER LA LISTA DE ENTREGADOS DE HOY ---
-    // Esta lista se calcula igual que hacías con el contador, pero devolviendo los objetos completos
     const pedidosEntregadosHoy = useMemo(() => {
         const hoy = new Date();
         return pedidos.filter(p => {
-            // 1. Tiene que estar entregado
             if (p.estado !== 'Entregado') return false;
-            
-            // 2. Si tiene fecha real de entrega (el momento exacto del click), usamos esa
             if (p.fechaEntregaReal) {
                 const fechaReal = new Date(p.fechaEntregaReal);
                 return fechaReal.getDate() === hoy.getDate() &&
                        fechaReal.getMonth() === hoy.getMonth() &&
                        fechaReal.getFullYear() === hoy.getFullYear();
             }
-            
-            // 3. (Fallback) Si es un pedido viejo sin fechaReal, usamos la fecha programada
             return p.fechaEntrega === getFechaHoy();
         });
     }, [pedidos]);
 
-    // El contador ahora es simplemente el tamaño de esa lista
     const entregadosHoyCount = pedidosEntregadosHoy.length;
-    // -----------------------------------------------------------
 
-    // Lógica de filtrado para la tabla principal
     const pedidosFiltrados = useMemo(() => {
         let procesados = [...pedidosPendientes].sort((a, b) => {
             const fechaA = new Date(a.fechaEntrega);
@@ -371,24 +353,18 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
             </div>
 
             <ModalPapelera isOpen={mostrarPapelera} pedidos={pedidosCancelados} onClose={() => setMostrarPapelera(false)} onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} onVaciar={onVaciarPapelera} onEliminar={onEliminarDePapelera} />
-            
-            {/* AQUÍ PASAMOS LA LISTA FILTRADA 'pedidosEntregadosHoy' EN LUGAR DE LA LISTA COMPLETA */}
             {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregadosHoy} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
-            
             {mostrarCajaHoy && <ModalCorteCaja pedidosDelDia={pedidosCajaHoy} totalCaja={totalCajaHoy} onClose={() => setMostrarCajaHoy(false)} />}
         </div>
     );
 };
 
-// --- VISTA: NUEVO PEDIDO (MODIFICADA PARA ACEPTAR FECHA) ---
+// --- VISTA: NUEVO PEDIDO ---
 export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedidoAEditar, mostrarNotificacion, fechaPreseleccionada }) => {
     const [formulario, setFormulario] = useState({ folio: '', cliente: '', telefono: '', tipoProducto: 'Pastel', detalles: '', total: '', numPagos: 1, fechaEntrega: '', horaEntrega: '' });
     const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Pastel');
     const [otroTexto, setOtroTexto] = useState('');
-
-    // --- CALCULAR FECHA MÍNIMA (HOY) ---
     const fechaHoy = new Date();
-    // Formato YYYY-MM-DD local
     const fechaMinima = `${fechaHoy.getFullYear()}-${String(fechaHoy.getMonth() + 1).padStart(2, '0')}-${String(fechaHoy.getDate()).padStart(2, '0')}`;
     
     useEffect(() => {
@@ -398,7 +374,6 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
             if (esEstandar) setCategoriaSeleccionada(pedidoAEditar.tipoProducto);
             else { setCategoriaSeleccionada('Otro'); setOtroTexto(pedidoAEditar.tipoProducto || ''); }
         } else {
-            // SI HAY FECHA PRESELECCIONADA (DESDE CALENDARIO), LA USAMOS
             setFormulario({ 
                 folio: '', 
                 cliente: '', 
@@ -466,7 +441,6 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="flex items-center text-sm font-medium text-gray-700"><CalendarDays size={16} className="mr-2 text-pink-500" /> Fecha Entrega</label>
-                            {/* Input con fecha mínima (hoy) para evitar errores, pero si se preselecciona se respeta */}
                             <input required type="date" min={fechaMinima} className="w-full p-3 border rounded-lg" value={formulario.fechaEntrega} onChange={e => setFormulario({ ...formulario,fechaEntrega: e.target.value })} />
                         </div>
                         <div className="space-y-2"><label className="flex items-center text-sm font-medium text-gray-700"><Clock size={16} className="mr-2 text-pink-500" /> Hora Entrega</label><input required type="time" className="w-full p-3 border rounded-lg" value={formulario.horaEntrega} onChange={e => setFormulario({ ...formulario, horaEntrega: e.target.value })} /></div>
@@ -487,6 +461,7 @@ export const VistaNuevoPedido = ({ pedidos, onGuardarPedido, generarFolio, pedid
     );
 };
 
+// --- VISTA: CALENDARIO (CORREGIDA PARA MÓVILES) ---
 export const VistaCalendarioPasteleria = ({ pedidos, onSeleccionarDia }) => {
     const [fechaVisual, setFechaVisual] = useState(new Date(2025, 11, 1)); 
     const [fechaBusqueda, setFechaBusqueda] = useState('');
@@ -499,21 +474,56 @@ export const VistaCalendarioPasteleria = ({ pedidos, onSeleccionarDia }) => {
     for (let i = 1; i <= diasEnMes; i++) dias.push(i);
 
     const cambiarMes = (delta) => { const nueva = new Date(fechaVisual); nueva.setMonth(nueva.getMonth() + delta); if (nueva < new Date(2025, 11, 1)) return; setFechaVisual(nueva); };
-    const handleCambiarMesInput = (e) => { const [y, m] = e.target.value.split('-').map(Number); const nueva = new Date(y, m - 1, 1); if (nueva < new Date(2025, 11, 1)) return; setFechaVisual(nueva); };
     const handleBuscarDia = (e) => { const fechaStr = e.target.value; setFechaBusqueda(fechaStr); if(fechaStr) { const [y, m] = fechaStr.split('-').map(Number); if (new Date(y, m - 1, 1) >= new Date(2025, 11, 1)) { setFechaVisual(new Date(y, m - 1, 1)); } onSeleccionarDia(fechaStr); } };
 
     const getPedidosDelDia = (dia) => { if (!dia) return []; const fechaString = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`; return pedidos.filter(p => p.fechaEntrega === fechaString && p.estado !== 'Cancelado').sort((a, b) => (a.horaEntrega || '00:00').localeCompare(b.horaEntrega || '00:00')); };
-    const mesInputValue = `${anio}-${String(mes + 1).padStart(2, '0')}`;
+    
+    // Formatear mes actual para mostrarlo bonito
+    const mesFormateado = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(fechaVisual);
 
     return (
         <div className="p-4 md:p-8 h-screen flex flex-col">
+            {/* CABECERA CORREGIDA PARA MÓVIL */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3"><CalendarDays size={32} className="text-pink-600"/> Agenda</h2>
-                <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
-                    <div className="flex items-center bg-white rounded-xl shadow-sm border border-pink-100 p-1"><button onClick={() => cambiarMes(-1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600"><ChevronLeft /></button><input type="month" value={mesInputValue} min="2025-12" onChange={handleCambiarMesInput} className="px-2 py-1 font-bold text-lg text-gray-700 bg-transparent border-none focus:outline-none text-center min-w-[150px] cursor-pointer" /><button onClick={() => cambiarMes(1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600"><ChevronRight /></button></div>
-                    <div className="relative w-full md:w-auto"><div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={16} className="text-gray-400"/></div><input type="date" value={fechaBusqueda} min="2025-12-01" onChange={handleBuscarDia} className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm w-full" placeholder="Buscar día..." /></div>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                    <CalendarDays size={32} className="text-pink-600"/> Agenda
+                </h2>
+                
+                {/* Contenedor de controles apilados en móvil y alineados en PC */}
+                <div className="flex flex-col w-full md:w-auto gap-3 items-end">
+                    
+                    {/* Selector de Mes - Ancho completo en móvil para evitar desbordes */}
+                    <div className="flex items-center justify-between bg-white rounded-xl shadow-sm border border-pink-100 p-1 w-full md:w-64">
+                        <button onClick={() => cambiarMes(-1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600 transition-colors">
+                            <ChevronLeft size={20} />
+                        </button>
+                        
+                        {/* Texto del mes centrado y capitalizado */}
+                        <span className="font-bold text-gray-700 capitalize text-lg truncate px-2 select-none">
+                            {mesFormateado}
+                        </span>
+
+                        <button onClick={() => cambiarMes(1)} className="p-2 hover:bg-pink-50 rounded-lg text-gray-600 transition-colors">
+                            <ChevronRight size={20} />
+                        </button>
+                    </div>
+
+                    {/* Buscador de fecha - Ancho igual al de arriba */}
+                    <div className="relative w-full md:w-64">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search size={16} className="text-gray-400"/>
+                        </div>
+                        <input 
+                            type="date" 
+                            value={fechaBusqueda} 
+                            min="2025-12-01" 
+                            onChange={handleBuscarDia} 
+                            className="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm w-full" 
+                        />
+                    </div>
                 </div>
             </div>
+
             <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                 <div className="grid grid-cols-7 bg-pink-50 border-b border-pink-100">{['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (<div key={d} className="py-3 text-center text-xs md:text-sm font-bold text-pink-800 uppercase tracking-wider">{d}</div>))}</div>
                 <div className="grid grid-cols-7 flex-1 auto-rows-fr">
