@@ -304,15 +304,49 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
 
             {/* Filtros y Tabla */}
             <div className="flex flex-col md:flex-row justify-end mb-4 gap-3">
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><CalendarDays size={18} className="text-gray-400" /></div>
-                    <input type="date" className="pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm text-sm text-gray-600 bg-white font-medium cursor-pointer" value={fechaFiltro} onChange={(e) => setFechaFiltro(e.target.value)} />
-                    {fechaFiltro && (<button onClick={() => setFechaFiltro('')} className="absolute inset-y-0 right-9 flex items-center text-gray-400 hover:text-red-500" title="Borrar fecha"><X size={16} /></button>)}
+                
+                {/* 1. Selector de Fecha (CORREGIDO) */}
+                <div className="relative w-full md:w-auto">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <CalendarDays size={18} className="text-gray-400" />
+                    </div>
+                    <input 
+                        type="date" 
+                        className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm text-sm text-gray-600 bg-white font-medium cursor-pointer" 
+                        value={fechaFiltro} 
+                        onChange={(e) => setFechaFiltro(e.target.value)} 
+                    />
+                    {fechaFiltro && (
+                        <button 
+                            onClick={() => setFechaFiltro('')} 
+                            className="absolute inset-y-0 right-6 flex items-center text-gray-400 hover:text-red-500" 
+                            title="Borrar fecha"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
+
+                {/* 2. Buscador por Nombre/Teléfono (RESTAURADO) */}
                 <div className="relative w-full md:w-96">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
-                    <input type="text" placeholder="BUSCAR POR NOMBRE O TELÉFONO..." className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" value={busqueda} onChange={(e) => setBusqueda(e.target.value.toUpperCase())} />
-                    {busqueda && (<button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"><X size={16} /></button>)}
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search size={18} className="text-gray-400" />
+                    </div>
+                    <input 
+                        type="text" 
+                        placeholder="BUSCAR POR NOMBRE O TELÉFONO..." 
+                        className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" 
+                        value={busqueda} 
+                        onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
+                    />
+                    {busqueda && (
+                        <button 
+                            onClick={() => setBusqueda('')} 
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
 
