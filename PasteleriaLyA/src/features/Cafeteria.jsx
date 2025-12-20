@@ -363,7 +363,181 @@ const ModalDesunirCuentas = ({ isOpen, onClose, cuenta, onConfirm }) => {
 
 export const ModalNuevoLlevar = ({ isOpen, onClose, onConfirm }) => { if (!isOpen) return null; const [datos, setDatos] = useState({ nombre: '', telefono: '' }); const [error, setError] = useState(''); const handleSubmit = () => { if (datos.nombre.trim().length < 3) { setError('El nombre debe tener al menos 3 letras.'); return; } if (datos.telefono.length !== 10) { setError('El teléfono debe tener 10 dígitos.'); return; } onConfirm(datos); setError(''); setDatos({ nombre: '', telefono: '' }); }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[120] p-4 backdrop-blur-sm"> <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm animate-bounce-in"> <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Smartphone size={24} className="text-orange-600" /> Nuevo Pedido "Para Llevar"</h3> <p className="text-sm text-gray-500 mb-4">Ingresa los datos del cliente:</p> <div className="space-y-3 mb-4"> <input placeholder="Nombre Completo" className="w-full p-3 border rounded-lg uppercase" value={datos.nombre} onChange={e => { setDatos({ ...datos, nombre: e.target.value.toUpperCase() }); setError(''); }} /> <input placeholder="Teléfono (10 dígitos)" type="tel" className="w-full p-3 border rounded-lg" value={datos.telefono} onChange={e => { if (/^\d*$/.test(e.target.value) && e.target.value.length <= 10) { setDatos({ ...datos, telefono: e.target.value }); setError(''); } }} /> </div> {error && <p className="text-red-500 text-xs font-bold mb-3 flex items-center gap-1"><AlertCircle size={12}/> {error}</p>} <div className="flex gap-2"><button onClick={onClose} className="flex-1 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">Cancelar</button><button onClick={handleSubmit} className="flex-1 py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700">Crear Pedido</button></div> </div> </div> ); };
 export const ModalGestionarCategorias = ({ isOpen, onClose, categorias, setCategorias, productos, setProductos, mostrarNotificacion }) => { const [listaCategorias, setListaCategorias] = useState(categorias); const [modoEdicion, setModoEdicion] = useState(null); const [textoInput, setTextoInput] = useState(''); const [categoriaAEliminar, setCategoriaAEliminar] = useState(null); const itemArrastrado = useRef(null); const itemSobreElQueSeArrastra = useRef(null); useEffect(() => { setListaCategorias(categorias); }, [categorias]); const handleDragStart = (e, index) => { itemArrastrado.current = index; }; const handleDragEnter = (e, index) => { itemSobreElQueSeArrastra.current = index; }; const handleDragEnd = () => { const items = [...listaCategorias]; const itemMovido = items.splice(itemArrastrado.current, 1)[0]; items.splice(itemSobreElQueSeArrastra.current, 0, itemMovido); setListaCategorias(items); itemArrastrado.current = null; itemSobreElQueSeArrastra.current = null; }; const guardarCambiosOrden = () => { setCategorias(listaCategorias); mostrarNotificacion("Orden de categorías actualizado", "exito"); onClose(); }; const handleGuardarCategoria = () => { const nombreLimpio = textoInput.trim(); if (!nombreLimpio) return mostrarNotificacion("El nombre no puede estar vacío", "error"); if (listaCategorias.includes(nombreLimpio) && nombreLimpio !== modoEdicion) return mostrarNotificacion("Ya existe una categoría con ese nombre", "error"); if (modoEdicion === 'nueva') { const nuevaLista = [...listaCategorias, nombreLimpio]; setListaCategorias(nuevaLista); setCategorias(nuevaLista); mostrarNotificacion(`Categoría "${nombreLimpio}" creada`, "exito"); } else { const nuevaLista = listaCategorias.map(c => c === modoEdicion ? nombreLimpio : c); setListaCategorias(nuevaLista); setCategorias(nuevaLista); const nuevosProductos = productos.map(p => p.categoria === modoEdicion ? { ...p, categoria: nombreLimpio } : p); setProductos(nuevosProductos); mostrarNotificacion(`Categoría renombrada a "${nombreLimpio}"`, "exito"); } setModoEdicion(null); setTextoInput(''); }; const handleEliminarCategoria = (catToDelete) => { const productosEnCategoria = productos.filter(p => p.categoria === catToDelete).length; if (productosEnCategoria > 0) return mostrarNotificacion(`No puedes eliminar "${catToDelete}" porque tiene ${productosEnCategoria} productos.`, "error"); setCategoriaAEliminar(catToDelete); }; const confirmarEliminacion = () => { if (categoriaAEliminar) { const nuevaLista = listaCategorias.filter(c => c !== categoriaAEliminar); setListaCategorias(nuevaLista); setCategorias(nuevaLista); mostrarNotificacion("Categoría eliminada", "info"); setCategoriaAEliminar(null); } }; if (!isOpen) return null; return ( <> <div className="fixed inset-0 bg-black bg-opacity-50 z-[210] flex items-center justify-center backdrop-blur-sm p-4"> <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in-up"> <div className="bg-gray-800 p-4 text-white flex justify-between items-center"><h3 className="font-bold flex items-center gap-2"><Settings size={20}/> Gestionar Categorías</h3><button onClick={onClose}><X size={20}/></button></div> <div className="p-4 bg-gray-50"> <ul className="space-y-2 mb-4"> {listaCategorias.map((cat, index) => ( <li key={cat} draggable onDragStart={(e) => handleDragStart(e, index)} onDragEnter={(e) => handleDragEnter(e, index)} onDragEnd={handleDragEnd} onDragOver={(e) => e.preventDefault()} className="bg-white p-3 rounded-lg border flex justify-between items-center hover:shadow-sm cursor-grab active:cursor-grabbing group"> <div className="flex items-center gap-3"><GripVertical size={18} className="text-gray-400"/><span className="font-medium text-gray-700">{cat}</span></div> <div className="flex gap-2 opacity-50 group-hover:opacity-100 transition-opacity"><button onClick={() => { setModoEdicion(cat); setTextoInput(cat); }} className="p-1.5 hover:bg-blue-50 text-blue-600 rounded"><Edit size={16}/></button><button onClick={() => handleEliminarCategoria(cat)} className="p-1.5 hover:bg-red-50 text-red-600 rounded"><Trash2 size={16}/></button></div> </li> ))} </ul> {modoEdicion ? ( <div className="flex gap-2 mb-4 bg-blue-50 p-2 rounded-lg border border-blue-100 animate-fade-in"> <input type="text" value={textoInput} onChange={e => setTextoInput(e.target.value)} className="flex-1 p-2 border rounded text-sm" placeholder="Nombre de categoría..." autoFocus onKeyDown={e => e.key === 'Enter' && handleGuardarCategoria()}/> <button onClick={handleGuardarCategoria} className="bg-blue-600 text-white px-3 rounded hover:bg-blue-700"><Check size={18}/></button> <button onClick={() => { setModoEdicion(null); setTextoInput(''); }} className="bg-gray-300 text-gray-700 px-3 rounded hover:bg-gray-400"><X size={18}/></button> </div> ) : ( <button onClick={() => { setModoEdicion('nueva'); setTextoInput(''); }} className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 rounded-lg hover:border-orange-400 hover:text-orange-500 transition flex justify-center items-center gap-2 font-medium"><PlusCircle size={18}/> Añadir Nueva Categoría</button> )} </div> <div className="p-4 border-t flex justify-end gap-3 bg-white"><button onClick={onClose} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 font-medium">Cerrar</button><button onClick={guardarCambiosOrden} className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-bold flex items-center gap-2"><Save size={18}/> Guardar Orden</button></div> </div> </div> <ModalConfirmacion isOpen={!!categoriaAEliminar} onClose={() => setCategoriaAEliminar(null)} onConfirm={confirmarEliminacion} titulo={`¿Eliminar "${categoriaAEliminar}"?`} mensaje="Esta acción eliminará la categoría permanentemente." /> </> ); };
-export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar, categoriasDisponibles }) => { if (!isOpen) return null; const [form, setForm] = useState({ id: null, nombre: '', categoria: categoriasDisponibles[0] || 'Otros', precio: '', imagen: null, pausado: false }); const [imagenPreview, setImagenPreview] = useState(null); const [scale, setScale] = useState(1); const [rotation, setRotation] = useState(0); const [isDragging, setIsDragging] = useState(false); const [position, setPosition] = useState({ x: 0, y: 0 }); const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); const imageRef = useRef(null); const canvasRef = useRef(null); const fileInputRef = useRef(null); useEffect(() => { if (producto) { setForm({ ...producto }); setImagenPreview(producto.imagen); } else { setForm({ id: null, nombre: '', categoria: categoriasDisponibles[0] || 'Otros', precio: '', imagen: null, pausado: false }); setImagenPreview(null); } setScale(1); setRotation(0); setPosition({ x: 0, y: 0 }); }, [producto, isOpen]); const handleImageChange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { setImagenPreview(reader.result); setScale(1); setRotation(0); setPosition({ x: 0, y: 0 }); }; reader.readAsDataURL(file); } }; const handleMouseDown = (e) => { setIsDragging(true); setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y }); }; const handleMouseMove = (e) => { if (isDragging) { setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); } }; const handleMouseUp = () => { setIsDragging(false); }; const rotate = (direction) => { setRotation(prev => prev + (direction === 'right' ? 90 : -90)); }; const getCroppedImg = () => { const canvas = canvasRef.current; const image = imageRef.current; if (!canvas || !image) return imagenPreview; const ctx = canvas.getContext('2d'); const containerSize = 250; canvas.width = containerSize; canvas.height = containerSize; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.save(); const centerX = canvas.width / 2; const centerY = canvas.height / 2; ctx.translate(centerX + position.x, centerY + position.y); ctx.rotate((rotation * Math.PI) / 180); const visibleWidth = image.naturalWidth * scale; const visibleHeight = image.naturalHeight * scale; ctx.drawImage(image, -visibleWidth / 2, -visibleHeight / 2, visibleWidth, visibleHeight); ctx.restore(); return canvas.toDataURL('image/jpeg', 0.9); }; const handleSubmit = (e) => { e.preventDefault(); const finalImage = (imagenPreview && (scale !== 1 || position.x !== 0 || position.y !== 0 || rotation !== 0)) ? getCroppedImg() : imagenPreview; const productoAGuardar = { ...form, precio: parseFloat(form.precio), imagen: finalImage, }; onGuardar(productoAGuardar); onClose(); }; const handleDelete = () => { onEliminar(producto.id); onClose(); }; return ( <div className="fixed inset-0 bg-black bg-opacity-50 z-[220] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto"> <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-fade-in-up my-8"> <div className="bg-orange-600 p-6 text-white flex justify-between items-center rounded-t-2xl"> <h3 className="text-2xl font-bold flex items-center gap-2">{producto ? <Edit size={24}/> : <Plus size={24}/>} {producto ? 'Editar Producto' : 'Nuevo Producto'}</h3> <button type="button" onClick={onClose} className="hover:bg-orange-700 p-2 rounded-full transition"><X size={24} /></button> </div> <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8"> <div className="space-y-5"> <div className="space-y-2"> <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><Coffee size={16} className="text-orange-500"/> Nombre del Producto</label> <div className="relative"><input required type="text" placeholder="Ej. Cappuccino Grande" className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all font-medium" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} /><AlignLeft size={18} className="absolute left-3 top-3.5 text-gray-400"/></div> </div> <div className="space-y-2"> <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><DollarSign size={16} className="text-orange-500"/> Precio</label> <div className="relative"><input required type="number" step="0.01" min="0" placeholder="Ej. 45.00" className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all font-bold text-lg" value={form.precio} onChange={e => setForm({ ...form, precio: e.target.value })} onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} /><Hash size={18} className="absolute left-3 top-3.5 text-gray-400"/></div> </div> <div className="space-y-2"> <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><Tag size={16} className="text-orange-500"/> Categoría</label> <div className="relative"><select className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all appearance-none bg-white font-medium" value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })}>{categoriasDisponibles.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select><Filter size={18} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none"/><ChevronRight size={18} className="absolute right-3 top-3.5 text-gray-400 rotate-90 pointer-events-none"/></div> </div> <div className="space-y-2"> <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><AlignLeft size={16} className="text-orange-500"/> Descripción</label> <textarea placeholder="Ej. Con leche entera y canela..." className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 h-24" value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} /> </div> </div> <div className="flex flex-col items-center justify-center md:border-l md:pl-8 border-gray-100"> <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" /> {!imagenPreview ? ( <div onClick={() => fileInputRef.current.click()} className="w-full h-64 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-all group"><Upload size={48} className="text-gray-300 group-hover:text-orange-400 mb-2 transition-colors"/><p className="text-gray-500 font-medium group-hover:text-orange-500">Click para subir imagen</p></div> ) : ( <div className="w-full flex flex-col items-center animate-fade-in"> <div className="w-[250px] h-[250px] rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100 relative cursor-move mb-4 group flex items-center justify-center" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}> <img ref={imageRef} src={imagenPreview} alt="Preview" className="absolute transition-transform duration-75 ease-out origin-center" style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`, maxHeight: 'none', maxWidth: 'none' }} draggable="false" /><div className="absolute inset-0 border-2 border-orange-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-2xl"></div> </div> <div className="w-full max-w-[250px] space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200"> <div><label className="flex justify-between text-xs font-bold text-gray-600 mb-1">Zoom: <span>{(scale * 100).toFixed(0)}%</span></label><input type="range" min="1" max="3" step="0.05" value={scale} onChange={e => setScale(parseFloat(e.target.value))} className="w-full accent-orange-500 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"/></div> <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-600">Rotar:</span><div className="flex gap-2"><button type="button" onClick={() => rotate('left')} className="p-2 bg-white border rounded-lg hover:bg-gray-100 text-gray-600"><RotateCcw size={16}/></button><button type="button" onClick={() => rotate('right')} className="p-2 bg-white border rounded-lg hover:bg-gray-100 text-gray-600"><RotateCw size={16}/></button></div></div> <div className="flex gap-2 mt-2"><button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-1.5 text-xs font-bold text-orange-600 border border-orange-200 bg-orange-50 rounded-lg hover:bg-orange-100 flex items-center justify-center gap-1"><ImageIcon size={12}/> Cambiar</button><button type="button" onClick={() => { setImagenPreview(null); fileInputRef.current.value = ''; }} className="flex-1 py-1.5 text-xs font-bold text-red-600 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1"><Trash2 size={12}/> Quitar</button></div> </div> <canvas ref={canvasRef} style={{ display: 'none' }} /> </div> )} </div> <div className="md:col-span-2 p-6 border-t border-gray-100 flex justify-between bg-gray-50 rounded-b-2xl -mx-8 -mb-8 mt-4"> <div>{producto && (<button type="button" onClick={handleDelete} className="px-4 py-3 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition-colors flex items-center gap-2"><Trash2 size={20}/> Eliminar</button>)}</div> <div className="flex gap-4"><button type="button" onClick={onClose} className="px-6 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-bold hover:bg-gray-100 transition-colors">Cancelar</button><button type="submit" className="px-8 py-3 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center gap-2"><Check size={20}/> {producto ? 'Guardar Cambios' : 'Crear Producto'}</button></div> </div> </form> </div> </div> ); };
+export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar, categoriasDisponibles }) => { 
+    if (!isOpen) return null; 
+    
+    const [form, setForm] = useState({ id: null, nombre: '', categoria: categoriasDisponibles[0] || 'Otros', precio: '', imagen: null, pausado: false }); 
+    const [imagenPreview, setImagenPreview] = useState(null); 
+    const [scale, setScale] = useState(1); 
+    const [rotation, setRotation] = useState(0); 
+    const [isDragging, setIsDragging] = useState(false); 
+    const [position, setPosition] = useState({ x: 0, y: 0 }); 
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); 
+    
+    const imageRef = useRef(null); 
+    const canvasRef = useRef(null); 
+    const fileInputRef = useRef(null); 
+    
+    useEffect(() => { 
+        if (producto) { 
+            setForm({ ...producto }); 
+            setImagenPreview(producto.imagen); 
+        } else { 
+            setForm({ id: null, nombre: '', categoria: categoriasDisponibles[0] || 'Otros', precio: '', imagen: null, pausado: false }); 
+            setImagenPreview(null); 
+        } 
+        setScale(1); 
+        setRotation(0); 
+        setPosition({ x: 0, y: 0 }); 
+    }, [producto, isOpen]); 
+    
+    const handleImageChange = (e) => { 
+        const file = e.target.files[0]; 
+        if (file) { 
+            const reader = new FileReader(); 
+            reader.onloadend = () => { 
+                setImagenPreview(reader.result); 
+                setScale(1); 
+                setRotation(0); 
+                setPosition({ x: 0, y: 0 }); 
+            }; 
+            reader.readAsDataURL(file); 
+        } 
+    }; 
+    
+    const handleMouseDown = (e) => { setIsDragging(true); setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y }); }; 
+    const handleMouseMove = (e) => { if (isDragging) { setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); } }; 
+    const handleMouseUp = () => { setIsDragging(false); }; 
+    
+    const rotate = (direction) => { setRotation(prev => prev + (direction === 'right' ? 90 : -90)); }; 
+    
+    const getCroppedImg = () => { 
+        const canvas = canvasRef.current; 
+        const image = imageRef.current; 
+        if (!canvas || !image) return imagenPreview; 
+        
+        const ctx = canvas.getContext('2d'); 
+        const containerSize = 250; 
+        canvas.width = containerSize; 
+        canvas.height = containerSize; 
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        ctx.fillStyle = '#FFFFFF'; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height); 
+        
+        ctx.save(); 
+        const centerX = canvas.width / 2; 
+        const centerY = canvas.height / 2; 
+        ctx.translate(centerX + position.x, centerY + position.y); 
+        ctx.rotate((rotation * Math.PI) / 180); 
+        
+        const visibleWidth = image.naturalWidth * scale; 
+        const visibleHeight = image.naturalHeight * scale; 
+        ctx.drawImage(image, -visibleWidth / 2, -visibleHeight / 2, visibleWidth, visibleHeight); 
+        ctx.restore(); 
+        
+        return canvas.toDataURL('image/jpeg', 0.9); 
+    }; 
+    
+    const handleSubmit = (e) => { 
+        e.preventDefault(); 
+        const finalImage = (imagenPreview && (scale !== 1 || position.x !== 0 || position.y !== 0 || rotation !== 0)) ? getCroppedImg() : imagenPreview; 
+        const productoAGuardar = { ...form, precio: parseFloat(form.precio), imagen: finalImage, }; 
+        onGuardar(productoAGuardar); 
+        onClose(); 
+    }; 
+    
+    const handleDelete = () => { onEliminar(producto.id); onClose(); }; 
+
+    return ( 
+        <div className="fixed inset-0 z-[220] overflow-y-auto bg-black bg-opacity-50 backdrop-blur-sm">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-fade-in-up relative my-8 text-left">
+                    <div className="bg-orange-600 p-6 text-white flex justify-between items-center rounded-t-2xl"> 
+                        <h3 className="text-2xl font-bold flex items-center gap-2">{producto ? <Edit size={24}/> : <Plus size={24}/>} {producto ? 'Editar Producto' : 'Nuevo Producto'}</h3> 
+                        <button type="button" onClick={onClose} className="hover:bg-orange-700 p-2 rounded-full transition"><X size={24} /></button> 
+                    </div> 
+                    
+                    <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8"> 
+                        <div className="space-y-5"> 
+                            <div className="space-y-2"> 
+                                <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><Coffee size={16} className="text-orange-500"/> Nombre del Producto</label> 
+                                <div className="relative"><input required type="text" placeholder="Ej. Cappuccino Grande" className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all font-medium" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} /><AlignLeft size={18} className="absolute left-3 top-3.5 text-gray-400"/></div> 
+                            </div> 
+                            <div className="space-y-2"> 
+                                <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><DollarSign size={16} className="text-orange-500"/> Precio</label> 
+                                <div className="relative"><input required type="number" step="0.01" min="0" placeholder="Ej. 45.00" className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all font-bold text-lg" value={form.precio} onChange={e => setForm({ ...form, precio: e.target.value })} onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()} /><Hash size={18} className="absolute left-3 top-3.5 text-gray-400"/></div> 
+                            </div> 
+                            <div className="space-y-2"> 
+                                <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><Tag size={16} className="text-orange-500"/> Categoría</label> 
+                                <div className="relative"><select className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-0 transition-all appearance-none bg-white font-medium" value={form.categoria} onChange={e => setForm({ ...form, categoria: e.target.value })}>{categoriasDisponibles.map(cat => <option key={cat} value={cat}>{cat}</option>)}</select><Filter size={18} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none"/><ChevronRight size={18} className="absolute right-3 top-3.5 text-gray-400 rotate-90 pointer-events-none"/></div> 
+                            </div> 
+                            <div className="space-y-2"> 
+                                <label className="flex items-center text-sm font-bold text-gray-700 gap-2"><AlignLeft size={16} className="text-orange-500"/> Descripción</label> 
+                                <textarea placeholder="Ej. Con leche entera y canela..." className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 h-24" value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} /> 
+                            </div> 
+                        </div> 
+                        
+                        <div className="flex flex-col items-center justify-center md:border-l md:pl-8 border-gray-100"> 
+                            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" /> 
+                            {!imagenPreview ? ( 
+                                <div onClick={() => fileInputRef.current.click()} className="w-full h-64 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-all group"><Upload size={48} className="text-gray-300 group-hover:text-orange-400 mb-2 transition-colors"/><p className="text-gray-500 font-medium group-hover:text-orange-500">Click para subir imagen</p></div> 
+                            ) : ( 
+                                <div className="w-full flex flex-col items-center animate-fade-in"> 
+                                    <div className="w-[250px] h-[250px] rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100 relative cursor-move mb-4 group flex items-center justify-center" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}> 
+                                        <img ref={imageRef} src={imagenPreview} alt="Preview" className="absolute transition-transform duration-75 ease-out origin-center" style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`, maxHeight: 'none', maxWidth: 'none' }} draggable="false" /><div className="absolute inset-0 border-2 border-orange-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-2xl"></div> 
+                                    </div> 
+                                    <div className="w-full max-w-[250px] space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200"> 
+                                        <div><label className="flex justify-between text-xs font-bold text-gray-600 mb-1">Zoom: <span>{(scale * 100).toFixed(0)}%</span></label><input type="range" min="0.1" max="3" step="0.05" value={scale} onChange={e => setScale(parseFloat(e.target.value))} className="w-full accent-orange-500 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"/></div> 
+                                        <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-600">Rotar:</span><div className="flex gap-2"><button type="button" onClick={() => rotate('left')} className="p-2 bg-white border rounded-lg hover:bg-gray-100 text-gray-600"><RotateCcw size={16}/></button><button type="button" onClick={() => rotate('right')} className="p-2 bg-white border rounded-lg hover:bg-gray-100 text-gray-600"><RotateCw size={16}/></button></div></div> 
+                                        <div className="flex gap-2 mt-2"><button type="button" onClick={() => fileInputRef.current.click()} className="flex-1 py-1.5 text-xs font-bold text-orange-600 border border-orange-200 bg-orange-50 rounded-lg hover:bg-orange-100 flex items-center justify-center gap-1"><ImageIcon size={12}/> Cambiar</button><button type="button" onClick={() => { setImagenPreview(null); fileInputRef.current.value = ''; }} className="flex-1 py-1.5 text-xs font-bold text-red-600 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 flex items-center justify-center gap-1"><Trash2 size={12}/> Quitar</button></div> 
+                                    </div> 
+                                    <canvas ref={canvasRef} style={{ display: 'none' }} /> 
+                                </div> 
+                            )} 
+                        </div> 
+                        
+                        {/* --- FOOTER DE BOTONES MEJORADO --- */}
+                        <div className="md:col-span-2 p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl -mx-8 -mb-8 mt-4"> 
+                            {producto ? (
+                                // Layout EDICIÓN: Móvil (Grid 2 filas) / PC (Fila única separada)
+                                <div className="grid grid-cols-2 gap-4 md:flex md:items-center">
+                                    
+                                    {/* 1. ELIMINAR: Izquierda (PC y Móvil) */}
+                                    <button type="button" onClick={handleDelete} className="px-4 py-3 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2">
+                                        <Trash2 size={20}/> <span className="hidden sm:inline">Eliminar</span><span className="sm:hidden">Borrar</span>
+                                    </button>
+
+                                    {/* 2. CANCELAR: Derecha (PC y Móvil) */}
+                                    {/* 'md:ml-auto' empuja este botón y el siguiente a la derecha en PC */}
+                                    <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-bold hover:bg-gray-100 transition-colors md:ml-auto">
+                                        Cancelar
+                                    </button>
+
+                                    {/* 3. GUARDAR: Abajo completo (Móvil) / Derecha (PC) */}
+                                    <button type="submit" className="col-span-2 w-full md:w-auto px-8 py-3 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2 md:ml-4">
+                                        <Check size={20}/> Guardar Cambios
+                                    </button>
+                                </div>
+                            ) : (
+                                // Layout CREAR: Simple (Cancelar y Crear juntos)
+                                <div className="flex flex-col sm:flex-row justify-end gap-4">
+                                     <button type="button" onClick={onClose} className="w-full sm:w-auto px-6 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-bold hover:bg-gray-100 transition-colors">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" className="w-full sm:w-auto px-8 py-3 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 shadow-md hover:shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                                        <Check size={20}/> Crear Producto
+                                    </button>
+                                </div>
+                            )}
+                        </div> 
+                    </form> 
+                </div> 
+            </div>
+        </div> 
+    ); 
+};
+
 export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => { const [modalUnirOpen, setModalUnirOpen] = useState(false); const [modalCrearOpen, setModalCrearOpen] = useState(false); return ( <div className="fixed inset-0 bg-gray-50 z-[50] flex flex-col animate-fade-in-up"> <div className="bg-white p-4 shadow-md flex justify-between items-center"> <div className="flex items-center gap-4"><button onClick={onVolver} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft /></button><div><h2 className="text-2xl font-bold text-gray-800">{mesa.nombre}</h2><div className="flex items-center gap-2 text-sm text-gray-500"><Users size={16} /> <span>{mesa.cuentas.length} cuentas activas</span></div></div></div> <div className="flex items-center gap-3">{mesa.cuentas.length > 1 && (<button onClick={() => setModalUnirOpen(true)} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 flex items-center gap-2"><Merge size={18}/> Unir Cuentas</button>)}<div className="bg-orange-100 text-orange-800 px-4 py-2 rounded-lg font-bold">Total Mesa: ${mesa.cuentas.reduce((acc, c) => acc + c.total, 0)}</div></div> </div> <div className="flex-1 p-8 overflow-y-auto"> {mesa.cuentas.length === 0 ? ( <div className="text-center py-20 opacity-50"><Users size={64} className="mx-auto mb-4 text-gray-400" /><h3 className="text-xl font-bold text-gray-600">Mesa Disponible</h3><p>No hay cuentas abiertas. Esperando clientes...</p></div> ) : ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{mesa.cuentas.map(cuenta => (<div key={cuenta.id} onClick={() => onAbrirCuenta(mesa.id, cuenta.id)} className="bg-white border-l-8 border-orange-500 rounded-xl shadow-sm hover:shadow-md cursor-pointer p-6 transition-all transform hover:-translate-y-1 relative group"><div className="flex justify-between items-start mb-4"><div><h4 className="font-bold text-lg text-gray-800 uppercase">{cuenta.cliente}</h4><span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-mono">{cuenta.id}</span></div><div className="bg-orange-50 p-2 rounded-full text-orange-600"><Edit size={20} /></div></div><div className="mb-4 text-sm text-gray-500 max-h-24 overflow-hidden relative">{cuenta.cuenta.length === 0 ? <span className="italic opacity-50">Sin pedidos aún</span> : (<ul className="space-y-1">{cuenta.cuenta.slice(0, 3).map((item, idx) => (<li key={idx} className="flex justify-between"><span>{item.cantidad || 1}x {item.nombre}</span></li>))}{cuenta.cuenta.length > 3 && <li className="text-xs font-bold pt-1">...y {cuenta.cuenta.length - 3} más</li>}</ul>)}</div><div className="flex justify-between items-end border-t pt-4"><span className="text-sm text-gray-500">{cuenta.cuenta.length} items</span><span className="text-2xl font-bold text-gray-900">${cuenta.total}</span></div></div>))}</div> )} </div> <div className="p-4 bg-white border-t border-gray-200"><button onClick={() => setModalCrearOpen(true)} className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-lg shadow-lg flex justify-center items-center gap-2"><PlusCircle /> Agregar Cuenta Manualmente</button></div> <ModalFusionCuentas isOpen={modalUnirOpen} onClose={() => setModalUnirOpen(false)} cuentas={mesa.cuentas} onConfirmarFusion={(destino, origenes) => { onUnirCuentas(mesa.id, destino, origenes); setModalUnirOpen(false); }} /> <ModalNuevaCuentaMesa isOpen={modalCrearOpen} onClose={() => setModalCrearOpen(false)} onConfirm={(nombre) => { onCrearCuenta(mesa.id, nombre); setModalCrearOpen(false); }} /> </div> ); };
 
 // COMPONENTE PARA TOMAR LA ORDEN (COMANDA)
@@ -786,8 +960,6 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
     const [categoriasOrdenadas, setCategoriasOrdenadas] = useState(CATEGORIAS_INICIALES);
     const [modalCategoriasOpen, setModalCategoriasOpen] = useState(false);
     const [verPausados, setVerPausados] = useState(false);
-    
-    // --- NUEVO ESTADO PARA EL MODAL DE ELIMINAR ---
     const [productoParaEliminar, setProductoParaEliminar] = useState(null);
 
     useEffect(() => {
@@ -836,13 +1008,13 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
         if (productoParaEliminar) {
             onEliminarProducto(productoParaEliminar);
             setProductoParaEliminar(null);
-            setModalProductoOpen(false); // Cierra el editor si estaba abierto
+            setModalProductoOpen(false); 
         }
     };
 
     const toggleDisponibilidad = (producto) => {
         const productoActualizado = { ...producto, pausado: !producto.pausado };
-        onGuardarProducto(productoActualizado, false); // <--- False added
+        onGuardarProducto(productoActualizado, false); 
         mostrarNotificacion(productoActualizado.pausado ? "Producto pausado" : "Producto activado", "info");
     };
 
@@ -864,15 +1036,24 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
                         <input type="text" placeholder="Buscar producto para editar..." className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all outline-none" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
                         {busqueda && (<button onClick={() => setBusqueda('')} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"><X size={18} /></button>)}
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <button onClick={toggleVerPausados} className={`flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 text-xs md:text-sm border ${verPausados ? 'bg-red-600 text-white border-red-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`} title={verPausados ? "Ver Todo" : "Ver Solo Pausados"}>
-                            {verPausados ? <EyeOff size={16}/> : <PauseCircle size={16}/>} {verPausados ? "Ver Todos" : "Ver Pausados"}
+                    
+                    {/* --- AQUÍ ESTÁ EL CAMBIO: Grid en móvil, Flex en PC --- */}
+                    <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:flex">
+                        <button onClick={toggleVerPausados} className={`col-span-1 md:flex-none px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 text-xs md:text-sm border ${verPausados ? 'bg-red-600 text-white border-red-700 shadow-md' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`} title={verPausados ? "Ver Todo" : "Ver Solo Pausados"}>
+                            {verPausados ? <EyeOff size={16}/> : <PauseCircle size={16}/>} {verPausados ? "Todos" : "Pausados"}
                             {!verPausados && cantidadPausados > 0 && <span className="bg-red-100 text-red-600 text-[10px] px-1.5 rounded-full">{cantidadPausados}</span>}
                         </button>
-                        <button onClick={() => setModalCategoriasOpen(true)} className="flex-1 md:flex-none bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 text-xs md:text-sm"><Settings size={16}/> Categorías</button>
-                        <button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="flex-1 md:flex-none bg-orange-600 hover:bg-orange-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 text-xs md:text-sm"><PlusCircle size={16}/> Nuevo Producto</button>
+                        
+                        <button onClick={() => setModalCategoriasOpen(true)} className="col-span-1 md:flex-none bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 text-xs md:text-sm">
+                            <Settings size={16}/> Categorías
+                        </button>
+                        
+                        <button onClick={() => { setProductoAEditar(null); setModalProductoOpen(true); }} className="col-span-2 md:flex-none bg-orange-600 hover:bg-orange-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 text-xs md:text-sm">
+                            <PlusCircle size={16}/> Nuevo Producto
+                        </button>
                     </div>
                 </div>
+
                 <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                     <button onClick={() => { setCategoriaFiltro('Todas'); setVerPausados(false); }} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' && !verPausados ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400 hover:bg-gray-50'}`}>Todas</button>
                     {categoriasOrdenadas.map(cat => (
@@ -892,7 +1073,6 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
                                 <div key={producto.id} className="relative group overflow-hidden rounded-xl shadow-sm border border-gray-100"> 
                                     <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
                                     
-                                    {/* Overlay Botones Compactos */}
                                     <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10">
                                         <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-2 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
                                             {producto.pausado ? <PlayCircle size={18} /> : <PauseCircle size={18} />}
@@ -931,7 +1111,6 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
                                         <div key={producto.id} className="relative group overflow-hidden rounded-xl shadow-sm border border-gray-50"> 
                                             <CardProducto producto={producto} onClick={() => { setProductoAEditar(producto); setModalProductoOpen(true); }} />
                                             
-                                            {/* Overlay Botones Compactos */}
                                             <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all z-10">
                                                 <button onClick={(e) => { e.stopPropagation(); toggleDisponibilidad(producto); }} className={`p-2 rounded-full shadow-lg border border-gray-200 transition-all transform hover:scale-110 ${producto.pausado ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'}`} title={producto.pausado ? "Reanudar Venta" : "Pausar Venta"}>
                                                     {producto.pausado ? <PlayCircle size={18} /> : <PauseCircle size={18} />}
