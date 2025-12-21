@@ -600,12 +600,190 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
     );
 };
 
-// --- NUEVO COMPONENTE: GESTIÓN DE BASE DE DATOS ---
+// --- COMPONENTE ACTUALIZADO: GESTIÓN DE BASE DE DATOS (MULTI-SELECCIÓN) ---
 export const VistaBaseDatos = () => {
+    // Estados para Limpieza Total (Fábrica)
     const [confirmarLimpieza, setConfirmarLimpieza] = useState(false);
+    
+    // Estados para Gestión por Periodos (Multi-selección)
+    const [mesesDisponibles, setMesesDisponibles] = useState([]); // Todos los que existen
+    const [mesesSeleccionados, setMesesSeleccionados] = useState([]); // Los que marcó el usuario (array)
+    const [confirmarBorradoMeses, setConfirmarBorradoMeses] = useState(false);
+    
+    // Estados de carga
     const [cargando, setCargando] = useState(false);
+    const [cargandoExportar, setCargandoExportar] = useState(false);
+    const [cargandoFechas, setCargandoFechas] = useState(true);
 
-    // Función de borrado (movida aquí)
+    // --- EFECTO: BUSCAR MESES CON DATOS REALES ---
+    useEffect(() => {
+        const obtenerMesesConDatos = async () => {
+            setCargandoFechas(true);
+            try {
+                // 1. Obtener fechas de Ventas
+                const ventasSnap = await getDocs(collection(db, "ventas"));
+                const fechasVentas = ventasSnap.docs.map(d => d.data().fecha).filter(Boolean);
+
+                // 2. Obtener fechas de Pedidos
+                const pedidosSnap = await getDocs(collection(db, "pedidos"));
+                const fechasPedidos = pedidosSnap.docs.map(d => d.data().fecha).filter(Boolean);
+
+                // 3. Unificar y extraer "YYYY-MM"
+                const todasLasFechas = [...fechasVentas, ...fechasPedidos];
+                const setMeses = new Set();
+
+                todasLasFechas.forEach(fechaStr => {
+                    if (fechaStr.length >= 7) {
+                        const mesAnio = fechaStr.substring(0, 7); // "2025-12"
+                        setMeses.add(mesAnio);
+                    }
+                });
+
+                // 4. Ordenar (Más reciente primero)
+                const mesesOrdenados = Array.from(setMeses).sort().reverse();
+                setMesesDisponibles(mesesOrdenados);
+
+            } catch (error) {
+                console.error("Error cargando fechas disponibles:", error);
+            }
+            setCargandoFechas(false);
+        };
+
+        obtenerMesesConDatos();
+    }, []);
+
+    // Helper: Nombre bonito del mes
+    const nombreMes = (fechaMes) => {
+        if (!fechaMes) return "";
+        const [anio, mes] = fechaMes.split('-');
+        const date = new Date(parseInt(anio), parseInt(mes) - 1, 1);
+        return date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
+    };
+
+    // Helper: Checkbox lógica
+    const toggleMes = (mes) => {
+        if (mesesSeleccionados.includes(mes)) {
+            setMesesSeleccionados(prev => prev.filter(m => m !== mes));
+        } else {
+            setMesesSeleccionados(prev => [...prev, mes]);
+        }
+    };
+
+    const seleccionarTodos = () => setMesesSeleccionados([...mesesDisponibles]);
+    const deseleccionarTodos = () => setMesesSeleccionados([]);
+
+    // --- FUNCIÓN 1: EXPORTAR SELECCIONADOS ---
+    const handleExportarSeleccion = async () => {
+        if (mesesSeleccionados.length === 0) return alert("Selecciona al menos un mes.");
+        setCargandoExportar(true);
+
+        try {
+            // Obtener todo y filtrar (más seguro para asegurar consistencia)
+            const ventasRef = collection(db, "ventas");
+            const snapshotVentas = await getDocs(ventasRef);
+            
+            const pedidosRef = collection(db, "pedidos");
+            const snapshotPedidos = await getDocs(pedidosRef);
+
+            // Filtrar los que coincidan con ALGUNO de los meses seleccionados
+            const ventasFiltradas = snapshotVentas.docs
+                .map(d => d.data())
+                .filter(d => d.fecha && mesesSeleccionados.some(m => d.fecha.startsWith(m)));
+
+            const pedidosFiltrados = snapshotPedidos.docs
+                .map(d => d.data())
+                .filter(d => d.fecha && mesesSeleccionados.some(m => d.fecha.startsWith(m)));
+
+            if (ventasFiltradas.length === 0 && pedidosFiltrados.length === 0) {
+                alert("No se encontraron datos en los meses seleccionados.");
+                setCargandoExportar(false);
+                return;
+            }
+
+            // Generar CSV
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "TIPO,FECHA,FOLIO,CLIENTE,TOTAL,ESTADO,DETALLES\n";
+
+            ventasFiltradas.forEach(v => {
+                const fila = `CAFETERIA,${v.fecha},"${v.folioLocal || ''}","${v.cliente || 'Publico'}",${v.total},PAGADO,"${v.descripcion || ''}"`;
+                csvContent += fila + "\n";
+            });
+
+            pedidosFiltrados.forEach(p => {
+                const fila = `PASTELERIA,${p.fecha},"${p.folio || ''}","${p.cliente || ''}",${p.total},"${p.estado}","${p.descripcion || ''}"`;
+                csvContent += fila + "\n";
+            });
+
+            // Nombre del archivo dinámico
+            const nombreArchivo = mesesSeleccionados.length === 1 
+                ? `Respaldo_LyA_${mesesSeleccionados[0]}.csv`
+                : `Respaldo_LyA_Multiples_Periodos.csv`;
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", nombreArchivo);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error("Error exportando:", error);
+            alert("Error al generar reporte.");
+        }
+        setCargandoExportar(false);
+    };
+
+    // --- FUNCIÓN 2: ELIMINAR SELECCIONADOS ---
+    const handleEliminarSeleccion = async () => {
+        setConfirmarBorradoMeses(false);
+        setCargando(true);
+        try {
+            const batchSize = 400;
+            let totalEliminados = 0;
+
+            const borrarLote = async (nombreColeccion) => {
+                const colRef = collection(db, nombreColeccion);
+                const snapshot = await getDocs(colRef);
+                
+                // Filtrar docs que pertenezcan a CUALQUIERA de los meses seleccionados
+                const docsABorrar = snapshot.docs.filter(doc => {
+                    const data = doc.data();
+                    return data.fecha && mesesSeleccionados.some(mes => data.fecha.startsWith(mes));
+                });
+
+                if (docsABorrar.length === 0) return 0;
+
+                for (let i = 0; i < docsABorrar.length; i += batchSize) {
+                    const batch = writeBatch(db);
+                    const chunk = docsABorrar.slice(i, i + batchSize);
+                    chunk.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                }
+                return docsABorrar.length;
+            };
+
+            const eliminadosVentas = await borrarLote("ventas");
+            const eliminadosPedidos = await borrarLote("pedidos");
+            totalEliminados = eliminadosVentas + eliminadosPedidos;
+
+            if (totalEliminados > 0) {
+                alert(`✅ Se eliminaron ${totalEliminados} registros de los meses seleccionados.`);
+                // Actualizar lista disponible quitando los meses que seleccionamos
+                setMesesDisponibles(prev => prev.filter(m => !mesesSeleccionados.includes(m)));
+                setMesesSeleccionados([]); 
+            } else {
+                alert("⚠️ No se encontraron registros para eliminar en esos periodos.");
+            }
+
+        } catch (error) {
+            console.error("Error borrando:", error);
+            alert("Error: " + error.message);
+        }
+        setCargando(false);
+    };
+
+    // --- FUNCIÓN 3: RESET FÁBRICA ---
     const ejecutarBorradoBD = async () => {
         setConfirmarLimpieza(false);
         setCargando(true);
@@ -628,58 +806,139 @@ export const VistaBaseDatos = () => {
             await borrarColeccionCompleta("ventas");
             
             alert("✅ Sistema reiniciado correctamente.");
+            setMesesDisponibles([]);
+            setMesesSeleccionados([]);
         } catch (error) { 
-            console.error("Error borrando:", error); 
-            alert("Error al borrar: " + error.message); 
+            console.error("Error borrando todo:", error); 
+            alert("Error: " + error.message); 
         }
         setCargando(false);
     };
 
     return (
-        <div className="p-4 md:p-8">
-            <div className="mb-8">
+        <div className="p-4 md:p-8 space-y-8">
+            <div>
                 <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
                     <Database className="text-blue-600" /> Administración de Datos
                 </h2>
-                <p className="text-gray-500 text-sm mt-1">Herramientas de mantenimiento y configuración técnica.</p>
+                <p className="text-gray-500 text-sm mt-1">Gestión de historial, respaldos y limpieza del sistema.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* TARJETA: LIMPIAR BASE DE DATOS */}
-                <div className="bg-white border border-red-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-bl-full -mr-4 -mt-4 z-0 transition-transform group-hover:scale-110"></div>
-                    <div className="relative z-10">
-                        <div className="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mb-4 shadow-sm">
-                            <ServerCrash size={24} />
+            {/* SECCIÓN 1: GESTOR DE HISTORIAL (MULTI-SELECCIÓN) */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row gap-6">
+                    
+                    {/* COLUMNA IZQUIERDA: SELECTOR DE MESES */}
+                    <div className="w-full md:w-1/2 lg:w-1/3 flex flex-col">
+                        <div className="flex justify-between items-end mb-3">
+                            <h3 className="font-bold text-gray-700 flex items-center gap-2"><Calendar size={18}/> Periodos Disponibles</h3>
+                            <div className="text-[10px] space-x-2">
+                                <button onClick={seleccionarTodos} className="text-blue-600 font-bold hover:underline">Todos</button>
+                                <span className="text-gray-300">|</span>
+                                <button onClick={deseleccionarTodos} className="text-gray-400 font-bold hover:underline">Ninguno</button>
+                            </div>
                         </div>
-                        <h3 className="font-bold text-lg text-gray-800 mb-1">Restablecimiento de Fábrica</h3>
-                        <p className="text-xs text-gray-500 mb-6 leading-relaxed">
-                            Elimina todos los productos, mesas, pedidos y ventas para reiniciar el sistema desde cero.
-                        </p>
-                        <button 
-                            onClick={() => setConfirmarLimpieza(true)} 
-                            disabled={cargando}
-                            className="w-full py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-lg shadow-red-200"
-                        >
-                            {cargando ? 'Procesando...' : <><Trash2 size={18}/> Limpiar Base de Datos</>}
-                        </button>
+
+                        <div className="border border-gray-200 rounded-xl flex-1 max-h-[250px] overflow-y-auto bg-gray-50 p-2 custom-scrollbar">
+                            {cargandoFechas ? (
+                                <div className="text-center py-8 text-gray-400 text-xs italic">Escaneando base de datos...</div>
+                            ) : mesesDisponibles.length === 0 ? (
+                                <div className="text-center py-8 text-gray-400 text-xs italic">No hay historial antiguo disponible.</div>
+                            ) : (
+                                <div className="space-y-1">
+                                    {mesesDisponibles.map(mes => (
+                                        <label key={mes} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${mesesSeleccionados.includes(mes) ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-transparent hover:bg-gray-100'}`}>
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                                                checked={mesesSeleccionados.includes(mes)}
+                                                onChange={() => toggleMes(mes)}
+                                            />
+                                            <span className={`text-sm font-bold ${mesesSeleccionados.includes(mes) ? 'text-blue-800' : 'text-gray-600'}`}>
+                                                {nombreMes(mes)}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2 text-right">{mesesSeleccionados.length} periodo(s) seleccionado(s)</p>
+                    </div>
+
+                    {/* COLUMNA DERECHA: ACCIONES */}
+                    <div className="w-full md:w-1/2 lg:w-2/3 flex flex-col gap-4 justify-center">
+                        <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>
+                                <h4 className="font-bold text-blue-900 flex items-center gap-2"><Receipt size={18}/> Exportar Historial</h4>
+                                <p className="text-xs text-blue-700/70 mt-1">Genera un archivo Excel/CSV con todas las ventas y pedidos de los meses seleccionados.</p>
+                            </div>
+                            <button 
+                                onClick={handleExportarSeleccion}
+                                disabled={cargandoExportar || mesesSeleccionados.length === 0}
+                                className={`px-4 py-3 rounded-xl font-bold text-white shadow-lg flex items-center gap-2 transition whitespace-nowrap ${mesesSeleccionados.length === 0 ? 'bg-blue-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}
+                            >
+                                {cargandoExportar ? 'Generando...' : 'Descargar Reporte'}
+                            </button>
+                        </div>
+
+                        <div className="bg-orange-50 border border-orange-100 p-5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>
+                                <h4 className="font-bold text-orange-900 flex items-center gap-2"><Trash2 size={18}/> Depurar Historial</h4>
+                                <p className="text-xs text-orange-700/70 mt-1">Elimina permanentemente del sistema la información de los meses seleccionados.</p>
+                            </div>
+                            <button 
+                                onClick={() => setConfirmarBorradoMeses(true)}
+                                disabled={cargando || mesesSeleccionados.length === 0}
+                                className={`px-4 py-3 rounded-xl font-bold text-white shadow-lg flex items-center gap-2 transition whitespace-nowrap ${mesesSeleccionados.length === 0 ? 'bg-orange-300 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 active:scale-95'}`}
+                            >
+                                {cargando ? 'Procesando...' : 'Eliminar Selección'}
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* TARJETA: PRÓXIMAMENTE (PLACEHOLDER) */}
-                <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 flex flex-col items-center justify-center text-center opacity-50 hover:opacity-100 transition cursor-not-allowed bg-gray-50">
-                    <AlertTriangle size={32} className="text-gray-300 mb-2" />
-                    <p className="text-sm font-bold text-gray-400">Próximamente</p>
-                    <p className="text-xs text-gray-300">Más herramientas de DB</p>
+            {/* SECCIÓN 2: ZONA DE PELIGRO (RESET FÁBRICA) */}
+            <div className="border-t border-gray-200 pt-8">
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 group hover:shadow-md transition">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-white p-3 rounded-xl text-red-600 shadow-sm border border-red-100 hidden sm:block">
+                            <ServerCrash size={28}/>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg text-red-900 flex items-center gap-2">Restablecimiento de Fábrica</h3>
+                            <p className="text-sm text-red-800/70 mt-1 max-w-xl">
+                                Esta acción eliminará <strong>ABSOLUTAMENTE TODO</strong> (Productos, Mesas, Usuarios, Ventas y Pedidos). Úsala solo si deseas reiniciar el sistema desde cero.
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setConfirmarLimpieza(true)} 
+                        disabled={cargando}
+                        className="bg-white text-red-600 border border-red-200 px-6 py-3 rounded-xl font-bold hover:bg-red-600 hover:text-white transition shadow-sm w-full md:w-auto flex items-center justify-center gap-2 whitespace-nowrap"
+                    >
+                        <AlertTriangle size={18}/> Borrar Todo el Sistema
+                    </button>
                 </div>
             </div>
 
+            {/* MODAL CONFIRMACIÓN: BORRAR MESES */}
+            <ModalConfirmacion 
+                isOpen={confirmarBorradoMeses} 
+                onClose={() => setConfirmarBorradoMeses(false)} 
+                onConfirm={handleEliminarSeleccion} 
+                titulo={`¿Eliminar ${mesesSeleccionados.length} Periodos?`} 
+                mensaje={`Se borrarán permanentemente las Ventas y Pedidos de: ${mesesSeleccionados.map(m => nombreMes(m)).join(', ')}. ¿Estás seguro?`}
+                tipo="eliminar" 
+            />
+
+            {/* MODAL CONFIRMACIÓN: RESET FÁBRICA */}
             <ModalConfirmacion 
                 isOpen={confirmarLimpieza} 
                 onClose={() => setConfirmarLimpieza(false)} 
                 onConfirm={ejecutarBorradoBD} 
-                titulo="⚠️ ¡PELIGRO EXTREMO! ⚠️" 
-                mensaje="Estás a punto de ELIMINAR TODA LA INFORMACIÓN DEL SISTEMA (Productos, Mesas, Pedidos, Ventas). Esto dejará el sistema vacío como de fábrica. Esta acción NO se puede deshacer. ¿Estás 100% seguro?"
+                titulo="⚠️ DESTRUCCIÓN TOTAL ⚠️" 
+                mensaje="Estás a punto de borrar TODO el sistema. No habrá vuelta atrás. ¿Confirmas esta acción destructiva?"
                 tipo="eliminar" 
             />
         </div>
