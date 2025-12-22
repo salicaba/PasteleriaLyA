@@ -3,10 +3,22 @@ import {
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
     LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
-    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen, Lock
+    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen, Lock,
+    Maximize2 // <--- 1. IMPORTAMOS EL ICONO
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
+
+// --- UTILIDAD PANTALLA COMPLETA (Copiada para uso local en Cliente) ---
+const togglePantallaCompleta = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(e => console.log(e));
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+};
 
 // --- PANTALLA LOGIN ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
@@ -65,7 +77,7 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     };
 
     return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-gradient-bg">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-gradient-bg relative">
         <style>{`
             .animate-gradient-bg {
                 background: linear-gradient(-45deg, #fb923c, #f472b6, #fbbf24, #fb7185);
@@ -78,6 +90,16 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                 100% { background-position: 0% 50%; }
             }
         `}</style>
+        
+        {/* --- 2. BOTÓN PANTALLA COMPLETA EN LOGIN --- */}
+        <button 
+            onClick={togglePantallaCompleta}
+            className="absolute top-4 right-4 text-white/50 hover:text-white transition p-2 z-50 hover:bg-white/10 rounded-full"
+            title="Pantalla Completa"
+        >
+            <Maximize2 size={24} />
+        </button>
+        {/* ------------------------------------------- */}
 
         <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center animate-fade-in-up relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-orange-500 to-pink-500"></div>
@@ -894,6 +916,13 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                         <p className="text-xs text-gray-500">Hola, <span className="font-bold text-gray-800">{nombreCliente}</span></p>
                     </div>
                     <div className="flex items-center gap-2">
+                        
+                        {/* --- 3. BOTÓN PANTALLA COMPLETA EN MENÚ --- */}
+                        <button onClick={togglePantallaCompleta} className="bg-gray-100 text-gray-500 p-2 rounded-lg hover:bg-gray-200 transition" title="Pantalla Completa">
+                            <Maximize2 size={16} />
+                        </button>
+                        {/* ------------------------------------------ */}
+
                         {viendoMenuSoloLectura ? (
                             <button onClick={() => setViendoMenuSoloLectura(false)} className="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg font-bold flex items-center gap-1 text-xs border border-blue-100 hover:bg-blue-100">
                                 <ArrowLeft size={14}/> Volver a mi Pedido

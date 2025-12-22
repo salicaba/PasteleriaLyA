@@ -3,12 +3,24 @@ import {
     LayoutDashboard, BarChart3, Coffee, Cake, PlusCircle, Grid, UtensilsCrossed, ArrowLeft, PanelLeftClose, 
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
     Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle, Shield,
-    Minus, Plus, Info, ChevronUp, ChevronDown, Loader, Database // <--- 1. AGREGAMOS EL ICONO DATABASE
+    Minus, Plus, Info, ChevronUp, ChevronDown, Loader, Database,
+    Maximize2, Minimize2 // <--- 1. AGREGAMOS ESTOS ICONOS
 } from 'lucide-react';
 import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
 // --- IMPORTAMOS LA UTILIDAD DE ROLES ---
 import { tienePermiso } from '../utils/roles';
+
+// --- UTILIDAD PARA PANTALLA COMPLETA ---
+const togglePantallaCompleta = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(e => console.log(e));
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+};
 
 // --- NOTIFICACIÓN FLOTANTE ---
 export const Notificacion = ({ data, onClose }) => {
@@ -185,7 +197,7 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
     return ( 
         <> 
         {isOpen && (<div className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300" onClick={toggleSidebar} />)} 
-        <aside className={`${isOpen ? 'translate-x-0 w-64 md:w-64 lg:w-72' : '-translate-x-full w-0 md:w-0'} ${colorBg} text-white h-full flex flex-col shadow-2xl transition-all duration-300 overflow-hidden fixed md:relative z-50 md:z-auto`}> 
+        <aside className={`${isOpen ? 'translate-x-0 w-64 md:w-64 lg:w-72' : '-translate-x-full w-0 md:w-0'} ${colorBg} text-white h-full flex flex-col shadow-2xl transition-all duration-300 overflow-hidden fixed md:relative z-50 md:z-auto shrink-0`}> 
             <div className="p-4 md:p-6 text-center flex-shrink-0 relative group"> 
                 <h1 className="text-4xl md:text-5xl font-bold text-white mb-2" style={{ fontFamily: "'Dancing Script', cursive" }}>LyA</h1> 
                 <p className={`text-xs ${colorText} uppercase tracking-widest font-bold`}>{modo === 'admin' ? 'Administración' : modo === 'pasteleria' ? 'Modo Pastelería' : 'Modo Cafetería'}</p> 
@@ -195,14 +207,11 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
             
             <nav className="flex-1 overflow-y-auto px-3 md:px-4 py-2 space-y-1 custom-scrollbar no-scrollbar"> 
                 
-                {/* --- 2. AGREGAMOS EL BOTÓN EN MODO ADMIN --- */}
                 {modo === 'admin' && ( 
                     <> 
                         <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Comparativo" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/> 
-                        
-                        {/* AQUÍ ESTÁ EL NUEVO BOTÓN */}
                         <BotonNav icon={<Database size={18}/>} label="Base de Datos" active={vistaActual === 'basedatos'} onClick={() => handleNavClick(() => setVistaActual('basedatos'))} colorTheme={themeBtn}/> 
                     </> 
                 )} 
@@ -212,7 +221,6 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 
                 <div className="my-4 border-t border-white/20"></div> 
                 
-                {/* --- SECCIÓN DE CAMBIO DE ÁREA (CON PERMISOS) --- */}
                 {(verAdmin || verPasteleria || verCafeteria) && (
                     <p className="text-[10px] text-white/50 uppercase font-bold mb-2 px-2 tracking-wider">Cambiar de Área</p> 
                 )}
@@ -229,7 +237,21 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
             </nav> 
             
             <div className="mt-auto px-3 md:px-4 py-4 space-y-2 border-t border-white/10"> 
-                <div className="bg-black/20 rounded-xl p-3 mb-2"> <p className="text-[10px] uppercase font-bold text-white/60 mb-2 flex items-center gap-1"><Monitor size={10} /> Tamaño de Vista</p> <div className="flex gap-1"> <button onClick={() => setEscala('grande')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'grande' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>G</button> <button onClick={() => setEscala('mediano')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'mediano' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>M</button> <button onClick={() => setEscala('pequeno')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>P</button> </div> </div> <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-red-200 hover:text-red-100"> <LogOut size={18}/><span className="font-medium text-sm truncate">Cerrar Sesión</span> </button> 
+                <div className="bg-black/20 rounded-xl p-3 mb-2"> 
+                    <p className="text-[10px] uppercase font-bold text-white/60 mb-2 flex items-center gap-1"><Monitor size={10} /> Tamaño de Vista</p> 
+                    <div className="flex gap-1"> 
+                        <button onClick={() => setEscala('grande')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'grande' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>G</button> 
+                        <button onClick={() => setEscala('mediano')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'mediano' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>M</button> 
+                        <button onClick={() => setEscala('pequeno')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>P</button> 
+                    </div> 
+                    
+                    {/* --- BOTÓN SIDEBAR: PANTALLA COMPLETA --- */}
+                    <button onClick={togglePantallaCompleta} className="w-full mt-2 py-1.5 flex items-center justify-center gap-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-white rounded transition border border-white/5">
+                        <Maximize2 size={12} /> Pantalla Completa
+                    </button>
+
+                </div> 
+                <button onClick={onLogout} className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-white/10 transition text-red-200 hover:text-red-100"> <LogOut size={18}/><span className="font-medium text-sm truncate">Cerrar Sesión</span> </button> 
             </div> 
         </aside> 
         </> 
@@ -248,7 +270,16 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
         <div className="flex bg-gray-50 overflow-hidden transition-all duration-300" style={{ zoom: zoom, height: `${100 / zoom}vh`, width: '100%', }}> 
             <Sidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={setModo} isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} onLogout={onLogout} escala={escala} setEscala={setEscala} userRole={userRole} /> 
             <div className="flex-1 flex flex-col w-full h-full relative transition-all duration-300"> 
-                <header className="md:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between z-40 shrink-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100"><Menu size={24} /></button><h1 className="text-xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>{modo === 'admin' ? 'Administración' : modo === 'pasteleria' ? 'Pastelería' : 'Cafetería'}</h1><div className="w-10"></div></header> 
+                <header className="md:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between z-40 shrink-0">
+                    <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100"><Menu size={24} /></button>
+                    <h1 className="text-xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>{modo === 'admin' ? 'Administración' : modo === 'pasteleria' ? 'Pastelería' : 'Cafetería'}</h1>
+                    
+                    {/* --- BOTÓN HEADER MÓVIL: PANTALLA COMPLETA (Reemplazamos el div vacío) --- */}
+                    <button onClick={togglePantallaCompleta} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition active:scale-90">
+                        <Maximize2 size={24} />
+                    </button>
+
+                </header> 
                 {!sidebarOpen && (<button onClick={() => setSidebarOpen(true)} className="hidden md:flex absolute top-4 left-4 z-40 bg-white p-2 rounded-full shadow-md text-gray-600 hover:text-gray-900 border border-gray-200 transition-all hover:scale-110 animate-fade-in" title="Mostrar menú"><Menu size={24} /></button>)} 
                 <main className="flex-1 p-4 md:p-6 overflow-y-auto">{children}</main> 
             </div> 
