@@ -286,7 +286,7 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                 <div className="flex flex-col md:flex-row flex-wrap gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-200 items-start md:items-end w-full md:w-auto">
                     <div className="w-full md:w-auto">
                         <label className="text-xs font-bold text-gray-500 block mb-1">Mes Principal</label>
-                        <input type="month" value={mesSeleccionado} min="2025-12" onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition" />
+                        <input type="month" value={mesSeleccionado} min="2025-12" onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase" />
                     </div>
                     <div className="h-10 w-px bg-gray-300 mx-2 hidden md:block"></div>
                     

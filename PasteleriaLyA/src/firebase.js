@@ -1,8 +1,13 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; // <--- Esta línea es vital para la BD
+// 1. CAMBIO EN EL IMPORT: Agregamos initializeFirestore y las herramientas de caché
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from "firebase/firestore"; 
 
-// Tu configuración (Copiada de tu imagen)
 const firebaseConfig = {
   apiKey: "AIzaSyB_HYGRL4jILi2izlyPUf8_3GJld7TlN0M",
   authDomain: "pastelerialya-cd733.firebaseapp.com",
@@ -12,8 +17,13 @@ const firebaseConfig = {
   appId: "1:802284395800:web:ba25f9fa026981f527d26d"
 };
 
-// 1. Inicializar Firebase
+// Inicializar Firebase (esto se queda igual)
 const app = initializeApp(firebaseConfig);
 
-// 2. Inicializar y exportar la Base de Datos
-export const db = getFirestore(app);
+// 2. CAMBIO EN LA INICIALIZACIÓN DE LA BD:
+// En lugar de usar solo getFirestore(app), usamos initializeFirestore con configuración
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager() 
+  })
+});
