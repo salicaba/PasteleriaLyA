@@ -355,33 +355,63 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead><tr className="bg-pink-50 text-pink-800 text-sm"><th className="p-4">Folio</th><th className="p-4">Cliente</th><th className="p-4">Entrega</th><th className="p-4">Total</th><th className="p-4">Pagos</th><th className="p-4">Estado</th><th className="p-4">Acciones</th></tr></thead>
                         <tbody>
-                            {pedidosFiltrados.length === 0 ? (
-                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda || fechaFiltro ? "No se encontraron coincidencias con los filtros actuales." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
-                            ) : (
-                                pedidosFiltrados.map((p, i) => (
-                                    <tr key={i} onClick={() => onVerDetalles(p)} className="border-b hover:bg-gray-50 cursor-pointer">
-                                        <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
-                                        <td className="p-4">
-                                            <div className="font-bold uppercase text-gray-800">{p.cliente}</div>
-                                            <div className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-0.5">
-                                                <Phone size={10} /> 
-                                                <span>{p.telefono || 'Sin número'}</span>
-                                            </div>
-                                            <div className="text-xs text-gray-400 mt-0.5">{p.tipoProducto || 'Pastel'}</div>
-                                        </td>
-                                        <td className="p-4 text-sm font-medium text-gray-600">{formatearFechaLocal(p.fechaEntrega)}<br/><span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span></td>
-                                        <td className="p-4 font-bold text-green-600">${p.total}</td>
-                                        <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
-                                        <td className="p-4"><button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado"><Clock size={12} /> Pendiente</button></td>
-                                        <td className="p-4 flex gap-2">
-                                            <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar"><Trash2 size={18} /></button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
+    {pedidosFiltrados.length === 0 ? (
+        <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda || fechaFiltro ? "No se encontraron coincidencias con los filtros actuales." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
+    ) : (
+        pedidosFiltrados.map((p, i) => {
+            // 1. Obtenemos la fecha de hoy (usando la función que ya tienes importada)
+            const fechaHoy = getFechaHoy();
+            
+            // 2. Definimos la clase base
+            let claseFila = "border-b cursor-pointer transition-colors ";
+
+            // 3. Aplicamos la lógica de colores
+            if (p.fechaEntrega && p.fechaEntrega < fechaHoy) {
+                // FECHA PASADA: Rojo
+                claseFila += "bg-red-100 hover:bg-red-200";
+            } else if (p.fechaEntrega === fechaHoy) {
+                // ES HOY: Naranja/Amarillo
+                claseFila += "bg-orange-100 hover:bg-orange-200";
+            } else {
+                // FUTURO: Normal (Blanco con hover gris)
+                claseFila += "hover:bg-gray-50";
+            }
+
+            // 4. Retornamos la fila con la clase calculada
+            return (
+                <tr key={i} onClick={() => onVerDetalles(p)} className={claseFila}>
+                    <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
+                    <td className="p-4">
+                        <div className="font-bold uppercase text-gray-800">{p.cliente}</div>
+                        <div className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-0.5">
+                            <Phone size={10} /> 
+                            <span>{p.telefono || 'Sin número'}</span>
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">{p.tipoProducto || 'Pastel'}</div>
+                    </td>
+                    <td className="p-4 text-sm font-medium text-gray-600">
+                        {formatearFechaLocal(p.fechaEntrega)}<br/>
+                        <span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span>
+                    </td>
+                    <td className="p-4 font-bold text-green-600">${p.total}</td>
+                    <td className="p-4 text-sm text-gray-500">
+                        <span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span>
+                    </td>
+                    <td className="p-4">
+                        <button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado">
+                            <Clock size={12} /> Pendiente
+                        </button>
+                    </td>
+                    <td className="p-4 flex gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar"><Trash2 size={18} /></button>
+                    </td>
+                </tr>
+            );
+        })
+    )}
+</tbody>
                     </table>
                 </div>
             </div>
