@@ -399,14 +399,35 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
 };
 
 // --- PANTALLA DE DESPEDIDA (MODIFICADA: EFECTO PALPITAR) ---
+// --- PANTALLA DE DESPEDIDA (COMPLETA Y MEJORADA) ---
 const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
+    // 1. Estado para controlar el feedback visual de descarga
+    const [descargando, setDescargando] = useState(false);
+
     const esCancelado = cuentaCerrada.estado === 'Cancelado';
+
+    // 2. Función para manejar la descarga con "retraso táctico"
+    const handleDescargarTicket = async () => {
+        setDescargando(true);
+        
+        // Esperamos 1.5 segundos para que el usuario vea el spinner
+        // y el navegador prepare su propia notificación de descarga
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        try {
+            generarTicketPDF(cuentaCerrada);
+        } catch (error) {
+            console.error("Error al generar PDF", error);
+        } finally {
+            setDescargando(false);
+        }
+    };
 
     if (esCancelado) {
         return (
             <div className="min-h-screen bg-red-50 flex flex-col items-center justify-center p-8 text-center text-red-900 animate-fade-in-up">
                 
-                {/* CAMBIO: Contenedor relativo para el efecto de palpitar */}
+                {/* Contenedor relativo para el efecto de palpitar */}
                 <div className="relative mb-6">
                     {/* Círculo pulsante detrás (Onda expansiva) */}
                     <div className="absolute inset-0 bg-red-300 rounded-full animate-ping opacity-75"></div>
@@ -447,7 +468,7 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
     return (
         <div className="min-h-screen bg-green-600 flex flex-col items-center justify-center p-8 text-center text-white animate-fade-in-up">
             
-            {/* CAMBIO: Contenedor relativo para el efecto de palpitar */}
+            {/* Contenedor relativo para el efecto de palpitar */}
             <div className="relative mb-6">
                 {/* Círculo pulsante detrás (Onda expansiva blanca) */}
                 <div className="absolute inset-0 bg-green-400 rounded-full animate-ping opacity-50"></div>
@@ -465,12 +486,35 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pagado</p>
                 <p className="text-4xl font-bold text-green-600 mb-4">${cuentaCerrada.total}</p>
                 
+                {/* --- BOTÓN DE DESCARGA MEJORADO --- */}
                 <button 
-                    onClick={() => generarTicketPDF(cuentaCerrada)} 
-                    className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-gray-800 transition"
+                    onClick={handleDescargarTicket} 
+                    disabled={descargando}
+                    className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all transform active:scale-95 ${
+                        descargando 
+                        ? 'bg-gray-700 text-gray-300 cursor-wait' 
+                        : 'bg-gray-900 text-white hover:bg-gray-800 shadow-lg'
+                    }`}
                 >
-                    <Download size={20} /> Descargar Ticket Final
+                    {descargando ? (
+                        <>
+                            <Loader size={20} className="animate-spin" />
+                            Guardando PDF...
+                        </>
+                    ) : (
+                        <>
+                            <Download size={20} />
+                            Descargar Ticket Final
+                        </>
+                    )}
                 </button>
+
+                {/* Mensaje de ayuda visual */}
+                {descargando && (
+                    <p className="text-xs text-orange-500 mt-2 font-bold animate-pulse text-center">
+                        Revisa tus descargas...
+                    </p>
+                )}
             </div>
 
             <div className="flex flex-col items-center gap-2 text-green-200 text-sm">
