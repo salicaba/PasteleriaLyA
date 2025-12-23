@@ -44,7 +44,7 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE (SIN CAMBIOS) ---
+// --- COMPONENTE RUTA CLIENTE MEJORADO ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
@@ -70,13 +70,14 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 
     useEffect(() => {
         let timer;
-        if ((loading || !online) && !tiempoExcedido) {
+        // Solo iniciamos el timer si NO estamos reintentando manual
+        if ((loading || !online) && !tiempoExcedido && !reintentando) {
             timer = setTimeout(() => {
                 setTiempoExcedido(true);
             }, 10000); 
         }
         return () => clearTimeout(timer);
-    }, [loading, online, tiempoExcedido]);
+    }, [loading, online, tiempoExcedido, reintentando]);
     
     const mesaObj = useMemo(() => {
         if (loading || !online) return null; 
@@ -94,23 +95,35 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
     }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
 
-    // 2. VERIFICACIÓN CRÍTICA
     const tienePedidoActivo = useMemo(() => {
         if (!mesaObj || !nombreClienteLocal) return false;
         const cuentaEncontrada = mesaObj.cuentas.find(c => c.cliente === nombreClienteLocal);
         return !!cuentaEncontrada && cuentaEncontrada.estado !== 'Cancelado';
     }, [mesaObj, nombreClienteLocal]);
 
+    // --- CAMBIO CLAVE: Lógica segura para reintentar ---
     const handleReintentar = () => {
-        setReintentando(true);
+        setReintentando(true); // 1. Muestra "Cargando..."
         setTiempoExcedido(false);
+        
+        // 2. Esperamos 2 segundos para dar feedback visual
         setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+            if (navigator.onLine) {
+                // 3. Si YA hay internet, recargamos para traer datos frescos
+                window.location.reload();
+            } else {
+                // 4. Si SIGUE sin internet, solo quitamos el loading.
+                // Esto hará que React vuelva a pintar la pantalla de "Ups sin internet"
+                // SIN recargar la página, evitando el dinosaurio.
+                setReintentando(false);
+                setOnline(false); 
+            }
+        }, 2000);
     };
 
     // --- PANTALLA DE CARGA ---
-    if ((loading || reintentando) && !tiempoExcedido && online) {
+    // Modificado: Ahora se muestra si 'reintentando' es true, aunque no haya 'online'
+    if ((loading || reintentando) && !tiempoExcedido) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 animate-fade-in">
                 <div className="relative mb-8">
@@ -120,10 +133,12 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
                     </div>
                     <div className="absolute top-0 left-0 w-full h-full border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2 font-serif tracking-wide">Conectando...</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2 font-serif tracking-wide">
+                    {reintentando ? "Reconectando..." : "Conectando..."}
+                </h2>
                 <p className="text-gray-500 text-sm bg-white px-4 py-1 rounded-full shadow-sm border border-orange-100 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Obteniendo menú actualizado
+                    <span className={`w-2 h-2 rounded-full animate-pulse ${reintentando ? 'bg-orange-500' : 'bg-green-500'}`}></span>
+                    {reintentando ? "Verificando red..." : "Obteniendo menú actualizado"}
                 </p>
             </div>
         );
@@ -139,14 +154,14 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         const configError = {
             offline: {
                 titulo: "¡Ups! Sin Internet",
-                mensaje: "Tu dispositivo no tiene conexión. Revisa tu WiFi o datos móviles.",
+                mensaje: "Parece que perdiste la conexión. Revisa tu WiFi o datos móviles para ver el menú.",
                 icono: WifiOff,
                 color: "text-red-500",
                 bgIcon: "bg-red-50"
             },
             timeout: {
                 titulo: "Conexión Inestable",
-                mensaje: "El servidor tarda en responder. Esto suele pasar cuando la señal es débil o hay problemas de conexión en la zona.",
+                mensaje: "El servidor tarda en responder. Esto suele pasar cuando la señal es débil.",
                 icono: Clock,
                 color: "text-orange-500",
                 bgIcon: "bg-orange-50"
@@ -193,9 +208,9 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
                                 <p className="text-xs text-gray-600 leading-relaxed">
                                     No te preocupes. 
                                     {esLlevar ? (
-                                        <span> Por favor, acércate a <strong>Caja</strong> o al <strong>Mostrador</strong> para tomar tu pedido manualmente.</span>
+                                        <span> Por favor, acércate a <strong>Caja</strong> o al <strong>Mostrador</strong>.</span>
                                     ) : (
-                                        <span> Por favor, llama a un <strong>mesero</strong>. Con gusto tomará tu orden en la mesa.</span>
+                                        <span> Por favor, llama a un <strong>mesero</strong>. Con gusto tomará tu orden.</span>
                                     )}
                                 </p>
                             </div>
@@ -394,7 +409,7 @@ export default function PasteleriaApp() {
   const eliminarMesa = async (id) => { try { await removeMesa(id); mostrarNotificacion("Mesa eliminada", "info"); } catch(e) { mostrarNotificacion("Error", "error"); } };
   const actualizarMesaEnBD = async (mesaObj) => { try { await updateMesa(mesaObj.id, { cuentas: mesaObj.cuentas }); } catch (e) { console.error("Error mesa:", e); } };
 
-  const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { const mesa = mesas.find(m => m.id === idMesa); if (!mesa) return; const totalInicial = itemsIniciales.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0); const nuevaCuenta = { id: `C-${Date.now().toString().slice(-4)}`, cliente: nombreCliente, cuenta: itemsIniciales, total: totalInicial }; const mesaActualizada = { ...mesa, cuentas: [...mesa.cuentas, nuevaCuenta] }; actualizarMesaEnBD(mesaActualizada); return nuevaCuenta; };
+  const crearCuentaEnMesa = (idMesa, nombreCliente, itemsIniciales = []) => { const mesa = mesas.find(m => m.id === idMesa); if (!mesa) return; const totalInicial = itemsIniciales.reduce((acc, i) => acc + (i.precio * (i.cantidad || 1)), 0); const nuevaCuenta = { id: `C-${Date.now().toString().slice(-4)}`, cliente: nombreCliente, cuenta: itemsIniciales, total: totalInicial, timestamp: Date.now() }; const mesaActualizada = { ...mesa, cuentas: [...mesa.cuentas, nuevaCuenta] }; actualizarMesaEnBD(mesaActualizada); return nuevaCuenta; };
   
   const recibirPedidoCliente = async (idMesa, nombre, carrito, telefono = '') => { 
     await updateProductStock(carrito);

@@ -330,6 +330,16 @@ const ModalDesunirCuentas = ({ isOpen, onClose, cuenta, onConfirm }) => {
         else setIdsSeleccionados([...idsSeleccionados, id]);
     };
 
+    // --- NUEVAS FUNCIONES ---
+    const seleccionarTodas = () => {
+        setIdsSeleccionados(cuenta.historicoFusion.map(h => h.idOriginal));
+    };
+
+    const deseleccionarTodas = () => {
+        setIdsSeleccionados([]);
+    };
+    // -----------------------
+
     const handleConfirm = () => {
         onConfirm(idsSeleccionados);
         onClose();
@@ -343,7 +353,17 @@ const ModalDesunirCuentas = ({ isOpen, onClose, cuenta, onConfirm }) => {
                     <button onClick={onClose} className="p-2 bg-white rounded-full text-indigo-300 hover:text-indigo-600 transition"><X size={18}/></button>
                 </div>
                 <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
-                    <p className="text-sm text-gray-600 mb-4">Selecciona las cuentas que deseas separar de <strong>{cuenta.cliente}</strong>:</p>
+                    
+                    {/* --- AQUÍ ESTÁ EL CAMBIO VISUAL --- */}
+                    <div className="flex justify-between items-end mb-4">
+                        <p className="text-sm text-gray-600 leading-tight">Separa cuentas de <strong>{cuenta.cliente}</strong>:</p>
+                        <div className="flex gap-2">
+                            <button onClick={seleccionarTodas} className="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded transition border border-transparent hover:border-blue-100">Todas</button>
+                            <button onClick={deseleccionarTodas} className="text-[10px] font-bold text-gray-400 hover:text-gray-600 hover:bg-gray-50 px-2 py-1 rounded transition border border-transparent hover:border-gray-200">Ninguna</button>
+                        </div>
+                    </div>
+                    {/* ---------------------------------- */}
+
                     <div className="space-y-2">
                         {cuenta.historicoFusion.map((hist) => (
                             <div key={hist.idOriginal} onClick={() => toggleId(hist.idOriginal)} className={`p-4 rounded-xl border cursor-pointer transition-all flex justify-between items-center ${idsSeleccionados.includes(hist.idOriginal) ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'bg-white border-gray-200 hover:border-indigo-200'}`}>
@@ -538,7 +558,79 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     ); 
 };
 
-export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => { const [modalUnirOpen, setModalUnirOpen] = useState(false); const [modalCrearOpen, setModalCrearOpen] = useState(false); return ( <div className="fixed inset-0 bg-gray-50 z-[50] flex flex-col animate-fade-in-up"> <div className="bg-white p-4 shadow-md flex justify-between items-center"> <div className="flex items-center gap-4"><button onClick={onVolver} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft /></button><div><h2 className="text-2xl font-bold text-gray-800">{mesa.nombre}</h2><div className="flex items-center gap-2 text-sm text-gray-500"><Users size={16} /> <span>{mesa.cuentas.length} cuentas activas</span></div></div></div> <div className="flex items-center gap-3">{mesa.cuentas.length > 1 && (<button onClick={() => setModalUnirOpen(true)} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 flex items-center gap-2"><Merge size={18}/> Unir Cuentas</button>)}<div className="bg-orange-100 text-orange-800 px-4 py-2 rounded-lg font-bold">Total Mesa: ${mesa.cuentas.reduce((acc, c) => acc + c.total, 0)}</div></div> </div> <div className="flex-1 p-8 overflow-y-auto"> {mesa.cuentas.length === 0 ? ( <div className="text-center py-20 opacity-50"><Users size={64} className="mx-auto mb-4 text-gray-400" /><h3 className="text-xl font-bold text-gray-600">Mesa Disponible</h3><p>No hay cuentas abiertas. Esperando clientes...</p></div> ) : ( <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{mesa.cuentas.map(cuenta => (<div key={cuenta.id} onClick={() => onAbrirCuenta(mesa.id, cuenta.id)} className="bg-white border-l-8 border-orange-500 rounded-xl shadow-sm hover:shadow-md cursor-pointer p-6 transition-all transform hover:-translate-y-1 relative group"><div className="flex justify-between items-start mb-4"><div><h4 className="font-bold text-lg text-gray-800 uppercase">{cuenta.cliente}</h4><span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-mono">{cuenta.id}</span></div><div className="bg-orange-50 p-2 rounded-full text-orange-600"><Edit size={20} /></div></div><div className="mb-4 text-sm text-gray-500 max-h-24 overflow-hidden relative">{cuenta.cuenta.length === 0 ? <span className="italic opacity-50">Sin pedidos aún</span> : (<ul className="space-y-1">{cuenta.cuenta.slice(0, 3).map((item, idx) => (<li key={idx} className="flex justify-between"><span>{item.cantidad || 1}x {item.nombre}</span></li>))}{cuenta.cuenta.length > 3 && <li className="text-xs font-bold pt-1">...y {cuenta.cuenta.length - 3} más</li>}</ul>)}</div><div className="flex justify-between items-end border-t pt-4"><span className="text-sm text-gray-500">{cuenta.cuenta.length} items</span><span className="text-2xl font-bold text-gray-900">${cuenta.total}</span></div></div>))}</div> )} </div> <div className="p-4 bg-white border-t border-gray-200"><button onClick={() => setModalCrearOpen(true)} className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-lg shadow-lg flex justify-center items-center gap-2"><PlusCircle /> Agregar Cuenta Manualmente</button></div> <ModalFusionCuentas isOpen={modalUnirOpen} onClose={() => setModalUnirOpen(false)} cuentas={mesa.cuentas} onConfirmarFusion={(destino, origenes) => { onUnirCuentas(mesa.id, destino, origenes); setModalUnirOpen(false); }} /> <ModalNuevaCuentaMesa isOpen={modalCrearOpen} onClose={() => setModalCrearOpen(false)} onConfirm={(nombre) => { onCrearCuenta(mesa.id, nombre); setModalCrearOpen(false); }} /> </div> ); };
+// Busca el componente VistaHubMesa (aprox línea 556) y reemplázalo con este:
+
+export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => { 
+    const [modalUnirOpen, setModalUnirOpen] = useState(false); 
+    const [modalCrearOpen, setModalCrearOpen] = useState(false); 
+
+    // --- CAMBIO: Ordenar cuentas (De la más antigua a la más reciente) ---
+    const cuentasOrdenadas = useMemo(() => {
+        if (!mesa || !mesa.cuentas) return [];
+        return [...mesa.cuentas].sort((a, b) => {
+            // Usamos timestamp si existe, si no, intentamos mantener el orden original
+            const timeA = a.timestamp || 0;
+            const timeB = b.timestamp || 0;
+            return timeA - timeB; // Ascendente: Menor (más viejo) a Mayor (más nuevo)
+        });
+    }, [mesa.cuentas]);
+    // ---------------------------------------------------------------------
+
+    return ( 
+        <div className="fixed inset-0 bg-gray-50 z-[50] flex flex-col animate-fade-in-up"> 
+            <div className="bg-white p-4 shadow-md flex justify-between items-center"> 
+                <div className="flex items-center gap-4">
+                    <button onClick={onVolver} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft /></button>
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">{mesa.nombre}</h2>
+                        <div className="flex items-center gap-2 text-sm text-gray-500"><Users size={16} /> <span>{mesa.cuentas.length} cuentas activas</span></div>
+                    </div>
+                </div> 
+                <div className="flex items-center gap-3">
+                    {mesa.cuentas.length > 1 && (<button onClick={() => setModalUnirOpen(true)} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 flex items-center gap-2"><Merge size={18}/> Unir Cuentas</button>)}
+                    <div className="bg-orange-100 text-orange-800 px-4 py-2 rounded-lg font-bold">Total Mesa: ${mesa.cuentas.reduce((acc, c) => acc + c.total, 0)}</div>
+                </div> 
+            </div> 
+            <div className="flex-1 p-8 overflow-y-auto"> 
+                {cuentasOrdenadas.length === 0 ? ( 
+                    <div className="text-center py-20 opacity-50"><Users size={64} className="mx-auto mb-4 text-gray-400" /><h3 className="text-xl font-bold text-gray-600">Mesa Disponible</h3><p>No hay cuentas abiertas. Esperando clientes...</p></div> 
+                ) : ( 
+                    // Usamos cuentasOrdenadas en lugar de mesa.cuentas
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {cuentasOrdenadas.map(cuenta => (
+                            <div key={cuenta.id} onClick={() => onAbrirCuenta(mesa.id, cuenta.id)} className="bg-white border-l-8 border-orange-500 rounded-xl shadow-sm hover:shadow-md cursor-pointer p-6 transition-all transform hover:-translate-y-1 relative group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h4 className="font-bold text-lg text-gray-800 uppercase">{cuenta.cliente}</h4>
+                                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-mono">{cuenta.id}</span>
+                                    </div>
+                                    <div className="bg-orange-50 p-2 rounded-full text-orange-600"><Edit size={20} /></div>
+                                </div>
+                                <div className="mb-4 text-sm text-gray-500 max-h-24 overflow-hidden relative">
+                                    {cuenta.cuenta.length === 0 ? <span className="italic opacity-50">Sin pedidos aún</span> : (
+                                        <ul className="space-y-1">
+                                            {cuenta.cuenta.slice(0, 3).map((item, idx) => (<li key={idx} className="flex justify-between"><span>{item.cantidad || 1}x {item.nombre}</span></li>))}
+                                            {cuenta.cuenta.length > 3 && <li className="text-xs font-bold pt-1">...y {cuenta.cuenta.length - 3} más</li>}
+                                        </ul>
+                                    )}
+                                </div>
+                                <div className="flex justify-between items-end border-t pt-4">
+                                    <span className="text-sm text-gray-500">{cuenta.cuenta.length} items</span>
+                                    <span className="text-2xl font-bold text-gray-900">${cuenta.total}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div> 
+                )} 
+            </div> 
+            <div className="p-4 bg-white border-t border-gray-200">
+                <button onClick={() => setModalCrearOpen(true)} className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-lg shadow-lg flex justify-center items-center gap-2"><PlusCircle /> Agregar Cuenta Manualmente</button>
+            </div> 
+            <ModalFusionCuentas isOpen={modalUnirOpen} onClose={() => setModalUnirOpen(false)} cuentas={mesa.cuentas} onConfirmarFusion={(destino, origenes) => { onUnirCuentas(mesa.id, destino, origenes); setModalUnirOpen(false); }} /> 
+            <ModalNuevaCuentaMesa isOpen={modalCrearOpen} onClose={() => setModalCrearOpen(false)} onConfirm={(nombre) => { onCrearCuenta(mesa.id, nombre); setModalCrearOpen(false); }} /> 
+        </div> 
+    ); 
+};
 
 // COMPONENTE PARA TOMAR LA ORDEN (COMANDA)
 export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProducto, onPagarCuenta, onActualizarProducto, onCancelarCuenta, onDividirCuentaManual, onDesunirCuentas }) => {
@@ -1174,4 +1266,103 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
         </div>
     );
 };
-export const VistaInicioCafeteria = ({ mesas, pedidosLlevar, ventasHoy = [], cancelados = [], onSeleccionarMesa, onCrearLlevar, onAbrirLlevar, onRestaurarVenta, onDeshacerCancelacion, onVaciarPapelera, onEliminarDePapelera }) => { const [modalLlevarOpen, setModalLlevarOpen] = useState(false); const [modalHistorial, setModalHistorial] = useState({ open: false, tipo: 'vendidos' }); const [modalCorteOpen, setModalCorteOpen] = useState(false); const mesasOcupadas = mesas.filter(m => m.cuentas.length > 0).length; const pedidosActivos = pedidosLlevar.length; const cantidadVentas = ventasHoy.length; const totalIngresos = ventasHoy.reduce((acc, v) => acc + v.total, 0); return ( <div className="p-4 md:p-8 bg-gray-50 min-h-full"> <h2 className="text-3xl font-bold text-gray-800 mb-6">Cafetería - Operaciones en Vivo</h2> <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8"> <div className="p-6 rounded-xl shadow-sm border-l-4 border-orange-500 bg-white flex justify-between items-center transition-colors hover:bg-orange-50"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Mesas Ocupadas</p><p className="text-3xl font-bold text-gray-800 mt-2">{mesasOcupadas} / {mesas.length}</p></div><div className="text-orange-300 opacity-50"><Grid size={30} /></div></div> <div className="p-6 rounded-xl shadow-sm border-l-4 border-blue-500 bg-white flex justify-between items-center transition-colors hover:bg-blue-50"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Para Llevar</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosActivos}</p></div><div className="text-blue-300 opacity-50"><ShoppingBag size={30} /></div></div> <div onClick={() => setModalHistorial({ open: true, tipo: 'vendidos' })} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Vendidos Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">{cantidadVentas}</p></div><div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><CheckCircle size={30} /></div></div> <div onClick={() => setModalHistorial({ open: true, tipo: 'cancelados' })} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Papelera</p><p className="text-3xl font-bold text-gray-800 mt-2">{cancelados.length}</p></div><div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30} /></div></div> <div onClick={() => setModalCorteOpen(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-emerald-500 bg-white flex justify-between items-center cursor-pointer hover:bg-emerald-50 transition-colors group"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalIngresos.toFixed(0)}</p></div><div className="text-emerald-300 opacity-50 group-hover:text-emerald-500 group-hover:opacity-100 transition"><DollarSign size={30} /></div></div> </div> <div className="flex flex-col xl:flex-row gap-8"> <div className="flex-1"><h3 className="text-xl font-bold text-gray-700 mb-4 flex items-center"><Grid className="mr-2"/> Mesas</h3><div className="grid grid-cols-2 md:grid-cols-3 gap-4">{mesas.map(mesa => { const ocupada = mesa.cuentas.length > 0; const totalMesa = mesa.cuentas.reduce((acc, c) => acc + c.total, 0); return (<div key={mesa.id} onClick={() => onSeleccionarMesa(mesa.id)} className={`p-6 rounded-2xl border-2 flex flex-col justify-between cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${ocupada ? 'bg-white border-orange-200 hover:border-orange-400' : 'bg-white border-gray-200 hover:border-green-400'}`}><div className="flex justify-between items-start"><h4 className={`font-bold text-lg ${ocupada ? 'text-orange-700' : 'text-gray-600'}`}>{mesa.nombre}</h4><div className={`w-3 h-3 rounded-full ${ocupada ? 'bg-orange-500 animate-pulse' : 'bg-green-400'}`}></div></div>{ocupada ? (<div className="mt-2"><p className="text-2xl font-bold text-gray-800">${totalMesa}</p><p className="text-xs text-orange-600 font-bold bg-orange-50 inline-block px-2 py-1 rounded-lg mt-1">{mesa.cuentas.length} cuenta(s)</p></div>) : (<div className="mt-auto"><p className="text-sm text-green-600 font-bold flex items-center bg-green-50 w-fit px-2 py-1 rounded-lg"><PlusCircle size={14} className="mr-1"/> Disponible</p></div>)}</div>); })}</div></div> <div className="w-full xl:w-96 bg-white p-6 rounded-2xl shadow-sm border border-gray-200 h-fit"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-gray-700 flex items-center"><ShoppingBag className="mr-2"/> Para Llevar</h3><button onClick={() => setModalLlevarOpen(true)} className="bg-gray-900 text-white p-2 rounded-lg hover:bg-gray-700 shadow-md transition-transform active:scale-95"><PlusCircle size={20}/></button></div>{pedidosLlevar.length === 0 ? (<div className="text-center py-10 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200"><p>No hay pedidos activos.</p></div>) : (<div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">{pedidosLlevar.map(p => (<div key={p.id} onClick={() => onAbrirLlevar(p.id)} className="p-4 rounded-xl border border-gray-200 hover:border-orange-300 cursor-pointer bg-gray-50 hover:bg-white transition group"><div className="flex justify-between mb-1"><span className="font-bold text-gray-800 group-hover:text-orange-600 transition-colors">{p.nombreCliente}</span><span className="text-xs font-mono bg-white border px-2 py-0.5 rounded text-gray-400">#{p.id.slice(-4)}</span></div><div className="flex justify-between items-end"><span className="text-xs text-gray-500">{p.telefono || 'Sin teléfono'}</span><span className="font-bold text-lg text-gray-900 bg-white px-2 rounded border border-gray-100">${p.cuenta.reduce((a,b)=>a+(b.precio * (b.cantidad || 1)),0)}</span></div></div>))}</div>)}</div> </div> <ModalNuevoLlevar isOpen={modalLlevarOpen} onClose={() => setModalLlevarOpen(false)} onConfirm={(datos) => { onCrearLlevar(datos); setModalLlevarOpen(false); }} /> <ModalHistorial isOpen={modalHistorial.open} onClose={() => setModalHistorial({ ...modalHistorial, open: false })} tipo={modalHistorial.tipo} items={modalHistorial.tipo === 'vendidos' ? ventasHoy : cancelados} onRestaurar={modalHistorial.tipo === 'vendidos' ? onRestaurarVenta : onDeshacerCancelacion} onVaciarPapelera={onVaciarPapelera} onEliminarDePapelera={onEliminarDePapelera} /> <ModalCorteCaja isOpen={modalCorteOpen} onClose={() => setModalCorteOpen(false)} ventas={ventasHoy} /> </div> ); };
+export const VistaInicioCafeteria = ({ mesas, pedidosLlevar, ventasHoy = [], cancelados = [], onSeleccionarMesa, onCrearLlevar, onAbrirLlevar, onRestaurarVenta, onDeshacerCancelacion, onVaciarPapelera, onEliminarDePapelera }) => { 
+    const [modalLlevarOpen, setModalLlevarOpen] = useState(false); 
+    const [modalHistorial, setModalHistorial] = useState({ open: false, tipo: 'vendidos' }); 
+    const [modalCorteOpen, setModalCorteOpen] = useState(false); 
+    
+    const mesasOcupadas = mesas.filter(m => m.cuentas.length > 0).length; 
+    const pedidosActivos = pedidosLlevar.length; 
+    const cantidadVentas = ventasHoy.length; 
+    const totalIngresos = ventasHoy.reduce((acc, v) => acc + v.total, 0);
+
+    // --- CAMBIO: Ordenar pedidos Para Llevar (El más viejo arriba) ---
+    const pedidosLlevarOrdenados = useMemo(() => {
+        return [...pedidosLlevar].sort((a, b) => {
+            // Prioridad 1: Timestamp (Fecha de creación)
+            if (a.timestamp && b.timestamp) return a.timestamp - b.timestamp;
+            // Prioridad 2: Hora (String)
+            if (a.hora && b.hora) return a.hora.localeCompare(b.hora);
+            // Fallback: ID (suponiendo ID secuencial)
+            return (a.id || '').localeCompare(b.id || '');
+        });
+    }, [pedidosLlevar]);
+    // ---------------------------------------------------------------
+
+    return ( 
+        <div className="p-4 md:p-8 bg-gray-50 min-h-full"> 
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">Cafetería - Operaciones en Vivo</h2> 
+            
+            {/* ... (Las tarjetas de estadísticas se quedan igual) ... */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8"> 
+                <div className="p-6 rounded-xl shadow-sm border-l-4 border-orange-500 bg-white flex justify-between items-center transition-colors hover:bg-orange-50"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Mesas Ocupadas</p><p className="text-3xl font-bold text-gray-800 mt-2">{mesasOcupadas} / {mesas.length}</p></div><div className="text-orange-300 opacity-50"><Grid size={30} /></div></div> 
+                <div className="p-6 rounded-xl shadow-sm border-l-4 border-blue-500 bg-white flex justify-between items-center transition-colors hover:bg-blue-50"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Para Llevar</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosActivos}</p></div><div className="text-blue-300 opacity-50"><ShoppingBag size={30} /></div></div> 
+                <div onClick={() => setModalHistorial({ open: true, tipo: 'vendidos' })} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Vendidos Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">{cantidadVentas}</p></div><div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><CheckCircle size={30} /></div></div> 
+                <div onClick={() => setModalHistorial({ open: true, tipo: 'cancelados' })} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Papelera</p><p className="text-3xl font-bold text-gray-800 mt-2">{cancelados.length}</p></div><div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30} /></div></div> 
+                <div onClick={() => setModalCorteOpen(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-emerald-500 bg-white flex justify-between items-center cursor-pointer hover:bg-emerald-50 transition-colors group"><div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalIngresos.toFixed(0)}</p></div><div className="text-emerald-300 opacity-50 group-hover:text-emerald-500 group-hover:opacity-100 transition"><DollarSign size={30} /></div></div> 
+            </div> 
+
+            <div className="flex flex-col xl:flex-row gap-8"> 
+                {/* SECCIÓN MESAS (Se mantienen estáticas por ubicación, el contenido de la mesa se ordenó en el otro componente) */}
+                <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-700 mb-4 flex items-center"><Grid className="mr-2"/> Mesas</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {mesas.map(mesa => { 
+                            const ocupada = mesa.cuentas.length > 0; 
+                            const totalMesa = mesa.cuentas.reduce((acc, c) => acc + c.total, 0); 
+                            return (
+                                <div key={mesa.id} onClick={() => onSeleccionarMesa(mesa.id)} className={`p-6 rounded-2xl border-2 flex flex-col justify-between cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${ocupada ? 'bg-white border-orange-200 hover:border-orange-400' : 'bg-white border-gray-200 hover:border-green-400'}`}>
+                                    <div className="flex justify-between items-start">
+                                        <h4 className={`font-bold text-lg ${ocupada ? 'text-orange-700' : 'text-gray-600'}`}>{mesa.nombre}</h4>
+                                        <div className={`w-3 h-3 rounded-full ${ocupada ? 'bg-orange-500 animate-pulse' : 'bg-green-400'}`}></div>
+                                    </div>
+                                    {ocupada ? (
+                                        <div className="mt-2"><p className="text-2xl font-bold text-gray-800">${totalMesa}</p><p className="text-xs text-orange-600 font-bold bg-orange-50 inline-block px-2 py-1 rounded-lg mt-1">{mesa.cuentas.length} cuenta(s)</p></div>
+                                    ) : (
+                                        <div className="mt-auto"><p className="text-sm text-green-600 font-bold flex items-center bg-green-50 w-fit px-2 py-1 rounded-lg"><PlusCircle size={14} className="mr-1"/> Disponible</p></div>
+                                    )}
+                                </div>
+                            ); 
+                        })}
+                    </div>
+                </div> 
+                
+                {/* SECCIÓN PARA LLEVAR (AQUÍ APLICAMOS EL ORDEN) */}
+                <div className="w-full xl:w-96 bg-white p-6 rounded-2xl shadow-sm border border-gray-200 h-fit">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-gray-700 flex items-center"><ShoppingBag className="mr-2"/> Para Llevar</h3>
+                        <button onClick={() => setModalLlevarOpen(true)} className="bg-gray-900 text-white p-2 rounded-lg hover:bg-gray-700 shadow-md transition-transform active:scale-95"><PlusCircle size={20}/></button>
+                    </div>
+                    {pedidosLlevarOrdenados.length === 0 ? (
+                        <div className="text-center py-10 text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200"><p>No hay pedidos activos.</p></div>
+                    ) : (
+                        // Usamos pedidosLlevarOrdenados aquí
+                        <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                            {pedidosLlevarOrdenados.map(p => (
+                                <div key={p.id} onClick={() => onAbrirLlevar(p.id)} className="p-4 rounded-xl border border-gray-200 hover:border-orange-300 cursor-pointer bg-gray-50 hover:bg-white transition group relative">
+                                    <div className="flex justify-between mb-1">
+                                        <span className="font-bold text-gray-800 group-hover:text-orange-600 transition-colors">{p.nombreCliente}</span>
+                                        <span className="text-xs font-mono bg-white border px-2 py-0.5 rounded text-gray-400">#{p.id.slice(-4)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-end">
+                                        <div className="flex flex-col">
+                                            <span className="text-xs text-gray-500">{p.telefono || 'Sin teléfono'}</span>
+                                            {/* Opcional: Mostrar hora del pedido si lo deseas */}
+                                            {p.hora && <span className="text-[10px] text-orange-400 font-bold flex items-center gap-1 mt-1"><Clock size={10}/> {p.hora}</span>}
+                                        </div>
+                                        <span className="font-bold text-lg text-gray-900 bg-white px-2 rounded border border-gray-100">${p.cuenta.reduce((a,b)=>a+(b.precio * (b.cantidad || 1)),0)}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div> 
+            </div> 
+            
+            {/* ... Modales (sin cambios) ... */}
+            <ModalNuevoLlevar isOpen={modalLlevarOpen} onClose={() => setModalLlevarOpen(false)} onConfirm={(datos) => { onCrearLlevar(datos); setModalLlevarOpen(false); }} /> 
+            <ModalHistorial isOpen={modalHistorial.open} onClose={() => setModalHistorial({ ...modalHistorial, open: false })} tipo={modalHistorial.tipo} items={modalHistorial.tipo === 'vendidos' ? ventasHoy : cancelados} onRestaurar={modalHistorial.tipo === 'vendidos' ? onRestaurarVenta : onDeshacerCancelacion} onVaciarPapelera={onVaciarPapelera} onEliminarDePapelera={onEliminarDePapelera} /> 
+            <ModalCorteCaja isOpen={modalCorteOpen} onClose={() => setModalCorteOpen(false)} ventas={ventasHoy} /> 
+        </div> 
+    ); 
+};

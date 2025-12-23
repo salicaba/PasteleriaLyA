@@ -22,7 +22,8 @@ export const createSession = async (clientData) => {
             nombreCliente: clientData.nombre, 
             telefono: clientData.telefono, 
             cuenta: [], 
-            estado: 'Activa' 
+            estado: 'Activa', 
+            timestamp: Date.now()
         };
         await setDoc(doc(db, COLLECTION_NAME, nuevaId), nuevaSesion);
         return { success: true, message: "Sesión creada", session: nuevaSesion };
