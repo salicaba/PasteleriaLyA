@@ -4,21 +4,11 @@ import {
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
     LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
     ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen, Lock,
-    Maximize2 // <--- 1. IMPORTAMOS EL ICONO
+    Maximize2, Minimize2 // <--- IMPORTAMOS AMBOS ICONOS
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
-import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto } from '../components/Shared';
-
-// --- UTILIDAD PANTALLA COMPLETA (Copiada para uso local en Cliente) ---
-const togglePantallaCompleta = () => {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(e => console.log(e));
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
-};
+// IMPORTAMOS EL HOOK DESDE SHARED
+import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto, usePantallaCompleta } from '../components/Shared';
 
 // --- PANTALLA LOGIN ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
@@ -27,6 +17,9 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     const [error, setError] = useState('');
     const [mensajeBienvenida, setMensajeBienvenida] = useState('');
     const [tieneCuentaActiva, setTieneCuentaActiva] = useState(false);
+
+    // USAMOS EL HOOK AQUÍ
+    const { esPantallaCompleta, togglePantalla } = usePantallaCompleta();
 
     const esParaLlevar = mesaNombre.toLowerCase().includes('llevar');
 
@@ -91,13 +84,13 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
             }
         `}</style>
         
-        {/* --- 2. BOTÓN PANTALLA COMPLETA EN LOGIN --- */}
+        {/* --- BOTÓN PANTALLA COMPLETA ACTUALIZADO --- */}
         <button 
-            onClick={togglePantallaCompleta}
+            onClick={togglePantalla}
             className="absolute top-4 right-4 text-white/50 hover:text-white transition p-2 z-50 hover:bg-white/10 rounded-full"
-            title="Pantalla Completa"
+            title={esPantallaCompleta ? "Salir Pantalla Completa" : "Pantalla Completa"}
         >
-            <Maximize2 size={24} />
+            {esPantallaCompleta ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
         </button>
         {/* ------------------------------------------- */}
 
@@ -398,7 +391,6 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
     );
 };
 
-// --- PANTALLA DE DESPEDIDA (MODIFICADA: EFECTO PALPITAR) ---
 // --- PANTALLA DE DESPEDIDA (COMPLETA Y MEJORADA) ---
 const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
     // 1. Estado para controlar el feedback visual de descarga
@@ -537,6 +529,9 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
     const [nombreCliente, setNombreCliente] = useState(() => localStorage.getItem('lya_cliente_nombre') || null);
     const [telefonoCliente, setTelefonoCliente] = useState(() => localStorage.getItem('lya_cliente_telefono') || null);
     
+    // USAMOS EL HOOK AQUÍ TAMBIÉN
+    const { esPantallaCompleta, togglePantalla } = usePantallaCompleta();
+
     const [carrito, setCarrito] = useState(() => {
         try {
             const guardado = localStorage.getItem('lya_carrito_temp');
@@ -961,9 +956,9 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
                     </div>
                     <div className="flex items-center gap-2">
                         
-                        {/* --- 3. BOTÓN PANTALLA COMPLETA EN MENÚ --- */}
-                        <button onClick={togglePantallaCompleta} className="bg-gray-100 text-gray-500 p-2 rounded-lg hover:bg-gray-200 transition" title="Pantalla Completa">
-                            <Maximize2 size={16} />
+                        {/* --- BOTÓN PANTALLA COMPLETA MENÚ ACTUALIZADO --- */}
+                        <button onClick={togglePantalla} className="bg-gray-100 text-gray-500 p-2 rounded-lg hover:bg-gray-200 transition" title="Pantalla Completa">
+                             {esPantallaCompleta ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                         </button>
                         {/* ------------------------------------------ */}
 

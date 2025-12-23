@@ -4,22 +4,42 @@ import {
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
     Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle, Shield,
     Minus, Plus, Info, ChevronUp, ChevronDown, Loader, Database,
-    Maximize2, Minimize2 // <--- 1. AGREGAMOS ESTOS ICONOS
+    Maximize2, Minimize2 // <--- ICONOS PARA PANTALLA COMPLETA
 } from 'lucide-react';
 import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
 // --- IMPORTAMOS LA UTILIDAD DE ROLES ---
 import { tienePermiso } from '../utils/roles';
 
-// --- UTILIDAD PARA PANTALLA COMPLETA ---
-const togglePantallaCompleta = () => {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(e => console.log(e));
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
+// --- HOOK PERSONALIZADO: PANTALLA COMPLETA ---
+// Este hook detecta si estamos en fullscreen y cambia el estado automáticamente
+export const usePantallaCompleta = () => {
+    const [esPantallaCompleta, setEsPantallaCompleta] = useState(false);
+
+    useEffect(() => {
+        const checkScreen = () => {
+            // Si hay un elemento en fullscreen, es true. Si es null, es false.
+            setEsPantallaCompleta(!!document.fullscreenElement);
+        };
+
+        // Escuchamos el evento del navegador
+        document.addEventListener('fullscreenchange', checkScreen);
+        
+        // Limpieza al desmontar
+        return () => document.removeEventListener('fullscreenchange', checkScreen);
+    }, []);
+
+    const togglePantalla = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(e => console.log(e));
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
         }
-    }
+    };
+
+    return { esPantallaCompleta, togglePantalla };
 };
 
 // --- NOTIFICACIÓN FLOTANTE ---
@@ -180,7 +200,7 @@ const BotonNav = ({ icon, label, active, onClick, colorTheme = "pink" }) => {
     return ( <button onClick={onClick} className={`w-full flex items-center space-x-3 px-3 md:px-4 py-2 md:py-3 rounded-lg transition-colors text-sm md:text-base ${active ? activeClass : hoverClass}`}> {icon} <span className="font-medium whitespace-nowrap truncate">{label}</span> </button> ); 
 };
 
-// --- SIDEBAR ACTUALIZADO CON ROLES ---
+// --- SIDEBAR ACTUALIZADO CON ROLES Y HOOK DE PANTALLA ---
 export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, toggleSidebar, onLogout, escala, setEscala, userRole }) => { 
     let colorBg, colorText, themeBtn; 
     if (modo === 'cafeteria') { colorBg = "bg-orange-900"; colorText = "text-orange-200"; themeBtn = "orange"; } 
@@ -193,6 +213,9 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
     const verAdmin = tienePermiso(userRole, 'admin');
     const verPasteleria = tienePermiso(userRole, 'pasteleria');
     const verCafeteria = tienePermiso(userRole, 'cafeteria');
+
+    // --- USAMOS EL HOOK AQUÍ ---
+    const { esPantallaCompleta, togglePantalla } = usePantallaCompleta();
 
     return ( 
         <> 
@@ -245,9 +268,13 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                         <button onClick={() => setEscala('pequeno')} className={`flex-1 py-1 text-xs font-bold rounded ${escala === 'pequeno' ? 'bg-white text-gray-900 shadow' : 'bg-transparent text-white/50 hover:bg-white/10'}`}>P</button> 
                     </div> 
                     
-                    {/* --- BOTÓN SIDEBAR: PANTALLA COMPLETA --- */}
-                    <button onClick={togglePantallaCompleta} className="w-full mt-2 py-1.5 flex items-center justify-center gap-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-white rounded transition border border-white/5">
-                        <Maximize2 size={12} /> Pantalla Completa
+                    {/* --- BOTÓN SIDEBAR ACTUALIZADO CON LÓGICA DE ICONOS --- */}
+                    <button onClick={togglePantalla} className="w-full mt-2 py-1.5 flex items-center justify-center gap-2 text-xs font-bold bg-white/10 hover:bg-white/20 text-white rounded transition border border-white/5">
+                        {esPantallaCompleta ? (
+                            <><Minimize2 size={12} /> Salir Pantalla Completa</>
+                        ) : (
+                            <><Maximize2 size={12} /> Pantalla Completa</>
+                        )}
                     </button>
 
                 </div> 
@@ -266,6 +293,9 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
     const zoom = useMemo(() => { switch(escala) { case 'mediano': return 0.88; case 'pequeno': return 0.78; default: return 1; } }, [escala]); 
     useEffect(() => { const handleResize = () => { if (window.innerWidth < 768) { setSidebarOpen(false); } else { setSidebarOpen(true); } }; window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }, []); 
     
+    // --- USAMOS EL HOOK AQUÍ TAMBIÉN PARA EL HEADER MÓVIL ---
+    const { esPantallaCompleta, togglePantalla } = usePantallaCompleta();
+
     return ( 
         <div className="flex bg-gray-50 overflow-hidden transition-all duration-300" style={{ zoom: zoom, height: `${100 / zoom}vh`, width: '100%', }}> 
             <Sidebar modo={modo} vistaActual={vistaActual} setVistaActual={setVistaActual} setModo={setModo} isOpen={sidebarOpen} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} onLogout={onLogout} escala={escala} setEscala={setEscala} userRole={userRole} /> 
@@ -274,9 +304,9 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
                     <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100"><Menu size={24} /></button>
                     <h1 className="text-xl font-bold" style={{ fontFamily: "'Dancing Script', cursive" }}>{modo === 'admin' ? 'Administración' : modo === 'pasteleria' ? 'Pastelería' : 'Cafetería'}</h1>
                     
-                    {/* --- BOTÓN HEADER MÓVIL: PANTALLA COMPLETA (Reemplazamos el div vacío) --- */}
-                    <button onClick={togglePantallaCompleta} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition active:scale-90">
-                        <Maximize2 size={24} />
+                    {/* --- BOTÓN HEADER MÓVIL ACTUALIZADO --- */}
+                    <button onClick={togglePantalla} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition active:scale-90">
+                        {esPantallaCompleta ? <Minimize2 size={24} /> : <Maximize2 size={24} />}
                     </button>
 
                 </header> 
