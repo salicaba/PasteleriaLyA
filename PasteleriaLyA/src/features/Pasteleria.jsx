@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, 
     Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, 
-    ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt 
+    ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt,
+    MessageCircle 
 } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
@@ -270,6 +271,48 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
     const pedidosCajaHoy = useMemo(() => { const hoy = getFechaHoy(); return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy); }, [pedidos]);
     const totalCajaHoy = useMemo(() => { return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosCajaHoy]);
 
+    // --- VERSIÓN TEXTO LIMPIO (INFALIBLE) ---
+    const enviarComandaWhatsApp = (pedido) => {
+        if (!pedido.telefono || pedido.telefono.length < 10) {
+            alert("El cliente no tiene un número válido.");
+            return;
+        }
+
+        const tel = pedido.telefono.replace(/\D/g, ''); 
+        const total = parseFloat(pedido.total) || 0;
+        const numPagos = parseInt(pedido.numPagos) || 1;
+        const pagosHechos = parseFloat(pedido.pagosRealizados || 0);
+        const abonado = (numPagos > 0 ? total / numPagos : 0) * pagosHechos;
+        const resta = total - abonado;
+
+        // Construimos el mensaje usando símbolos de teclado seguros
+        let txt = `*PASTELERIA LyA - COMANDA DIGITAL*\n\n`;
+        txt += `Hola *${pedido.cliente.toUpperCase()}*, resumen de tu pedido:\n\n`;
+        
+        txt += `>> *FOLIO:* ${pedido.folio}\n`;
+        txt += `>> *PRODUCTO:* ${pedido.tipoProducto}\n`;
+        txt += `>> *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
+        if (pedido.horaEntrega) txt += `>> *HORA:* ${pedido.horaEntrega} hrs\n`;
+        txt += `>> *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n`;
+        
+        txt += `*ESTADO DE CUENTA*\n`;
+        txt += `================================\n`;
+        txt += `*TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
+        
+        if (numPagos > 1) {
+             txt += `*ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`;
+             txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `*LIQUIDADO*\n`;
+        } else {
+             txt += `*ESTADO:* ${pagosHechos >= 1 ? '[OK] PAGADO' : '[!] PENDIENTE DE PAGO'}\n`;
+        }
+        
+        txt += `================================\n`;
+        txt += `*Gracias por tu preferencia.*`;
+
+        // Enviamos
+        window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(txt)}`, '_blank');
+    };
+
     return (
         <div className="p-4 md:p-8">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Pedidos de la Pastelería</h2>
@@ -403,6 +446,13 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                         </button>
                     </td>
                     <td className="p-4 flex gap-2">
+                        <button 
+        onClick={(e) => { e.stopPropagation(); enviarComandaWhatsApp(p); }} 
+        className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 border border-green-200 transition-colors" 
+        title="Enviar Comanda por WhatsApp"
+    >
+        <MessageCircle size={18} />
+    </button>
                         <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar"><Trash2 size={18} /></button>

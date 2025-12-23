@@ -103,18 +103,18 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 
     // --- CAMBIO CLAVE: Lógica segura para reintentar ---
     const handleReintentar = () => {
-        setReintentando(true); // 1. Muestra "Cargando..."
+        setReintentando(true); // 1. Muestra "Reconectando..." inmediatamente
         setTiempoExcedido(false);
         
-        // 2. Esperamos 2 segundos para dar feedback visual
+        // 2. Esperamos 2 segundos para que el cliente vea la animación de carga
         setTimeout(() => {
             if (navigator.onLine) {
-                // 3. Si YA hay internet, recargamos para traer datos frescos
-                window.location.reload();
+                // 3. CAMBIO: En lugar de reload(), solo actualizamos el estado.
+                // Esto hace que vuelvas a la pantalla donde estabas suavemente.
+                setOnline(true);
+                setReintentando(false);
             } else {
-                // 4. Si SIGUE sin internet, solo quitamos el loading.
-                // Esto hará que React vuelva a pintar la pantalla de "Ups sin internet"
-                // SIN recargar la página, evitando el dinosaurio.
+                // 4. Si sigue sin internet, quitamos el loading para que vea el error de nuevo
                 setReintentando(false);
                 setOnline(false); 
             }
