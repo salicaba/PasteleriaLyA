@@ -325,12 +325,35 @@ export default function PasteleriaApp() {
     }
   }, [pedidosPasteleria]);
 
-  // Limpieza automática papelera local
+  // Limpieza automática papelera local (CORREGIDO)
   useEffect(() => {
-    const intervalo = setInterval(() => {
-        const hoy = new Date().toLocaleDateString();
-        setCancelados(prev => prev.filter(item => new Date(item.timestamp).toLocaleDateString() === hoy));
-    }, 60000); 
+    const limpiarPapelera = () => {
+        const hoy = new Date();
+        
+        setCancelados(prev => {
+            const filtrados = prev.filter(item => {
+                if (!item.timestamp) return false; // Si no tiene fecha, lo borra por seguridad
+                const fechaItem = new Date(item.timestamp);
+                
+                // Compara Día, Mes y Año numéricamente (es más seguro que usar texto)
+                return fechaItem.getDate() === hoy.getDate() &&
+                       fechaItem.getMonth() === hoy.getMonth() &&
+                       fechaItem.getFullYear() === hoy.getFullYear();
+            });
+
+            // Solo actualizamos si realmente borramos algo para evitar renders innecesarios
+            if (filtrados.length !== prev.length) {
+                return filtrados;
+            }
+            return prev;
+        });
+    };
+
+    // 1. Ejecutar INMEDIATAMENTE al cargar la página
+    limpiarPapelera();
+
+    // 2. Seguir revisando cada minuto (por si el cambio de día ocurre mientras la app está abierta)
+    const intervalo = setInterval(limpiarPapelera, 60000); 
     return () => clearInterval(intervalo);
   }, []);
 

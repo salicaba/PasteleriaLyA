@@ -427,7 +427,29 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     
     const handleMouseDown = (e) => { setIsDragging(true); setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y }); }; 
     const handleMouseMove = (e) => { if (isDragging) { setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); } }; 
-    const handleMouseUp = () => { setIsDragging(false); }; 
+    const handleMouseUp = () => { setIsDragging(false); };
+    const handleTouchStart = (e) => {
+        const touch = e.touches[0];
+        setIsDragging(true);
+        setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
+    };
+
+    const handleTouchMove = (e) => {
+        // 1. ESTO EVITA QUE SE MUEVA LA PANTALLA (SCROLL)
+        if (e.cancelable) {
+             e.preventDefault(); 
+             e.stopPropagation();
+        }
+
+        if (isDragging) {
+            const touch = e.touches[0];
+            setPosition({ x: touch.clientX - dragStart.x, y: touch.clientY - dragStart.y });
+        }
+    };
+
+    const handleTouchEnd = () => {
+        setIsDragging(false);
+    }; 
     
     const rotate = (direction) => { setRotation(prev => prev + (direction === 'right' ? 90 : -90)); }; 
     
@@ -504,7 +526,7 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
                                 <div onClick={() => fileInputRef.current.click()} className="w-full h-64 border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-all group"><Upload size={48} className="text-gray-300 group-hover:text-orange-400 mb-2 transition-colors"/><p className="text-gray-500 font-medium group-hover:text-orange-500">Click para subir imagen</p></div> 
                             ) : ( 
                                 <div className="w-full flex flex-col items-center animate-fade-in"> 
-                                    <div className="w-[250px] h-[250px] rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100 relative cursor-move mb-4 group flex items-center justify-center" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}> 
+                                    <div className="w-[250px] h-[250px] rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100 relative cursor-move mb-4 group flex items-center justify-center touch-none" onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}> 
                                         <img ref={imageRef} src={imagenPreview} alt="Preview" className="absolute transition-transform duration-75 ease-out origin-center" style={{ left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`, maxHeight: 'none', maxWidth: 'none' }} draggable="false" /><div className="absolute inset-0 border-2 border-orange-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded-2xl"></div> 
                                     </div> 
                                     <div className="w-full max-w-[250px] space-y-3 bg-gray-50 p-3 rounded-xl border border-gray-200"> 
@@ -762,7 +784,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     <button onClick={onCerrar} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-bold"><ArrowLeft size={20} /> Volver</button>
                 </div>
                 <div className="bg-white/95 backdrop-blur-sm z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
-                    <div className="relative mb-3"><Search className="absolute left-3 top-2.5 text-gray-400" size={18} /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} autoFocus />{busqueda && (<button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>)}</div>
+                    <div className="relative mb-3"><Search className="absolute left-3 top-2.5 text-gray-400" size={18} /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />{busqueda && (<button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>)}</div>
                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1"><button onClick={() => setCategoriaFiltro('Todas')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>Todas</button>{ORDEN_CATEGORIAS.map(cat => (<button key={cat} onClick={() => setCategoriaFiltro(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}>{cat}</button>))}</div>
                 </div>
                 
