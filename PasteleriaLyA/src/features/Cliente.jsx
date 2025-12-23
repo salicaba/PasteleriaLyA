@@ -625,7 +625,7 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
             if (!storedName) return;
 
             // 2. Definimos límite (15 minutos en milisegundos)
-            const LIMITE_TIEMPO = 15 * 60 * 1000; 
+            const LIMITE_TIEMPO = 19 * 60 * 1000; 
             const ahora = Date.now();
             
             // 3. Calculamos tiempo transcurrido
