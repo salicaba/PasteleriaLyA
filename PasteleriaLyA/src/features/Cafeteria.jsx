@@ -580,23 +580,47 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
     ); 
 };
 
-// Busca el componente VistaHubMesa (aprox línea 556) y reemplázalo con este:
+// Busca este componente en src/features/Cafeteria.jsx y reemplázalo completo
 
 export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => { 
     const [modalUnirOpen, setModalUnirOpen] = useState(false); 
     const [modalCrearOpen, setModalCrearOpen] = useState(false); 
+    
+    // --- LÓGICA AGREGADA: DETECCIÓN DE NUEVA CUENTA ---
+    const [esperandoNuevaCuenta, setEsperandoNuevaCuenta] = useState(false);
+    const cuentasRef = useRef(mesa?.cuentas?.length || 0);
 
-    // --- CAMBIO: Ordenar cuentas (De la más antigua a la más reciente) ---
+    useEffect(() => {
+        const cantidadActual = mesa?.cuentas?.length || 0;
+        
+        // Si hay más cuentas que antes Y estábamos esperando una nueva (porque el usuario la creó)
+        if (cantidadActual > cuentasRef.current && esperandoNuevaCuenta) {
+            
+            // 1. Buscamos la cuenta más reciente (la que tenga el timestamp más alto)
+            const cuentaNueva = [...mesa.cuentas].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
+            
+            // 2. Si la encontramos, la abrimos automáticamente
+            if (cuentaNueva) {
+                onAbrirCuenta(mesa.id, cuentaNueva.id);
+            }
+            
+            // 3. Reseteamos la bandera
+            setEsperandoNuevaCuenta(false);
+        }
+        
+        // Actualizamos la referencia para la próxima comparación
+        cuentasRef.current = cantidadActual;
+    }, [mesa.cuentas, esperandoNuevaCuenta, mesa.id, onAbrirCuenta]);
+    // ----------------------------------------------------
+
     const cuentasOrdenadas = useMemo(() => {
         if (!mesa || !mesa.cuentas) return [];
         return [...mesa.cuentas].sort((a, b) => {
-            // Usamos timestamp si existe, si no, intentamos mantener el orden original
             const timeA = a.timestamp || 0;
             const timeB = b.timestamp || 0;
-            return timeA - timeB; // Ascendente: Menor (más viejo) a Mayor (más nuevo)
+            return timeA - timeB; // Mantenemos el orden visual (más viejo primero)
         });
     }, [mesa.cuentas]);
-    // ---------------------------------------------------------------------
 
     return ( 
         <div className="fixed inset-0 bg-gray-50 z-[50] flex flex-col animate-fade-in-up"> 
@@ -617,7 +641,6 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
                 {cuentasOrdenadas.length === 0 ? ( 
                     <div className="text-center py-20 opacity-50"><Users size={64} className="mx-auto mb-4 text-gray-400" /><h3 className="text-xl font-bold text-gray-600">Mesa Disponible</h3><p>No hay cuentas abiertas. Esperando clientes...</p></div> 
                 ) : ( 
-                    // Usamos cuentasOrdenadas en lugar de mesa.cuentas
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {cuentasOrdenadas.map(cuenta => (
                             <div key={cuenta.id} onClick={() => onAbrirCuenta(mesa.id, cuenta.id)} className="bg-white border-l-8 border-orange-500 rounded-xl shadow-sm hover:shadow-md cursor-pointer p-6 transition-all transform hover:-translate-y-1 relative group">
@@ -649,7 +672,17 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
                 <button onClick={() => setModalCrearOpen(true)} className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-lg shadow-lg flex justify-center items-center gap-2"><PlusCircle /> Agregar Cuenta Manualmente</button>
             </div> 
             <ModalFusionCuentas isOpen={modalUnirOpen} onClose={() => setModalUnirOpen(false)} cuentas={mesa.cuentas} onConfirmarFusion={(destino, origenes) => { onUnirCuentas(mesa.id, destino, origenes); setModalUnirOpen(false); }} /> 
-            <ModalNuevaCuentaMesa isOpen={modalCrearOpen} onClose={() => setModalCrearOpen(false)} onConfirm={(nombre) => { onCrearCuenta(mesa.id, nombre); setModalCrearOpen(false); }} /> 
+            
+            {/* AQUÍ ESTÁ EL CAMBIO EN EL MODAL: Activamos la bandera 'esperandoNuevaCuenta' */}
+            <ModalNuevaCuentaMesa 
+                isOpen={modalCrearOpen} 
+                onClose={() => setModalCrearOpen(false)} 
+                onConfirm={(nombre) => { 
+                    setEsperandoNuevaCuenta(true); // <--- Marcamos que esperamos una cuenta nueva
+                    onCrearCuenta(mesa.id, nombre); 
+                    setModalCrearOpen(false); 
+                }} 
+            /> 
         </div> 
     ); 
 };
