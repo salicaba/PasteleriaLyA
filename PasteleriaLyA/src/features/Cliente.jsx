@@ -614,10 +614,55 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
         return () => clearInterval(intervalo);
     }, [mostrarDespedida, tiempoDespedida]);
 
+    // --- NUEVO: VERIFICACIÓN DE CADUCIDAD DE SESIÓN LOCAL (15 MINUTOS) ---
+    useEffect(() => {
+        const verificarCaducidad = () => {
+            // 1. Obtenemos datos
+            const storedName = localStorage.getItem('lya_cliente_nombre');
+            const storedTime = localStorage.getItem('lya_token_time');
+            
+            // Si no hay usuario, no hacemos nada
+            if (!storedName) return;
+
+            // 2. Definimos límite (15 minutos en milisegundos)
+            const LIMITE_TIEMPO = 15 * 60 * 1000; 
+            const ahora = Date.now();
+            
+            // 3. Calculamos tiempo transcurrido
+            // Si no existe storedTime (sesiones viejas), asumimos que caducó
+            const tiempoInicio = storedTime ? parseInt(storedTime) : 0;
+            const haExpirado = (ahora - tiempoInicio) > LIMITE_TIEMPO;
+
+            // 4. CONDICIÓN CRÍTICA:
+            // Solo lo sacamos si ha expirado el tiempo Y NO TIENE un pedido activo en el servidor.
+            // (miCuentaAcumulada viene de Firebase, si existe, significa que ya pidió y es seguro mantenerlo).
+            if (haExpirado && !miCuentaAcumulada && !pedidoEnviado) {
+                console.log("Sesión local expirada por inactividad sin pedido. Cerrando...");
+                handleSalidaCompleta();
+                
+                // Opcional: Avisar al usuario si tiene la pantalla abierta
+                if (navigator.onLine) {
+                    lanzarNotificacion("Tu sesión expiró por inactividad.", "info");
+                }
+            }
+        };
+
+        // Ejecutar verificación al montar el componente (para el caso de "regresa días después")
+        if (mesa) {
+             verificarCaducidad();
+        }
+
+        // Ejecutar verificación cada 1 minuto (para el caso de "dejó la ventana abierta")
+        const intervalo = setInterval(verificarCaducidad, 60000);
+
+        return () => clearInterval(intervalo);
+    }, [miCuentaAcumulada, pedidoEnviado, mesa]); // Dependencias importantes
+
     const handleSalidaCompleta = () => {
         localStorage.removeItem('lya_cliente_nombre');
         localStorage.removeItem('lya_cliente_telefono');
-        localStorage.removeItem('lya_carrito_temp'); 
+        localStorage.removeItem('lya_carrito_temp');
+        localStorage.removeItem('lya_token_time'); 
 
         setNombreCliente(null);
         setTelefonoCliente(null);
@@ -633,6 +678,11 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
     const handleLoginExitoso = (nombre, telefono) => {
         localStorage.setItem('lya_cliente_nombre', nombre);
         if (telefono) localStorage.setItem('lya_cliente_telefono', telefono);
+        
+        // --- NUEVO: Guardamos la hora de inicio de sesión ---
+        localStorage.setItem('lya_token_time', Date.now().toString());
+        // ----------------------------------------------------
+
         setNombreCliente(nombre);
         setTelefonoCliente(telefono);
     };
