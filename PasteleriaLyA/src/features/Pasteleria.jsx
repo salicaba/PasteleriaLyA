@@ -301,9 +301,9 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         
         if (numPagos > 1) {
              txt += `*ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`;
-             txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `*LIQUIDADO*\n`;
+             txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `LIQUIDADO\n`;
         } else {
-             txt += `*ESTADO:* ${pagosHechos >= 1 ? '[OK] PAGADO' : '[!] PENDIENTE DE PAGO'}\n`;
+             txt += `*ESTADO:* ${pagosHechos >= 1 ? 'PAGADO' : 'PENDIENTE DE PAGO'}\n`;
         }
         
         txt += `================================\n`;

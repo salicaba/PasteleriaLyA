@@ -720,7 +720,8 @@ export default function PasteleriaApp() {
         onClose={() => setPedidoAEntregar(null)} 
         onConfirm={confirmarEntrega} 
         titulo={pedidoAEntregar && pedidosPasteleria.find(p => p.folio === pedidoAEntregar)?.fechaEntrega !== getFechaHoy() ? "¿Entrega Diferida?" : "¿Confirmar Entrega?"} 
-        mensaje={mensajeEntrega} 
+        mensaje={mensajeEntrega}
+        tipo="entregar" 
       />
     </LayoutConSidebar>
   );

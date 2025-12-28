@@ -320,16 +320,30 @@ export const LayoutConSidebar = ({ children, modo, vistaActual, setVistaActual, 
 // --- MODAL CONFIRMACIÓN (CENTRADO MEJORADO) ---
 export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "¿Estás seguro?", mensaje = "Esta acción no se puede deshacer.", tipo = "eliminar" }) => { 
     if (!isOpen) return null; 
-    const esPago = tipo === 'pago'; 
-    const estilos = esPago ? { 
-        borde: "border-green-500", 
-        icono: <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-4 animate-bounce-in"><DollarSign size={32} className="text-green-600" /></div>, 
-        boton: "bg-green-600 hover:bg-green-700 text-white" 
-    } : { 
+
+    // DEFINIMOS LOS ESTILOS AQUÍ:
+    let estilos = {
+        // Estilo por defecto (Eliminar/Rojo)
         borde: "border-red-500", 
         icono: <Trash2 size={40} className="text-red-500 mx-auto mb-4" />, 
         boton: "bg-red-600 hover:bg-red-700 text-white" 
-    }; 
+    };
+
+    if (tipo === 'pago') {
+        estilos = { 
+            borde: "border-green-500", 
+            icono: <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-4 animate-bounce-in"><DollarSign size={32} className="text-green-600" /></div>, 
+            boton: "bg-green-600 hover:bg-green-700 text-white" 
+        }; 
+    } else if (tipo === 'entregar') {
+        // NUEVO ESTILO (Entregar/Azul)
+        estilos = {
+            borde: "border-blue-500",
+            icono: <div className="bg-blue-100 p-3 rounded-full w-fit mx-auto mb-4 animate-bounce-in"><CheckCircle size={32} className="text-blue-600" /></div>,
+            boton: "bg-blue-600 hover:bg-blue-700 text-white"
+        };
+    }
+
     return ( 
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[280] p-4 backdrop-blur-sm transition-all"> 
             <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md overflow-hidden animate-bounce-in transform border-t-8 ${estilos.borde}`}> 
