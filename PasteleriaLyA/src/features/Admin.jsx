@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake, Database, ServerCrash, AlertTriangle } from 'lucide-react';
+import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake, Database, ServerCrash, AlertTriangle, Filter } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
@@ -13,7 +13,7 @@ import { collection, writeBatch, getDocs } from 'firebase/firestore';
 // --- IMPORTAMOS LOS ROLES DEFINIDOS ---
 import { ROLES } from '../utils/roles';
 
-// MODAL DETALLE CORTE (Sin cambios)
+// ... [El componente ModalDetalleCorte se mantiene IGUAL, no es necesario cambiarlo] ...
 const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
     if (!isOpen) return null;
 
@@ -86,7 +86,7 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
     );
 };
 
-// VISTA INICIO ADMIN (SIN EL BOTÓN DE BORRAR)
+// ... [VistaInicioAdmin se mantiene IGUAL, no es necesario cambiarlo] ...
 export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) => {
     const [modalAbierto, setModalAbierto] = useState(null); 
     const [fechaCorte, setFechaCorte] = useState(getFechaHoy());
@@ -179,19 +179,27 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
     );
 };
 
-// --- VISTA REPORTE UNIVERSAL CON RECHARTS ---
-export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo, onAbrirModalDia }) => {
+// --- VISTA REPORTE UNIVERSAL MEJORADA (DISEÑO BOTONES CORREGIDO) ---
+export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAbrirModalDia }) => {
+    // NUEVO: Estado para alternar vistas internamente
+    const [vistaActiva, setVistaActiva] = useState('todos'); // 'todos', 'pasteleria', 'cafeteria'
+    
     const [mesSeleccionado, setMesSeleccionado] = useState('2025-12');
     const [rangoInicio, setRangoInicio] = useState('');
     const [rangoFin, setRangoFin] = useState('');
 
+    // Preparamos TODOS los datos y los filtramos según la VISTA ACTIVA
     const todosLosDatosCompletos = useMemo(() => {
+        const pastel = pedidosPasteleria.map(p => ({ ...p, origen: 'Pastelería' }));
+        const cafe = ventasCafeteria.map(v => ({ ...v, origen: 'Cafetería' }));
+        
         let datos = [];
-        if (modo === 'admin') datos = [...pedidosPasteleria.map(p => ({ ...p, origen: 'Pastelería' })), ...ventasCafeteria.map(v => ({ ...v, origen: 'Cafetería' }))];
-        else if (modo === 'pasteleria') datos = pedidosPasteleria.map(p => ({ ...p, origen: 'Pastelería' }));
-        else datos = ventasCafeteria.map(v => ({ ...v, origen: 'Cafetería' }));
+        if (vistaActiva === 'pasteleria') datos = pastel;
+        else if (vistaActiva === 'cafeteria') datos = cafe;
+        else datos = [...pastel, ...cafe]; // 'todos'
+        
         return datos.filter(p => p.estado !== 'Cancelado');
-    }, [pedidosPasteleria, ventasCafeteria, modo]);
+    }, [pedidosPasteleria, ventasCafeteria, vistaActiva]);
 
     const datosReporte = useMemo(() => {
         let datosFiltrados = todosLosDatosCompletos;
@@ -249,7 +257,7 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
             mes,
             tituloPeriodo
         };
-    }, [todosLosDatosCompletos, mesSeleccionado, rangoInicio, rangoFin]);
+    }, [todosLosDatosCompletos, mesSeleccionado, rangoInicio, rangoFin, vistaActiva]);
 
     const limpiarRango = () => { setRangoInicio(''); setRangoFin(''); };
 
@@ -266,7 +274,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                     <div className="border-t pt-1 mt-1">
                         <p className="font-bold text-gray-800 text-sm">Total: ${(payload.reduce((acc, curr) => acc + curr.value, 0)).toFixed(2)}</p>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 italic">Click para ver detalles</p>
                 </div>
             );
         }
@@ -281,39 +288,76 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
 
     return (
         <div className="p-4 md:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Reporte Ventas</h2>
-                <div className="flex flex-col md:flex-row flex-wrap gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-200 items-start md:items-end w-full md:w-auto">
-                    <div className="w-full md:w-auto">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">Mes Principal</label>
-                        <input type="month" value={mesSeleccionado} min="2025-12" onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase" />
-                    </div>
-                    <div className="h-10 w-px bg-gray-300 mx-2 hidden md:block"></div>
+                
+                <div className="flex flex-col xl:flex-row gap-4 w-full lg:w-auto items-stretch lg:items-center">
                     
-                    <div className="grid grid-cols-1 gap-2 w-full sm:grid-cols-2 md:w-auto">
-                        <div className="w-full">
-                            <label className="text-xs font-bold text-gray-500 block mb-1">Desde</label>
-                            <input type="date" value={rangoInicio} min="2025-12-01" onChange={(e) => setRangoInicio(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
-                        </div>
-                        <div className="w-full">
-                            <label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label>
-                            <input type="date" value={rangoFin} min="2025-12-01" onChange={(e) => setRangoFin(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
-                        </div>
+                    {/* NUEVO: SELECTOR DE TIPO (DISEÑO MEJORADO) */}
+                    {/* Se usa 'grid grid-cols-3' para que los botones se distribuyan y 'w-full' para llenar el espacio */}
+                    <div className="bg-gray-100 p-1 rounded-xl grid grid-cols-3 gap-1 shadow-inner w-full xl:w-auto min-w-[300px]">
+                        <button 
+                            onClick={() => setVistaActiva('todos')}
+                            className={`flex justify-center items-center px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'todos' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                        >
+                            Global
+                        </button>
+                        <button 
+                            onClick={() => setVistaActiva('pasteleria')}
+                            className={`flex justify-center items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'pasteleria' ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-pink-400 hover:bg-gray-200/50'}`}
+                        >
+                            Pastelería
+                        </button>
+                        <button 
+                            onClick={() => setVistaActiva('cafeteria')}
+                            className={`flex justify-center items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'cafeteria' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-orange-400 hover:bg-gray-200/50'}`}
+                        >
+                            Cafetería
+                        </button>
                     </div>
 
-                    {(rangoInicio || rangoFin) && (<button onClick={limpiarRango} className="text-xs text-red-500 font-bold hover:underline mb-3 md:mb-1 self-end flex items-center gap-1"><X size={12} /> Limpiar</button>)}
+                    {/* SELECTOR DE FECHAS */}
+                    <div className="flex flex-col md:flex-row flex-wrap gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-200 items-start md:items-end flex-1">
+                        <div className="w-full md:w-auto">
+                            <label className="text-xs font-bold text-gray-500 block mb-1">Mes Principal</label>
+                            <input type="month" value={mesSeleccionado} min="2025-12" onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase" />
+                        </div>
+                        <div className="h-10 w-px bg-gray-300 mx-2 hidden md:block"></div>
+                        
+                        <div className="grid grid-cols-1 gap-2 w-full sm:grid-cols-2 md:w-auto">
+                            <div className="w-full">
+                                <label className="text-xs font-bold text-gray-500 block mb-1">Desde</label>
+                                <input type="date" value={rangoInicio} min="2025-12-01" onChange={(e) => setRangoInicio(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
+                            </div>
+                            <div className="w-full">
+                                <label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label>
+                                <input type="date" value={rangoFin} min="2025-12-01" onChange={(e) => setRangoFin(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
+                            </div>
+                        </div>
+
+                        {(rangoInicio || rangoFin) && (<button onClick={limpiarRango} className="text-xs text-red-500 font-bold hover:underline mb-3 md:mb-1 self-end flex items-center gap-1"><X size={12} /> Limpiar</button>)}
+                    </div>
                 </div>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-                {modo !== 'cafeteria' && <CardStat titulo="Total Pastelería" valor={`$${datosReporte.totalPasteleria.toFixed(2)}`} color="bg-pink-100 text-pink-800" />}
-                {modo !== 'pasteleria' && <CardStat titulo="Total Cafetería" valor={`$${datosReporte.totalCafeteria.toFixed(2)}`} color="bg-orange-100 text-orange-800" />}
-                {modo === 'admin' && <CardStat titulo="Gran Total" valor={`$${datosReporte.totalGlobal.toFixed(2)}`} color="bg-green-100 text-green-800" />}
+            {/* TARJETAS ESTADÍSTICAS (CONDICIONALES SEGÚN VISTA ACTIVA) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 animate-fade-in">
+                {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
+                    <CardStat titulo="Total Pastelería" valor={`$${datosReporte.totalPasteleria.toFixed(2)}`} color="bg-pink-100 text-pink-800" />
+                )}
+                {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (
+                    <CardStat titulo="Total Cafetería" valor={`$${datosReporte.totalCafeteria.toFixed(2)}`} color="bg-orange-100 text-orange-800" />
+                )}
+                {vistaActiva === 'todos' && (
+                    <CardStat titulo="Gran Total" valor={`$${datosReporte.totalGlobal.toFixed(2)}`} color="bg-green-100 text-green-800" />
+                )}
             </div>
 
-            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 h-[500px] flex flex-col">
+            {/* GRÁFICO (CON BARRAS CONDICIONALES) */}
+            <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 h-[500px] flex flex-col relative transition-all">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-gray-700 flex items-center gap-2 capitalize text-sm md:text-base"><BarChart3 size={20} /> {datosReporte.tituloPeriodo}</h3>
+                    <span className="text-xs font-bold uppercase bg-gray-100 text-gray-500 px-2 py-1 rounded">Vista: {vistaActiva}</span>
                 </div>
                 
                 <div className="flex-1 w-full min-h-0">
@@ -339,19 +383,20 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                             <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
                             <Legend wrapperStyle={{ paddingTop: '20px' }} />
                             
-                            {(modo === 'admin' || modo === 'pasteleria') && (
+                            {/* RENDERIZADO CONDICIONAL DE LAS BARRAS */}
+                            {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
                                 <Bar 
                                     dataKey="valorP" 
                                     name="Pastelería" 
                                     stackId="a" 
                                     fill="#ec4899" 
-                                    radius={[4, 4, 0, 0]} 
+                                    radius={vistaActiva === 'pasteleria' ? [4, 4, 0, 0] : [0, 0, 0, 0]} 
                                     maxBarSize={50}
                                     onClick={handleBarClick}
                                     cursor="pointer"
                                 />
                             )}
-                            {(modo === 'admin' || modo === 'cafeteria') && (
+                            {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (
                                 <Bar 
                                     dataKey="valorC" 
                                     name="Cafetería" 
@@ -366,15 +411,14 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, modo
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
-                <p className="text-xs text-gray-400 text-center mt-2 italic">Haz clic en una barra para ver el detalle del día.</p>
             </div>
         </div>
     );
 };
 
-// COMPONENTE MODAL USUARIO Y VISTA GESTIÓN USUARIOS (SIN CAMBIOS)
+// ... [ModalUsuario, VistaGestionUsuarios y VistaBaseDatos se mantienen IGUALES] ...
+// (Asegúrate de copiar el resto del archivo Admin.jsx tal cual estaba, solo reemplazando VistaReporteUniversal)
 const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
-    // Usamos 'empleado general' como default
     const [form, setForm] = useState({ nombre: '', usuario: '', password: '', rol: ROLES.GENERAL });
 
     useEffect(() => { 
@@ -413,7 +457,6 @@ const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
         onClose(); 
     };
 
-    // Helper para botones de rol
     const BotonRol = ({ rolValue, label, colorBorder, icon: Icon }) => (
         <button 
             type="button" 
@@ -470,24 +513,17 @@ const ModalUsuario = ({ isOpen, onClose, onGuardar, usuarioAEditar }) => {
     );
 };
 
-// --- GESTIÓN USUARIOS ACTUALIZADA ---
-// --- GESTIÓN USUARIOS ACTUALIZADA ---
 export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
     const [modalOpen, setModalOpen] = useState(false); 
     const [usuarioEditar, setUsuarioEditar] = useState(null); 
     const [usuarioEliminar, setUsuarioEliminar] = useState(null); 
     
-    // Clasificamos usuarios en 4 grupos
     const administradores = usuarios.filter(u => u.rol === ROLES.ADMIN);
     const generales = usuarios.filter(u => u.rol === ROLES.GENERAL);
     const pasteleros = usuarios.filter(u => u.rol === ROLES.PASTELERIA);
     const cafeteros = usuarios.filter(u => u.rol === ROLES.CAFETERIA);
 
-    // Componente reutilizable para cada tarjeta de grupo
     const GrupoCard = ({ titulo, lista, colorBg, colorBorder, colorText, icon: Icon, colorIcon, iconBg }) => {
-        
-        // Función para obtener el color del borde basado en el texto
-        // Ejemplo: 'text-rose-800' se convierte en 'border-rose-500'
         const borderColor = colorText.replace('text-', 'border-').replace('800', '500');
 
         return (
@@ -500,11 +536,8 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     {lista.map(user => (
                         <div 
                             key={user.id} 
-                            // AQUI ESTÁ EL CAMBIO: Agregamos border-l-4 y el color dinámico
                             className={`bg-white p-3 rounded-xl shadow-sm border border-gray-100 border-l-4 ${borderColor} flex justify-between items-center group hover:shadow-md transition relative overflow-hidden`}
                         >
-                            {/* Eliminé el div absoluto que hacía la línea finita, ahora usamos el borde real de la caja */}
-                            
                             <div className="flex items-center gap-3 pl-2 overflow-hidden">
                                 <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center ${colorIcon} font-bold text-sm border border-opacity-20 shadow-sm shrink-0`}>
                                     {user.nombre.charAt(0)}
@@ -541,10 +574,7 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                 <button onClick={() => { setUsuarioEditar(null); setModalOpen(true); }} className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition transform active:scale-95 w-full sm:w-auto justify-center"> <UserPlus size={20}/> Nuevo Usuario </button> 
             </div> 
             
-            {/* GRID DE 4 CUADRITOS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-auto pb-4">
-                
-                {/* 1. ADMINS */}
                 <GrupoCard 
                     titulo="Administradores" 
                     lista={administradores} 
@@ -555,8 +585,6 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     colorIcon="text-gray-900" 
                     iconBg="bg-gray-300"
                 />
-
-                {/* 2. GENERALES */}
                 <GrupoCard 
                     titulo="Empleados Generales" 
                     lista={generales} 
@@ -567,8 +595,6 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     colorIcon="text-purple-600" 
                     iconBg="bg-purple-100"
                 />
-
-                {/* 3. PASTELERÍA */}
                 <GrupoCard 
                     titulo="Staff Pastelería" 
                     lista={pasteleros} 
@@ -579,8 +605,6 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     colorIcon="text-rose-600" 
                     iconBg="bg-rose-100"
                 />
-
-                {/* 4. CAFETERÍA */}
                 <GrupoCard 
                     titulo="Staff Cafetería" 
                     lista={cafeteros} 
@@ -591,7 +615,6 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     colorIcon="text-orange-600" 
                     iconBg="bg-orange-100"
                 />
-
             </div> 
             
             <ModalUsuario isOpen={modalOpen} onClose={() => setModalOpen(false)} onGuardar={onGuardar} usuarioAEditar={usuarioEditar} /> 
@@ -600,46 +623,37 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
     );
 };
 
-// --- COMPONENTE ACTUALIZADO: GESTIÓN DE BASE DE DATOS (MULTI-SELECCIÓN) ---
 export const VistaBaseDatos = () => {
-    // Estados para Limpieza Total (Fábrica)
     const [confirmarLimpieza, setConfirmarLimpieza] = useState(false);
     
-    // Estados para Gestión por Periodos (Multi-selección)
-    const [mesesDisponibles, setMesesDisponibles] = useState([]); // Todos los que existen
-    const [mesesSeleccionados, setMesesSeleccionados] = useState([]); // Los que marcó el usuario (array)
+    const [mesesDisponibles, setMesesDisponibles] = useState([]); 
+    const [mesesSeleccionados, setMesesSeleccionados] = useState([]); 
     const [confirmarBorradoMeses, setConfirmarBorradoMeses] = useState(false);
     
-    // Estados de carga
     const [cargando, setCargando] = useState(false);
     const [cargandoExportar, setCargandoExportar] = useState(false);
     const [cargandoFechas, setCargandoFechas] = useState(true);
 
-    // --- EFECTO: BUSCAR MESES CON DATOS REALES ---
     useEffect(() => {
         const obtenerMesesConDatos = async () => {
             setCargandoFechas(true);
             try {
-                // 1. Obtener fechas de Ventas
                 const ventasSnap = await getDocs(collection(db, "ventas"));
                 const fechasVentas = ventasSnap.docs.map(d => d.data().fecha).filter(Boolean);
 
-                // 2. Obtener fechas de Pedidos
                 const pedidosSnap = await getDocs(collection(db, "pedidos"));
                 const fechasPedidos = pedidosSnap.docs.map(d => d.data().fecha).filter(Boolean);
 
-                // 3. Unificar y extraer "YYYY-MM"
                 const todasLasFechas = [...fechasVentas, ...fechasPedidos];
                 const setMeses = new Set();
 
                 todasLasFechas.forEach(fechaStr => {
                     if (fechaStr.length >= 7) {
-                        const mesAnio = fechaStr.substring(0, 7); // "2025-12"
+                        const mesAnio = fechaStr.substring(0, 7); 
                         setMeses.add(mesAnio);
                     }
                 });
 
-                // 4. Ordenar (Más reciente primero)
                 const mesesOrdenados = Array.from(setMeses).sort().reverse();
                 setMesesDisponibles(mesesOrdenados);
 
@@ -652,7 +666,6 @@ export const VistaBaseDatos = () => {
         obtenerMesesConDatos();
     }, []);
 
-    // Helper: Nombre bonito del mes
     const nombreMes = (fechaMes) => {
         if (!fechaMes) return "";
         const [anio, mes] = fechaMes.split('-');
@@ -660,7 +673,6 @@ export const VistaBaseDatos = () => {
         return date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
     };
 
-    // Helper: Checkbox lógica
     const toggleMes = (mes) => {
         if (mesesSeleccionados.includes(mes)) {
             setMesesSeleccionados(prev => prev.filter(m => m !== mes));
@@ -672,20 +684,17 @@ export const VistaBaseDatos = () => {
     const seleccionarTodos = () => setMesesSeleccionados([...mesesDisponibles]);
     const deseleccionarTodos = () => setMesesSeleccionados([]);
 
-    // --- FUNCIÓN 1: EXPORTAR SELECCIONADOS ---
     const handleExportarSeleccion = async () => {
         if (mesesSeleccionados.length === 0) return alert("Selecciona al menos un mes.");
         setCargandoExportar(true);
 
         try {
-            // Obtener todo y filtrar (más seguro para asegurar consistencia)
             const ventasRef = collection(db, "ventas");
             const snapshotVentas = await getDocs(ventasRef);
             
             const pedidosRef = collection(db, "pedidos");
             const snapshotPedidos = await getDocs(pedidosRef);
 
-            // Filtrar los que coincidan con ALGUNO de los meses seleccionados
             const ventasFiltradas = snapshotVentas.docs
                 .map(d => d.data())
                 .filter(d => d.fecha && mesesSeleccionados.some(m => d.fecha.startsWith(m)));
@@ -700,7 +709,6 @@ export const VistaBaseDatos = () => {
                 return;
             }
 
-            // Generar CSV
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "TIPO,FECHA,FOLIO,CLIENTE,TOTAL,ESTADO,DETALLES\n";
 
@@ -714,7 +722,6 @@ export const VistaBaseDatos = () => {
                 csvContent += fila + "\n";
             });
 
-            // Nombre del archivo dinámico
             const nombreArchivo = mesesSeleccionados.length === 1 
                 ? `Respaldo_LyA_${mesesSeleccionados[0]}.csv`
                 : `Respaldo_LyA_Multiples_Periodos.csv`;
@@ -734,7 +741,6 @@ export const VistaBaseDatos = () => {
         setCargandoExportar(false);
     };
 
-    // --- FUNCIÓN 2: ELIMINAR SELECCIONADOS ---
     const handleEliminarSeleccion = async () => {
         setConfirmarBorradoMeses(false);
         setCargando(true);
@@ -746,7 +752,6 @@ export const VistaBaseDatos = () => {
                 const colRef = collection(db, nombreColeccion);
                 const snapshot = await getDocs(colRef);
                 
-                // Filtrar docs que pertenezcan a CUALQUIERA de los meses seleccionados
                 const docsABorrar = snapshot.docs.filter(doc => {
                     const data = doc.data();
                     return data.fecha && mesesSeleccionados.some(mes => data.fecha.startsWith(mes));
@@ -769,7 +774,6 @@ export const VistaBaseDatos = () => {
 
             if (totalEliminados > 0) {
                 alert(`✅ Se eliminaron ${totalEliminados} registros de los meses seleccionados.`);
-                // Actualizar lista disponible quitando los meses que seleccionamos
                 setMesesDisponibles(prev => prev.filter(m => !mesesSeleccionados.includes(m)));
                 setMesesSeleccionados([]); 
             } else {
@@ -783,7 +787,6 @@ export const VistaBaseDatos = () => {
         setCargando(false);
     };
 
-    // --- FUNCIÓN 3: RESET FÁBRICA ---
     const ejecutarBorradoBD = async () => {
         setConfirmarLimpieza(false);
         setCargando(true);
@@ -824,11 +827,9 @@ export const VistaBaseDatos = () => {
                 <p className="text-gray-500 text-sm mt-1">Gestión de historial, respaldos y limpieza del sistema.</p>
             </div>
 
-            {/* SECCIÓN 1: GESTOR DE HISTORIAL (MULTI-SELECCIÓN) */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex flex-col md:flex-row gap-6">
                     
-                    {/* COLUMNA IZQUIERDA: SELECTOR DE MESES */}
                     <div className="w-full md:w-1/2 lg:w-1/3 flex flex-col">
                         <div className="flex justify-between items-end mb-3">
                             <h3 className="font-bold text-gray-700 flex items-center gap-2"><Calendar size={18}/> Periodos Disponibles</h3>
@@ -865,7 +866,6 @@ export const VistaBaseDatos = () => {
                         <p className="text-xs text-gray-400 mt-2 text-right">{mesesSeleccionados.length} periodo(s) seleccionado(s)</p>
                     </div>
 
-                    {/* COLUMNA DERECHA: ACCIONES */}
                     <div className="w-full md:w-1/2 lg:w-2/3 flex flex-col gap-4 justify-center">
                         <div className="bg-blue-50 border border-blue-100 p-5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
                             <div>
@@ -898,7 +898,6 @@ export const VistaBaseDatos = () => {
                 </div>
             </div>
 
-            {/* SECCIÓN 2: ZONA DE PELIGRO (RESET FÁBRICA) */}
             <div className="border-t border-gray-200 pt-8">
                 <div className="bg-red-50 border border-red-100 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 group hover:shadow-md transition">
                     <div className="flex items-start gap-4">
@@ -922,7 +921,6 @@ export const VistaBaseDatos = () => {
                 </div>
             </div>
 
-            {/* MODAL CONFIRMACIÓN: BORRAR MESES */}
             <ModalConfirmacion 
                 isOpen={confirmarBorradoMeses} 
                 onClose={() => setConfirmarBorradoMeses(false)} 
@@ -932,7 +930,6 @@ export const VistaBaseDatos = () => {
                 tipo="eliminar" 
             />
 
-            {/* MODAL CONFIRMACIÓN: RESET FÁBRICA */}
             <ModalConfirmacion 
                 isOpen={confirmarLimpieza} 
                 onClose={() => setConfirmarLimpieza(false)} 

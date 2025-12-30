@@ -233,14 +233,29 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 {modo === 'admin' && ( 
                     <> 
                         <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
-                        <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Comparativo" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<BarChart3 size={18}/>} label="Reporte de Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<Database size={18}/>} label="Base de Datos" active={vistaActual === 'basedatos'} onClick={() => handleNavClick(() => setVistaActual('basedatos'))} colorTheme={themeBtn}/> 
                     </> 
                 )} 
 
-                {modo === 'pasteleria' && ( <> <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> <BotonNav icon={<PlusCircle size={18}/>} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => handleNavClick(() => setVistaActual('pedidos'))} colorTheme={themeBtn}/> <BotonNav icon={<CalendarRange size={18}/>} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => handleNavClick(() => setVistaActual('agenda'))} colorTheme={themeBtn}/> <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> </> )} 
-                {modo === 'cafeteria' && ( <> <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> <BotonNav icon={<Grid size={18}/>} label="Punto de Venta (QR)" active={vistaActual === 'mesas'} onClick={() => handleNavClick(() => setVistaActual('mesas'))} colorTheme={themeBtn}/> <BotonNav icon={<UtensilsCrossed size={18}/>} label="Gestión de Menú" active={vistaActual === 'menu'} onClick={() => handleNavClick(() => setVistaActual('menu'))} colorTheme={themeBtn}/> <BotonNav icon={<BarChart3 size={18}/>} label="Reporte Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> </> )} 
+                {modo === 'pasteleria' && ( 
+                    <> 
+                        <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<PlusCircle size={18}/>} label="Nuevo Pedido" active={vistaActual === 'pedidos'} onClick={() => handleNavClick(() => setVistaActual('pedidos'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<CalendarRange size={18}/>} label="Agenda Pedidos" active={vistaActual === 'agenda'} onClick={() => handleNavClick(() => setVistaActual('agenda'))} colorTheme={themeBtn}/> 
+                        {/* BOTÓN DE REPORTE ELIMINADO */}
+                    </> 
+                )} 
+                
+                {modo === 'cafeteria' && ( 
+                    <> 
+                        <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<Grid size={18}/>} label="Punto de Venta (QR)" active={vistaActual === 'mesas'} onClick={() => handleNavClick(() => setVistaActual('mesas'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<UtensilsCrossed size={18}/>} label="Gestión de Menú" active={vistaActual === 'menu'} onClick={() => handleNavClick(() => setVistaActual('menu'))} colorTheme={themeBtn}/> 
+                        {/* BOTÓN DE REPORTE ELIMINADO */}
+                    </> 
+                )} 
                 
                 <div className="my-4 border-t border-white/20"></div> 
                 
