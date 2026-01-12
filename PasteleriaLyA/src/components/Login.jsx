@@ -93,7 +93,17 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
         setError('');
 
         setTimeout(() => {
-            const userFound = usuariosDB.find(u => u.usuario === usuario);
+            // SOLUCIÓN: Respetamos mayúsculas/minúsculas exactamente como las escribes.
+            // Solo agregamos la lógica para completar el "@lya.com" si falta.
+            const userFound = usuariosDB.find(u => {
+                const usuarioInput = usuario.trim(); // Solo quitamos espacios accidentales al inicio/final
+                
+                // Comparamos:
+                // 1. Coincidencia exacta (ej: escribiste "Juan@lya.com")
+                // 2. Coincidencia agregando el dominio (ej: escribiste "Juan" -> busca "Juan@lya.com")
+                return u.usuario === usuarioInput || u.usuario === `${usuarioInput}@lya.com`;
+            });
+
             const esSuperAdmin = usuario === 'admin' && password === '1234';
 
             if (esSuperAdmin) {
