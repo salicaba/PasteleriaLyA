@@ -86,10 +86,21 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
     );
 };
 
-// ... [VistaInicioAdmin se mantiene IGUAL, no es necesario cambiarlo] ...
+// --- VISTA INICIO ADMIN (CON CALENDARIO TRADICIONAL + LÍMITES INTELIGENTES) ---
 export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) => {
     const [modalAbierto, setModalAbierto] = useState(null); 
     const [fechaCorte, setFechaCorte] = useState(getFechaHoy());
+
+    // 1. Calculamos la FECHA MÍNIMA (La primera venta de la historia)
+    // Para que el calendario no te deje ir años atrás innecesariamente.
+    const fechaMinimaHistorial = useMemo(() => {
+        const todasLasFechas = [
+            ...pedidos.map(p => p.fecha),
+            ...ventasCafeteria.map(v => v.fecha)
+        ].filter(Boolean).sort();
+
+        return todasLasFechas[0] || getFechaHoy();
+    }, [pedidos, ventasCafeteria]);
 
     const datosPasteleria = useMemo(() => {
         const filtrados = pedidos.filter(p => p.fecha === fechaCorte && p.estado !== 'Cancelado');
@@ -146,15 +157,32 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
         <div className="p-4 md:p-8">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-8 gap-4">
                 <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General de Control</h2>
-                    <p className="text-gray-500 text-sm mt-1">Resumen financiero y herramientas de base de datos.</p>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Panel General de Control de Cajas</h2>
+                    <p className="text-gray-500 text-sm mt-1">No pierdas ni un peso.</p>
                 </div>
                 <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto items-end md:items-center">
+                    
+                    {/* --- OPCIÓN CALENDARIO TRADICIONAL (Con Límites) --- */}
                     <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3">
                         <div className="bg-gray-100 p-2 rounded-lg text-gray-500"><Calendar size={20} /></div>
-                        <div className="flex flex-col"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Fecha de Corte</label><input type="date" value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer" /></div>
-                        { !esHoy && (<button onClick={() => setFechaCorte(getFechaHoy())} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition">IR A HOY</button>)}
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Fecha de Corte</label>
+                            <input 
+                                type="date" 
+                                value={fechaCorte} 
+                                min={fechaMinimaHistorial}
+                                max={getFechaHoy()}
+                                onChange={(e) => setFechaCorte(e.target.value)} 
+                                className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer focus:text-blue-600 transition-colors" 
+                            />
+                        </div>
+                        { !esHoy && (
+                            <button onClick={() => setFechaCorte(getFechaHoy())} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition whitespace-nowrap">
+                                IR A HOY
+                            </button>
+                        )}
                     </div>
+
                 </div>
             </div>
 
@@ -179,16 +207,22 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
     );
 };
 
-// --- VISTA REPORTE UNIVERSAL MEJORADA (DISEÑO BOTONES CORREGIDO) ---
+// --- VISTA REPORTE UNIVERSAL (CON RANGO POR DÍAS Y LÍMITES INTELIGENTES) ---
 export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAbrirModalDia }) => {
-    // NUEVO: Estado para alternar vistas internamente
-    const [vistaActiva, setVistaActiva] = useState('todos'); // 'todos', 'pasteleria', 'cafeteria'
+    const [vistaActiva, setVistaActiva] = useState('todos');
     
-    const [mesSeleccionado, setMesSeleccionado] = useState('2025-12');
+    // Función para obtener mes actual
+    const obtenerMesActual = () => {
+        const hoy = new Date();
+        return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+    };
+
+    const [mesSeleccionado, setMesSeleccionado] = useState(obtenerMesActual());
+    
+    // Volvemos a strings de fecha completa 'YYYY-MM-DD' para los rangos
     const [rangoInicio, setRangoInicio] = useState('');
     const [rangoFin, setRangoFin] = useState('');
 
-    // Preparamos TODOS los datos y los filtramos según la VISTA ACTIVA
     const todosLosDatosCompletos = useMemo(() => {
         const pastel = pedidosPasteleria.map(p => ({ ...p, origen: 'Pastelería' }));
         const cafe = ventasCafeteria.map(v => ({ ...v, origen: 'Cafetería' }));
@@ -196,37 +230,86 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
         let datos = [];
         if (vistaActiva === 'pasteleria') datos = pastel;
         else if (vistaActiva === 'cafeteria') datos = cafe;
-        else datos = [...pastel, ...cafe]; // 'todos'
+        else datos = [...pastel, ...cafe];
         
         return datos.filter(p => p.estado !== 'Cancelado');
     }, [pedidosPasteleria, ventasCafeteria, vistaActiva]);
 
+    // --- CÁLCULO DE LÍMITES INTELIGENTES (MIN/MAX) ---
+    // Esto evita que selecciones años anteriores a tu negocio o fechas futuras
+    const limitesFechas = useMemo(() => {
+        if (todosLosDatosCompletos.length === 0) {
+            const hoy = getFechaHoy();
+            return { min: hoy, max: hoy };
+        }
+        
+        // Ordenamos todas las fechas de ventas que existen
+        const fechasOrdenadas = todosLosDatosCompletos
+            .map(d => d.fecha)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+
+        return {
+            min: fechasOrdenadas[0], // La fecha de la primerísima venta registrada
+            max: getFechaHoy()       // El día de hoy
+        };
+    }, [todosLosDatosCompletos]);
+
+    // Lista de meses para el selector PRINCIPAL (Este sí se queda por meses)
+    const mesesDisponibles = useMemo(() => {
+        const setMeses = new Set();
+        setMeses.add(obtenerMesActual());
+
+        todosLosDatosCompletos.forEach(d => {
+            if (d.fecha && d.fecha.length >= 7) {
+                setMeses.add(d.fecha.substring(0, 7));
+            }
+        });
+        return Array.from(setMeses).sort().reverse();
+    }, [todosLosDatosCompletos]);
+
+    const formatearNombreMes = (mesStr) => {
+        const [anio, mes] = mesStr.split('-');
+        const fechaObj = new Date(parseInt(anio), parseInt(mes) - 1, 1);
+        return fechaObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
+    };
+
     const datosReporte = useMemo(() => {
         let datosFiltrados = todosLosDatosCompletos;
         let tituloPeriodo = "";
-        const [anioStr, mesStr] = mesSeleccionado.split('-');
-        const anio = parseInt(anioStr);
-        const mes = parseInt(mesStr) - 1;
+        
+        const mesSeguro = mesSeleccionado || obtenerMesActual();
+        const [anioBase, mesBase] = mesSeguro.split('-');
+        let anio = parseInt(anioBase);
+        let mes = parseInt(mesBase) - 1;
 
         if (rangoInicio && rangoFin) {
+            // Lógica de rango exacto por DÍA
             datosFiltrados = datosFiltrados.filter(d => d.fecha >= rangoInicio && d.fecha <= rangoFin);
             tituloPeriodo = `Del ${formatearFechaLocal(rangoInicio)} al ${formatearFechaLocal(rangoFin)}`;
+            
+            // Para la gráfica, usamos el mes de inicio como referencia visual
+            const [y, m] = rangoInicio.split('-').map(Number);
+            anio = y;
+            mes = m - 1;
         } else {
-            datosFiltrados = datosFiltrados.filter(d => d.fecha.startsWith(mesSeleccionado));
+            // Lógica de mes completo
+            datosFiltrados = datosFiltrados.filter(d => d.fecha.startsWith(mesSeguro));
             const fechaObj = new Date(anio, mes, 1);
             tituloPeriodo = fechaObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
         }
 
         let totalPasteleria = 0, totalCafeteria = 0;
         let desglose = [];
-        const diasEnMes = new Date(anio, mes + 1, 0).getDate();
+        
+        // Generamos los días para la gráfica (Si es rango, mostramos hasta 31 días genéricos)
+        const diasGrafica = (rangoInicio && rangoFin) ? 31 : new Date(anio, mes + 1, 0).getDate();
 
-        for (let i = 1; i <= diasEnMes; i++) {
-            desglose.push({ label: `${i}`, valorP: 0, valorC: 0, fechaFull: `${anio}-${String(mes + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}` });
+        for (let i = 1; i <= diasGrafica; i++) {
+            desglose.push({ label: `${i}`, valorP: 0, valorC: 0 });
         }
 
         datosFiltrados.forEach(p => {
-            const [y, m, d] = p.fecha.split('-').map(Number);
             let montoReal = 0;
             if (p.origen === 'Pastelería') {
                 const numPagos = parseInt(p.numPagos) || 1;
@@ -239,23 +322,24 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
             if (p.origen === 'Pastelería') totalPasteleria += montoReal;
             else totalCafeteria += montoReal;
 
-            if (y === anio && m === (mes + 1)) {
-                if (p.origen === 'Pastelería') desglose[d-1].valorP += montoReal;
-                else desglose[d-1].valorC += montoReal;
+            const [y, m, d] = p.fecha.split('-').map(Number);
+            
+            // Lógica visual para la gráfica:
+            // Si es mes normal, asignamos al día exacto.
+            // Si es rango, asignamos al día del mes correspondiente (si el rango cruza meses, se puede ver extraño en gráfica de 1-31, pero el total es correcto).
+            if (desglose[d-1]) {
+                 if (p.origen === 'Pastelería') desglose[d-1].valorP += montoReal;
+                 else desglose[d-1].valorC += montoReal;
             }
         });
-
-        const maxValor = Math.max(...desglose.map(d => d.valorP + d.valorC), 1);
 
         return {
             totalPasteleria,
             totalCafeteria,
             totalGlobal: totalPasteleria + totalCafeteria,
             desglose,
-            maxValor,
-            anio,
-            mes,
-            tituloPeriodo
+            tituloPeriodo,
+            anio, mes
         };
     }, [todosLosDatosCompletos, mesSeleccionado, rangoInicio, rangoFin, vistaActiva]);
 
@@ -281,7 +365,7 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
     };
 
     const handleBarClick = (data) => {
-        if (data && data.label) {
+        if (data && data.label && !rangoInicio) {
             onAbrirModalDia(data.label, datosReporte.mes, datosReporte.anio, todosLosDatosCompletos);
         }
     };
@@ -293,8 +377,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                 
                 <div className="flex flex-col xl:flex-row gap-4 w-full lg:w-auto items-stretch lg:items-center">
                     
-                    {/* NUEVO: SELECTOR DE TIPO (DISEÑO MEJORADO) */}
-                    {/* Se usa 'grid grid-cols-3' para que los botones se distribuyan y 'w-full' para llenar el espacio */}
                     <div className="bg-gray-100 p-1 rounded-xl grid grid-cols-3 gap-1 shadow-inner w-full xl:w-auto min-w-[300px]">
                         <button 
                             onClick={() => setVistaActiva('todos')}
@@ -316,22 +398,51 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                         </button>
                     </div>
 
-                    {/* SELECTOR DE FECHAS */}
                     <div className="flex flex-col md:flex-row flex-wrap gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-200 items-start md:items-end flex-1">
                         <div className="w-full md:w-auto">
                             <label className="text-xs font-bold text-gray-500 block mb-1">Mes Principal</label>
-                            <input type="month" value={mesSeleccionado} min="2025-12" onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase" />
+                            <div className="relative">
+                                <select 
+                                    value={mesSeleccionado} 
+                                    onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} 
+                                    className="w-full md:w-auto border rounded-lg p-2 pr-8 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase appearance-none cursor-pointer focus:outline-none focus:border-blue-500"
+                                >
+                                    {mesesDisponibles.map(mes => (
+                                        <option key={mes} value={mes}>
+                                            {formatearNombreMes(mes)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500">
+                                    <Calendar size={14} />
+                                </div>
+                            </div>
                         </div>
                         <div className="h-10 w-px bg-gray-300 mx-2 hidden md:block"></div>
                         
+                        {/* --- AQUÍ ESTÁN LOS INPUTS DE FECHA EXACTA CON LÍMITES --- */}
                         <div className="grid grid-cols-1 gap-2 w-full sm:grid-cols-2 md:w-auto">
                             <div className="w-full">
                                 <label className="text-xs font-bold text-gray-500 block mb-1">Desde</label>
-                                <input type="date" value={rangoInicio} min="2025-12-01" onChange={(e) => setRangoInicio(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
+                                <input 
+                                    type="date" 
+                                    value={rangoInicio} 
+                                    min={limitesFechas.min} 
+                                    max={limitesFechas.max}
+                                    onChange={(e) => setRangoInicio(e.target.value)} 
+                                    className="w-full border rounded-lg p-2 text-sm text-gray-600 focus:outline-none focus:border-blue-500" 
+                                />
                             </div>
                             <div className="w-full">
                                 <label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label>
-                                <input type="date" value={rangoFin} min="2025-12-01" onChange={(e) => setRangoFin(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600" />
+                                <input 
+                                    type="date" 
+                                    value={rangoFin} 
+                                    min={limitesFechas.min} 
+                                    max={limitesFechas.max}
+                                    onChange={(e) => setRangoFin(e.target.value)} 
+                                    className="w-full border rounded-lg p-2 text-sm text-gray-600 focus:outline-none focus:border-blue-500" 
+                                />
                             </div>
                         </div>
 
@@ -340,7 +451,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                 </div>
             </div>
             
-            {/* TARJETAS ESTADÍSTICAS (CONDICIONALES SEGÚN VISTA ACTIVA) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 animate-fade-in">
                 {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
                     <CardStat titulo="Total Pastelería" valor={`$${datosReporte.totalPasteleria.toFixed(2)}`} color="bg-pink-100 text-pink-800" />
@@ -353,7 +463,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                 )}
             </div>
 
-            {/* GRÁFICO (CON BARRAS CONDICIONALES) */}
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 h-[500px] flex flex-col relative transition-all">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-gray-700 flex items-center gap-2 capitalize text-sm md:text-base"><BarChart3 size={20} /> {datosReporte.tituloPeriodo}</h3>
@@ -383,7 +492,6 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                             <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
                             <Legend wrapperStyle={{ paddingTop: '20px' }} />
                             
-                            {/* RENDERIZADO CONDICIONAL DE LAS BARRAS */}
                             {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
                                 <Bar 
                                     dataKey="valorP" 
