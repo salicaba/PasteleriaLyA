@@ -66,17 +66,26 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
     // Estado para mostrar la vista de recuperación
     const [mostrarRecuperacion, setMostrarRecuperacion] = useState(false);
 
-    // --- NUEVO: Estado para el Splash Screen ---
-    const [mostrarSplash, setMostrarSplash] = useState(true);
+    // --- LÓGICA DE SPLASH SCREEN CON MEMORIA ---
+    // Usamos una función inicializadora para leer sessionStorage solo al montar
+    const [mostrarSplash, setMostrarSplash] = useState(() => {
+        // Si ya existe la marca 'lya_splash_visto', NO mostramos splash (false)
+        // Si NO existe, mostramos splash (true)
+        return !sessionStorage.getItem('lya_splash_visto');
+    });
 
-    // Efecto para manejar el tiempo de carga inicial
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setMostrarSplash(false);
-        }, 3500);
+        // Solo iniciamos el timer si el estado inicial es true
+        if (mostrarSplash) {
+            const timer = setTimeout(() => {
+                setMostrarSplash(false);
+                // Una vez terminado, guardamos la marca en el navegador
+                sessionStorage.setItem('lya_splash_visto', 'true');
+            }, 3500);
 
-        return () => clearTimeout(timer);
-    }, []);
+            return () => clearTimeout(timer);
+        }
+    }, [mostrarSplash]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -103,10 +112,13 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
     }
 
     return (
-        // CAMBIO: Agregamos la clase 'animate-gradient-bg' personalizada
-        <div className="min-h-screen flex items-center justify-center p-4 md:p-6 animate-gradient-bg animate-fade-in">
+        // CAMBIO: Contenedor relativo y overflow-hidden para manejar el fondo fijo
+        <div className="min-h-screen relative flex items-center justify-center p-4 md:p-6 animate-fade-in overflow-hidden">
             
-            {/* Estilos inline para la animación del fondo */}
+            {/* CAMBIO: Fondo fijo separado del contenido. 
+                Al ser 'fixed', el teclado no lo empuja ni lo redimensiona. */}
+            <div className="fixed inset-0 z-0 animate-gradient-bg"></div>
+
             <style>{`
                 .animate-gradient-bg {
                     background: linear-gradient(-45deg, #ec4899, #f97316, #db2777, #fb923c);
@@ -196,11 +208,12 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                             <User size={20} className="text-pink-600" />
                                         </div>
+                                        {/* CAMBIO: 'text-base' para evitar zoom en iPhone */}
                                         <input 
                                             name="lya_usuario_unico"
                                             id="lya_usuario_unico"
                                             type="text" 
-                                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-purple-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-sm md:text-base placeholder-gray-400"
+                                            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-purple-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-base placeholder-gray-400"
                                             placeholder="Ingresa tu usuario"
                                             value={usuario}
                                             onChange={(e) => setUsuario(e.target.value)}
@@ -215,11 +228,12 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                             <Lock size={20} className="text-pink-600" />
                                         </div>
+                                        {/* CAMBIO: 'text-base' para evitar zoom en iPhone */}
                                         <input 
                                             name="lya_password_unico"
                                             id="lya_password_unico"
                                             type={mostrarPassword ? "text" : "password"} 
-                                            className="w-full pl-11 pr-12 py-3 bg-gray-50 border border-purple-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-sm md:text-base placeholder-gray-400"
+                                            className="w-full pl-11 pr-12 py-3 bg-gray-50 border border-purple-100 rounded-xl focus:bg-white focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all outline-none text-gray-900 font-bold text-base placeholder-gray-400"
                                             placeholder="••••••••"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
