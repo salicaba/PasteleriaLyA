@@ -313,7 +313,11 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
     const totalCajaHoy = useMemo(() => { return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosCajaHoy]);
 
     const enviarComandaWhatsApp = (pedido) => {
-        if (!pedido.telefono || pedido.telefono.length < 10) { alert("El cliente no tiene un número válido."); return; }
+        if (!pedido.telefono || pedido.telefono.length < 10) { 
+            alert("El cliente no tiene un número válido."); 
+            return; 
+        }
+        
         const tel = pedido.telefono.replace(/\D/g, ''); 
         const total = parseFloat(pedido.total) || 0;
         const numPagos = parseInt(pedido.numPagos) || 1;
@@ -321,12 +325,59 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         const abonado = (numPagos > 0 ? total / numPagos : 0) * pagosHechos;
         const resta = total - abonado;
 
-        let txt = `*PASTELERIA LyA - COMANDA DIGITAL*\n\nHola *${pedido.cliente.toUpperCase()}*, resumen de tu pedido:\n\n>> *FOLIO:* ${pedido.folio}\n>> *PRODUCTO:* ${pedido.tipoProducto}\n>> *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
-        if (pedido.horaEntrega) txt += `>> *HORA:* ${pedido.horaEntrega} hrs\n`;
-        txt += `>> *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n*ESTADO DE CUENTA*\n================================\n*TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
-        if (numPagos > 1) { txt += `*ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`; txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `LIQUIDADO\n`; } 
-        else { txt += `*ESTADO:* ${pagosHechos >= 1 ? 'PAGADO' : 'PENDIENTE DE PAGO'}\n`; }
-        txt += `================================\n*Gracias por tu preferencia.*`;
+        // --- DICCIONARIO DE EMOJIS SEGUROS (UNICODE) ---
+        // Usamos estos códigos para que Windows y Web no los rompan
+        const e = {
+            pastel: '\uD83C\uDF70',   // 🍰
+            hola: '\uD83D\uDC4B',     // 👋
+            folio: '\uD83D\uDCC4',    // 📄
+            prod: '\uD83C\uDF82',     // 🎂
+            cal: '\uD83D\uDCC5',      // 📅
+            reloj: '\u23F0',          // ⏰
+            nota: '\uD83D\uDCDD',     // 📝
+            bolsa: '\uD83D\uDCB0',    // 💰
+            billete: '\uD83D\uDCB5',  // 💵
+            tarjeta: '\uD83D\uDCB3',  // 💳
+            alerta: '\u2757',         // ❗
+            check: '\u2705',          // ✅
+            warn: '\u26A0\uFE0F',     // ⚠️
+            punto: '\uD83D\uDD39',    // 🔹
+            brillo: '\u2728'          // ✨
+        };
+
+        // --- CONSTRUCCIÓN DEL MENSAJE ---
+        let txt = `${e.pastel} *PASTELERÍA LyA - COMANDA DIGITAL* ${e.pastel}\n\n`;
+        txt += `Hola *${pedido.cliente.toUpperCase()}* ${e.hola}, este es el resumen de tu pedido:\n\n`;
+        
+        txt += `${e.folio} *FOLIO:* ${pedido.folio}\n`;
+        txt += `${e.prod} *PRODUCTO:* ${pedido.tipoProducto}\n`;
+        txt += `${e.cal} *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
+        
+        if (pedido.horaEntrega) {
+            txt += `${e.reloj} *HORA:* ${pedido.horaEntrega} hrs\n`;
+        }
+        
+        txt += `${e.nota} *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n`;
+
+        txt += `${e.bolsa} *ESTADO DE CUENTA* ${e.bolsa}\n`;
+        txt += `--------------------------------\n`;
+        txt += `${e.billete} *TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
+
+        if (numPagos > 1) { 
+            txt += `${e.tarjeta} *ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`; 
+            
+            if (resta > 0.5) {
+                txt += `${e.alerta} *RESTA:* $${resta.toFixed(2)}\n`;
+            } else {
+                txt += `${e.check} *LIQUIDADO* (Pagado al 100%)\n`;
+            }
+        } else { 
+            txt += `${e.punto} *ESTADO:* ${pagosHechos >= 1 ? `${e.check} PAGADO` : `${e.warn} PENDIENTE DE PAGO`}\n`; 
+        }
+        
+        txt += `--------------------------------\n`;
+        txt += `${e.brillo} *¡Gracias por tu preferencia!* ${e.brillo}`;
+
         window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(txt)}`, '_blank');
     };
 
