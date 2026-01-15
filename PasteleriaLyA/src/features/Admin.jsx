@@ -704,7 +704,7 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     iconBg="bg-purple-100"
                 />
                 <GrupoCard 
-                    titulo="Staff Pastelería" 
+                    titulo="Empleado Pastelería" 
                     lista={pasteleros} 
                     colorBg="bg-rose-200" 
                     colorBorder="border-rose-400" 
@@ -714,7 +714,7 @@ export const VistaGestionUsuarios = ({ usuarios, onGuardar, onEliminar }) => {
                     iconBg="bg-rose-100"
                 />
                 <GrupoCard 
-                    titulo="Staff Cafetería" 
+                    titulo="Empleado Cafetería" 
                     lista={cafeteros} 
                     colorBg="bg-orange-200" 
                     colorBorder="border-orange-400" 

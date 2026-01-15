@@ -14,7 +14,7 @@ const formatearHora = (isoString) => {
     return new Date(isoString).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 };
 
-// --- COMPONENTE MODAL PAPELERA ---
+// --- COMPONENTE MODAL PAPELERA (Sin cambios) ---
 const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVaciar }) => {
     const [busqueda, setBusqueda] = useState('');
     const [pedidoParaRestaurar, setPedidoParaRestaurar] = useState(null);
@@ -110,7 +110,7 @@ const ModalPapelera = ({ isOpen, onClose, pedidos, onRestaurar, onEliminar, onVa
     );
 };
 
-// --- MODAL ENTREGADOS ---
+// --- MODAL ENTREGADOS (Sin cambios) ---
 const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     const [busqueda, setBusqueda] = useState('');
     const [pedidoParaDeshacer, setPedidoParaDeshacer] = useState(null);
@@ -175,7 +175,7 @@ const ModalEntregados = ({ pedidosEntregados, onClose, onDeshacerEntrega }) => {
     );
 };
 
-// --- MODAL CORTE DE CAJA ---
+// --- MODAL CORTE DE CAJA (Sin cambios) ---
 const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
     const ingresos = pedidosDelDia.filter(p => p.pagosRealizados > 0 && p.estado !== 'Cancelado');
     const ingresosOrdenados = [...ingresos].sort((a, b) => {
@@ -237,6 +237,17 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
     const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
 
+    // --- CÁLCULO DE LÍMITES INTELIGENTES ---
+    const rangoFechasActivas = useMemo(() => {
+        const pendientesConFecha = pedidosPendientes.filter(p => p.fechaEntrega);
+        if (pendientesConFecha.length === 0) return { min: '', max: '' };
+        const fechasOrdenadas = pendientesConFecha.map(p => p.fechaEntrega).sort();
+        return {
+            min: fechasOrdenadas[0], 
+            max: fechasOrdenadas[fechasOrdenadas.length - 1] 
+        };
+    }, [pedidosPendientes]);
+
     const pedidosEntregadosHoy = useMemo(() => {
         const hoy = new Date();
         return pedidos.filter(p => {
@@ -285,31 +296,24 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         const abonado = (numPagos > 0 ? total / numPagos : 0) * pagosHechos;
         const resta = total - abonado;
 
-        // Construimos el mensaje usando símbolos de teclado seguros
         let txt = `*PASTELERIA LyA - COMANDA DIGITAL*\n\n`;
         txt += `Hola *${pedido.cliente.toUpperCase()}*, resumen de tu pedido:\n\n`;
-        
         txt += `>> *FOLIO:* ${pedido.folio}\n`;
         txt += `>> *PRODUCTO:* ${pedido.tipoProducto}\n`;
         txt += `>> *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
         if (pedido.horaEntrega) txt += `>> *HORA:* ${pedido.horaEntrega} hrs\n`;
         txt += `>> *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n`;
-        
         txt += `*ESTADO DE CUENTA*\n`;
         txt += `================================\n`;
         txt += `*TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
-        
         if (numPagos > 1) {
              txt += `*ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`;
              txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `LIQUIDADO\n`;
         } else {
              txt += `*ESTADO:* ${pagosHechos >= 1 ? 'PAGADO' : 'PENDIENTE DE PAGO'}\n`;
         }
-        
         txt += `================================\n`;
         txt += `*Gracias por tu preferencia.*`;
-
-        // Enviamos
         window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(txt)}`, '_blank');
     };
 
@@ -348,29 +352,36 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
             {/* Filtros y Tabla */}
             <div className="flex flex-col md:flex-row justify-end mb-4 gap-3">
                 
-                {/* 1. Selector de Fecha (CORREGIDO) */}
-                <div className="relative w-full md:w-auto">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <CalendarDays size={18} className="text-gray-400" />
+                {/* 1. Selector de Fecha (DISEÑO TIPO ADMIN - NUEVO) */}
+                <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 w-full md:w-auto min-w-[200px]">
+                    <div className="bg-pink-50 p-2 rounded-lg text-pink-500">
+                        <CalendarDays size={20} />
                     </div>
-                    <input 
-                        type="date" 
-                        className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm text-sm text-gray-600 bg-white font-medium cursor-pointer" 
-                        value={fechaFiltro} 
-                        onChange={(e) => setFechaFiltro(e.target.value)} 
-                    />
+                    <div className="flex flex-col flex-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                            Filtrar Fecha
+                        </label>
+                        <input 
+                            type="date" 
+                            value={fechaFiltro} 
+                            min={rangoFechasActivas.min}
+                            max={rangoFechasActivas.max}
+                            onChange={(e) => setFechaFiltro(e.target.value)} 
+                            className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer focus:text-pink-600 transition-colors w-full" 
+                        />
+                    </div>
                     {fechaFiltro && (
                         <button 
                             onClick={() => setFechaFiltro('')} 
-                            className="absolute inset-y-0 right-6 flex items-center text-gray-400 hover:text-red-500" 
-                            title="Borrar fecha"
+                            className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition whitespace-nowrap flex items-center gap-1"
+                            title="Borrar Filtro"
                         >
-                            <X size={16} />
+                            <X size={12} />
                         </button>
                     )}
                 </div>
 
-                {/* 2. Buscador por Nombre/Teléfono (RESTAURADO) */}
+                {/* 2. Buscador por Nombre/Teléfono */}
                 <div className="relative w-full md:w-96">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Search size={18} className="text-gray-400" />
@@ -402,25 +413,17 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda || fechaFiltro ? "No se encontraron coincidencias con los filtros actuales." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
     ) : (
         pedidosFiltrados.map((p, i) => {
-            // 1. Obtenemos la fecha de hoy (usando la función que ya tienes importada)
             const fechaHoy = getFechaHoy();
-            
-            // 2. Definimos la clase base
             let claseFila = "border-b cursor-pointer transition-colors ";
 
-            // 3. Aplicamos la lógica de colores
             if (p.fechaEntrega && p.fechaEntrega < fechaHoy) {
-                // FECHA PASADA: Rojo
                 claseFila += "bg-red-100 hover:bg-red-200";
             } else if (p.fechaEntrega === fechaHoy) {
-                // ES HOY: Naranja/Amarillo
                 claseFila += "bg-orange-100 hover:bg-orange-200";
             } else {
-                // FUTURO: Normal (Blanco con hover gris)
                 claseFila += "hover:bg-gray-50";
             }
 
-            // 4. Retornamos la fila con la clase calculada
             return (
                 <tr key={i} onClick={() => onVerDetalles(p)} className={claseFila}>
                     <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
@@ -446,13 +449,9 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                         </button>
                     </td>
                     <td className="p-4 flex gap-2">
-                        <button 
-        onClick={(e) => { e.stopPropagation(); enviarComandaWhatsApp(p); }} 
-        className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 border border-green-200 transition-colors" 
-        title="Enviar Comanda por WhatsApp"
-    >
-        <MessageCircle size={18} />
-    </button>
+                        <button onClick={(e) => { e.stopPropagation(); enviarComandaWhatsApp(p); }} className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 border border-green-200 transition-colors" title="Enviar Comanda por WhatsApp">
+                            <MessageCircle size={18} />
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
                         <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar"><Trash2 size={18} /></button>

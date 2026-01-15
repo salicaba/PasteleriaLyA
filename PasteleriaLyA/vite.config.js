@@ -7,10 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'vite.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'logo.png'],
       manifest: {
         name: 'Sistema Pastelería LyA',
-        short_name: 'LyA POS',
+        short_name: 'LyA',
         description: 'Sistema de gestión para Pastelería y Cafetería LyA',
         theme_color: '#be185d',
         background_color: '#ffffff',
