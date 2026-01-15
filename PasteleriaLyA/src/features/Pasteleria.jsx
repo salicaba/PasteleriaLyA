@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     Clock, CheckCircle, DollarSign, AlertCircle, Eye, Edit, Trash2, User, Phone, 
     Cake, CalendarDays, ShoppingBag, Calculator, PlusCircle, ChevronLeft, 
     ChevronRight, Search, ArchiveRestore, RotateCcw, X, PackageCheck, FilterX, Receipt,
-    MessageCircle 
+    MessageCircle, ArrowDown 
 } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
@@ -234,6 +234,9 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
     const [mostrarEntregados, setMostrarEntregados] = useState(false);
     const [mostrarCajaHoy, setMostrarCajaHoy] = useState(false);
 
+    // REFERENCIA PARA EL SCROLL AUTOMÁTICO
+    const atrasadosRef = useRef(null); 
+
     const pedidosPendientes = useMemo(() => pedidos.filter(p => p.estado === 'Pendiente'), [pedidos]);
     const pedidosCancelados = useMemo(() => pedidos.filter(p => p.estado === 'Cancelado'), [pedidos]);
 
@@ -264,31 +267,53 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
 
     const entregadosHoyCount = pedidosEntregadosHoy.length;
 
+    // --- SEMÁFORO DE OPERACIONES ---
+    const semaforoProduccion = useMemo(() => {
+        const hoy = new Date();
+        const manana = new Date(hoy);
+        manana.setDate(manana.getDate() + 1);
+        const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const sHoy = fmt(hoy);
+        const sManana = fmt(manana);
+        const pendientesHoy = pedidos.filter(p => p.fechaEntrega === sHoy && p.estado === 'Pendiente').length;
+        const cargaManana = pedidos.filter(p => p.fechaEntrega === sManana && p.estado !== 'Cancelado').length;
+        return { hoy: pendientesHoy, manana: cargaManana };
+    }, [pedidos]);
+
+    // --- FILTRADO Y ORDENAMIENTO ---
     const pedidosFiltrados = useMemo(() => {
+        const hoyStr = getFechaHoy(); 
         let procesados = [...pedidosPendientes].sort((a, b) => {
+            const esPasadoA = a.fechaEntrega < hoyStr;
+            const esPasadoB = b.fechaEntrega < hoyStr;
+            if (esPasadoA && !esPasadoB) return 1;
+            if (!esPasadoA && esPasadoB) return -1;
             const fechaA = new Date(a.fechaEntrega);
             const fechaB = new Date(b.fechaEntrega);
             const diffFechas = fechaA - fechaB;
             if (diffFechas !== 0) return diffFechas;
-            const horaA = a.horaEntrega || '00:00'; 
-            const horaB = b.horaEntrega || '00:00';
+            const horaA = a.horaEntrega || '23:59';
+            const horaB = b.horaEntrega || '23:59';
             return horaA.localeCompare(horaB);
         });
+
         if (fechaFiltro) { procesados = procesados.filter(p => p.fechaEntrega === fechaFiltro); }
         if (busqueda) { const texto = busqueda; procesados = procesados.filter(p => p.cliente.toUpperCase().includes(texto) || p.telefono.includes(texto)); }
+        
         return procesados;
     }, [pedidosPendientes, busqueda, fechaFiltro]);
+
+    // Detectar si hay atrasados para mostrar el botón
+    const hayAtrasadosVisibles = useMemo(() => {
+        const hoyStr = getFechaHoy();
+        return pedidosFiltrados.some(p => p.fechaEntrega && p.fechaEntrega < hoyStr);
+    }, [pedidosFiltrados]);
 
     const pedidosCajaHoy = useMemo(() => { const hoy = getFechaHoy(); return pedidos.filter(p => p.estado !== 'Cancelado' && p.fecha === hoy); }, [pedidos]);
     const totalCajaHoy = useMemo(() => { return pedidosCajaHoy.reduce((acc, p) => acc + (p.pagosRealizados ? (p.total / p.numPagos) * p.pagosRealizados : 0), 0); }, [pedidosCajaHoy]);
 
-    // --- VERSIÓN TEXTO LIMPIO (INFALIBLE) ---
     const enviarComandaWhatsApp = (pedido) => {
-        if (!pedido.telefono || pedido.telefono.length < 10) {
-            alert("El cliente no tiene un número válido.");
-            return;
-        }
-
+        if (!pedido.telefono || pedido.telefono.length < 10) { alert("El cliente no tiene un número válido."); return; }
         const tel = pedido.telefono.replace(/\D/g, ''); 
         const total = parseFloat(pedido.total) || 0;
         const numPagos = parseInt(pedido.numPagos) || 1;
@@ -296,52 +321,42 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         const abonado = (numPagos > 0 ? total / numPagos : 0) * pagosHechos;
         const resta = total - abonado;
 
-        let txt = `*PASTELERIA LyA - COMANDA DIGITAL*\n\n`;
-        txt += `Hola *${pedido.cliente.toUpperCase()}*, resumen de tu pedido:\n\n`;
-        txt += `>> *FOLIO:* ${pedido.folio}\n`;
-        txt += `>> *PRODUCTO:* ${pedido.tipoProducto}\n`;
-        txt += `>> *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
+        let txt = `*PASTELERIA LyA - COMANDA DIGITAL*\n\nHola *${pedido.cliente.toUpperCase()}*, resumen de tu pedido:\n\n>> *FOLIO:* ${pedido.folio}\n>> *PRODUCTO:* ${pedido.tipoProducto}\n>> *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
         if (pedido.horaEntrega) txt += `>> *HORA:* ${pedido.horaEntrega} hrs\n`;
-        txt += `>> *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n`;
-        txt += `*ESTADO DE CUENTA*\n`;
-        txt += `================================\n`;
-        txt += `*TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
-        if (numPagos > 1) {
-             txt += `*ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`;
-             txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `LIQUIDADO\n`;
-        } else {
-             txt += `*ESTADO:* ${pagosHechos >= 1 ? 'PAGADO' : 'PENDIENTE DE PAGO'}\n`;
-        }
-        txt += `================================\n`;
-        txt += `*Gracias por tu preferencia.*`;
+        txt += `>> *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n*ESTADO DE CUENTA*\n================================\n*TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
+        if (numPagos > 1) { txt += `*ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`; txt += resta > 0.5 ? `*RESTA:* $${resta.toFixed(2)}\n` : `LIQUIDADO\n`; } 
+        else { txt += `*ESTADO:* ${pagosHechos >= 1 ? 'PAGADO' : 'PENDIENTE DE PAGO'}\n`; }
+        txt += `================================\n*Gracias por tu preferencia.*`;
         window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(txt)}`, '_blank');
     };
 
+    // FUNCIÓN PARA IR A LOS ATRASADOS
+    const irAAtrasados = () => {
+        if (atrasadosRef.current) {
+            atrasadosRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
+
     return (
-        <div className="p-4 md:p-8">
+        <div className="p-4 md:p-8 relative min-h-screen">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">Pedidos de la Pastelería</h2>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
                 {/* Pendientes */}
                 <div onClick={() => { setBusqueda(''); setFechaFiltro(''); }} className="p-6 rounded-xl shadow-sm border-l-4 border-yellow-500 bg-white flex justify-between items-center cursor-pointer hover:bg-yellow-50 transition-colors group" title="Limpiar filtros">
                     <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Pendientes</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosPendientes.length}</p></div>
                     <div className="text-yellow-300 opacity-50 group-hover:text-yellow-500 group-hover:opacity-100 transition">{(busqueda || fechaFiltro) ? <FilterX size={30} /> : <Clock size={30}/>}</div>
                 </div>
-                
                 {/* Entregados Hoy */}
                 <div onClick={() => setMostrarEntregados(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-green-500 bg-white flex justify-between items-center cursor-pointer hover:bg-green-50 transition-colors group">
-                    <div>
-                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p>
-                        <p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p>
-                    </div>
+                    <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Entregados Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">{entregadosHoyCount}</p></div>
                     <div className="text-green-300 opacity-50 group-hover:text-green-500 group-hover:opacity-100 transition"><PackageCheck size={30}/></div>
                 </div>
-
                 {/* Cancelados */}
                 <div onClick={() => setMostrarPapelera(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-red-500 bg-white flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group">
                     <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Papelera</p><p className="text-3xl font-bold text-gray-800 mt-2">{pedidosCancelados.length}</p></div>
                     <div className="text-red-300 opacity-50 group-hover:text-red-500 group-hover:opacity-100 transition"><ArchiveRestore size={30}/></div>
                 </div>
-                
                 {/* Total Caja */}
                 <div onClick={() => setMostrarCajaHoy(true)} className="p-6 rounded-xl shadow-sm border-l-4 border-pink-500 bg-white flex justify-between items-center cursor-pointer hover:bg-pink-50 transition-colors group">
                     <div><p className="text-gray-500 text-xs uppercase font-bold tracking-wide">Total Caja Hoy</p><p className="text-3xl font-bold text-gray-800 mt-2">${totalCajaHoy.toFixed(0)}</p></div>
@@ -349,121 +364,107 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                 </div>
             </div>
 
-            {/* Filtros y Tabla */}
-            <div className="flex flex-col md:flex-row justify-end mb-4 gap-3">
-                
-                {/* 1. Selector de Fecha (DISEÑO TIPO ADMIN - NUEVO) */}
-                <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 w-full md:w-auto min-w-[200px]">
-                    <div className="bg-pink-50 p-2 rounded-lg text-pink-500">
-                        <CalendarDays size={20} />
-                    </div>
-                    <div className="flex flex-col flex-1">
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                            Filtrar Fecha
-                        </label>
-                        <input 
-                            type="date" 
-                            value={fechaFiltro} 
-                            min={rangoFechasActivas.min}
-                            max={rangoFechasActivas.max}
-                            onChange={(e) => setFechaFiltro(e.target.value)} 
-                            className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer focus:text-pink-600 transition-colors w-full" 
-                        />
-                    </div>
-                    {fechaFiltro && (
-                        <button 
-                            onClick={() => setFechaFiltro('')} 
-                            className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition whitespace-nowrap flex items-center gap-1"
-                            title="Borrar Filtro"
-                        >
-                            <X size={12} />
-                        </button>
-                    )}
+            {/* SEMÁFORO DE OPERACIONES */}
+            <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-xl p-5 mb-8 flex flex-col sm:flex-row justify-between items-center shadow-sm relative overflow-hidden">
+                <div className="flex items-center gap-4 relative z-10 mb-4 sm:mb-0">
+                    <div className="bg-blue-100 p-3 rounded-full text-blue-600 shadow-sm"><Cake size={28} /></div>
+                    <div><h3 className="font-bold text-blue-900 text-lg">Semáforo de Cocina</h3><p className="text-sm text-blue-700 opacity-80">Monitor de carga de trabajo inmediata.</p></div>
                 </div>
+                <div className="flex gap-8 relative z-10 text-center">
+                    <div><p className={`text-3xl font-bold ${semaforoProduccion.hoy > 0 ? 'text-orange-600' : 'text-green-600'}`}>{semaforoProduccion.hoy}</p><p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Pendientes Hoy</p></div>
+                    <div className="w-px bg-blue-200"></div>
+                    <div><p className="text-3xl font-bold text-blue-800">{semaforoProduccion.manana}</p><p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Para Mañana</p></div>
+                </div>
+                <div className="absolute right-0 top-0 h-full w-1/3 bg-blue-100/20 skew-x-12 transform translate-x-10"></div>
+            </div>
 
-                {/* 2. Buscador por Nombre/Teléfono */}
-                <div className="relative w-full md:w-96">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search size={18} className="text-gray-400" />
+            {/* FILTROS Y BÚSQUEDA */}
+            <div className="flex flex-col md:flex-row justify-end mb-4 gap-3">
+                <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-200 flex items-center gap-3 w-full md:w-auto min-w-[200px]">
+                    <div className="bg-pink-50 p-2 rounded-lg text-pink-500"><CalendarDays size={20} /></div>
+                    <div className="flex flex-col flex-1">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Filtrar Fecha</label>
+                        <input type="date" value={fechaFiltro} min={rangoFechasActivas.min} max={rangoFechasActivas.max} onChange={(e) => setFechaFiltro(e.target.value)} className="font-bold text-gray-700 text-sm bg-transparent outline-none cursor-pointer focus:text-pink-600 transition-colors w-full" />
                     </div>
-                    <input 
-                        type="text" 
-                        placeholder="BUSCAR POR NOMBRE O TELÉFONO..." 
-                        className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" 
-                        value={busqueda} 
-                        onChange={(e) => setBusqueda(e.target.value.toUpperCase())} 
-                    />
-                    {busqueda && (
-                        <button 
-                            onClick={() => setBusqueda('')} 
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"
-                        >
-                            <X size={16} />
-                        </button>
-                    )}
+                    {fechaFiltro && (<button onClick={() => setFechaFiltro('')} className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition whitespace-nowrap flex items-center gap-1" title="Borrar Filtro"><X size={12} /></button>)}
+                </div>
+                <div className="relative w-full md:w-96">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-gray-400" /></div>
+                    <input type="text" placeholder="BUSCAR POR NOMBRE O TELÉFONO..." className="w-full pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent shadow-sm transition-all uppercase text-sm" value={busqueda} onChange={(e) => setBusqueda(e.target.value.toUpperCase())} />
+                    {busqueda && (<button onClick={() => setBusqueda('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-red-500"><X size={16} /></button>)}
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            {/* TABLA DE PEDIDOS */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden pb-10">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead><tr className="bg-pink-50 text-pink-800 text-sm"><th className="p-4">Folio</th><th className="p-4">Cliente</th><th className="p-4">Entrega</th><th className="p-4">Total</th><th className="p-4">Pagos</th><th className="p-4">Estado</th><th className="p-4">Acciones</th></tr></thead>
                         <tbody>
-    {pedidosFiltrados.length === 0 ? (
-        <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda || fechaFiltro ? "No se encontraron coincidencias con los filtros actuales." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
-    ) : (
-        pedidosFiltrados.map((p, i) => {
-            const fechaHoy = getFechaHoy();
-            let claseFila = "border-b cursor-pointer transition-colors ";
+                            {pedidosFiltrados.length === 0 ? (
+                                <tr><td colSpan="7" className="p-8 text-center text-gray-500">{busqueda || fechaFiltro ? "No se encontraron coincidencias con los filtros actuales." : "No hay pedidos pendientes. ¡Buen trabajo!"}</td></tr>
+                            ) : (
+                                pedidosFiltrados.map((p, i) => {
+                                    const fechaHoy = getFechaHoy();
+                                    const esVencido = p.fechaEntrega && p.fechaEntrega < fechaHoy;
+                                    const esHoy = p.fechaEntrega === fechaHoy;
 
-            if (p.fechaEntrega && p.fechaEntrega < fechaHoy) {
-                claseFila += "bg-red-100 hover:bg-red-200";
-            } else if (p.fechaEntrega === fechaHoy) {
-                claseFila += "bg-orange-100 hover:bg-orange-200";
-            } else {
-                claseFila += "hover:bg-gray-50";
-            }
+                                    let claseFila = "border-b cursor-pointer transition-colors ";
+                                    if (esVencido) claseFila += "bg-red-100 hover:bg-red-200"; 
+                                    else if (esHoy) claseFila += "bg-orange-100 hover:bg-orange-200"; 
+                                    else claseFila += "hover:bg-gray-50"; 
 
-            return (
-                <tr key={i} onClick={() => onVerDetalles(p)} className={claseFila}>
-                    <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
-                    <td className="p-4">
-                        <div className="font-bold uppercase text-gray-800">{p.cliente}</div>
-                        <div className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-0.5">
-                            <Phone size={10} /> 
-                            <span>{p.telefono || 'Sin número'}</span>
-                        </div>
-                        <div className="text-xs text-gray-400 mt-0.5">{p.tipoProducto || 'Pastel'}</div>
-                    </td>
-                    <td className="p-4 text-sm font-medium text-gray-600">
-                        {formatearFechaLocal(p.fechaEntrega)}<br/>
-                        <span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span>
-                    </td>
-                    <td className="p-4 font-bold text-green-600">${p.total}</td>
-                    <td className="p-4 text-sm text-gray-500">
-                        <span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span>
-                    </td>
-                    <td className="p-4">
-                        <button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado">
-                            <Clock size={12} /> Pendiente
-                        </button>
-                    </td>
-                    <td className="p-4 flex gap-2">
-                        <button onClick={(e) => { e.stopPropagation(); enviarComandaWhatsApp(p); }} className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 border border-green-200 transition-colors" title="Enviar Comanda por WhatsApp">
-                            <MessageCircle size={18} />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600" title="Cancelar"><Trash2 size={18} /></button>
-                    </td>
-                </tr>
-            );
-        })
-    )}
-</tbody>
+                                    // Lógica del Separador
+                                    const pedidoAnterior = i > 0 ? pedidosFiltrados[i - 1] : null;
+                                    const anteriorEraVencido = pedidoAnterior && pedidoAnterior.fechaEntrega < fechaHoy;
+                                    const mostrarSeparador = esVencido && (!pedidoAnterior || !anteriorEraVencido);
+
+                                    return (
+                                        <React.Fragment key={i}>
+                                            {mostrarSeparador && (
+                                                <tr ref={atrasadosRef} className="scroll-mt-32"> {/* <--- REF AGREGADA AQUÍ PARA EL SCROLL */}
+                                                    <td colSpan="7" className="bg-red-50 text-red-500 font-bold text-center text-xs uppercase py-2 tracking-widest border-y border-red-200 shadow-inner">
+                                                        🔻 Pedidos Atrasados / No Recogidos 🔻
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            <tr onClick={() => onVerDetalles(p)} className={claseFila}>
+                                                <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
+                                                <td className="p-4">
+                                                    <div className="font-bold uppercase text-gray-800">{p.cliente}</div>
+                                                    <div className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-0.5"><Phone size={10} /> <span>{p.telefono || 'Sin número'}</span></div>
+                                                    <div className="text-xs text-gray-400 mt-0.5">{p.tipoProducto || 'Pastel'}</div>
+                                                </td>
+                                                <td className="p-4 text-sm font-medium text-gray-600">{formatearFechaLocal(p.fechaEntrega)}<br/><span className="text-xs text-gray-400">{p.horaEntrega ? `${p.horaEntrega} hrs` : ''}</span></td>
+                                                <td className="p-4 font-bold text-green-600">${p.total}</td>
+                                                <td className="p-4 text-sm text-gray-500"><span className="px-2 py-1 rounded-md text-xs font-bold bg-gray-100 text-gray-600">{p.pagosRealizados || 0}/{p.numPagos}</span></td>
+                                                <td className="p-4"><button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado"><Clock size={12} /> Pendiente</button></td>
+                                                <td className="p-4 flex gap-2">
+                                                    <button onClick={(e) => { e.stopPropagation(); enviarComandaWhatsApp(p); }} className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 border border-green-200 transition-colors"><MessageCircle size={18} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600"><Trash2 size={18} /></button>
+                                                </td>
+                                            </tr>
+                                        </React.Fragment>
+                                    );
+                                })
+                            )}
+                        </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* --- BOTÓN FLOTANTE PARA ATRASADOS (NUEVO) --- */}
+            {hayAtrasadosVisibles && (
+                <button 
+                    onClick={irAAtrasados}
+                    className="fixed bottom-6 right-6 z-50 bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-full shadow-2xl animate-bounce flex items-center gap-2 font-bold border-4 border-white transition-all transform hover:scale-105"
+                >
+                    <AlertCircle size={20} />
+                    Ver Atrasados 👇
+                </button>
+            )}
 
             <ModalPapelera isOpen={mostrarPapelera} pedidos={pedidosCancelados} onClose={() => setMostrarPapelera(false)} onRestaurar={(folio) => { onRestaurar(folio); setMostrarPapelera(false); }} onVaciar={onVaciarPapelera} onEliminar={onEliminarDePapelera} />
             {mostrarEntregados && <ModalEntregados pedidosEntregados={pedidosEntregadosHoy} onClose={() => setMostrarEntregados(false)} onDeshacerEntrega={(folio) => { onDeshacerEntrega(folio); }} />}
