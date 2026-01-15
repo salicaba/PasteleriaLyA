@@ -326,7 +326,6 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         const resta = total - abonado;
 
         // --- DICCIONARIO DE EMOJIS SEGUROS (UNICODE) ---
-        // Usamos estos códigos para que Windows y Web no los rompan
         const e = {
             pastel: '\uD83C\uDF70',   // 🍰
             hola: '\uD83D\uDC4B',     // 👋
@@ -342,13 +341,16 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
             check: '\u2705',          // ✅
             warn: '\u26A0\uFE0F',     // ⚠️
             punto: '\uD83D\uDD39',    // 🔹
-            brillo: '\u2728'          // ✨
+            brillo: '\u2728',         // ✨
+            pin: '\uD83D\uDCCD',      // 📍
+            mapa: '\uD83D\uDDFA\uFE0F' // 🗺️
         };
 
         // --- CONSTRUCCIÓN DEL MENSAJE ---
         let txt = `${e.pastel} *PASTELERÍA LyA - COMANDA DIGITAL* ${e.pastel}\n\n`;
         txt += `Hola *${pedido.cliente.toUpperCase()}* ${e.hola}, este es el resumen de tu pedido:\n\n`;
         
+        // 1. DETALLES
         txt += `${e.folio} *FOLIO:* ${pedido.folio}\n`;
         txt += `${e.prod} *PRODUCTO:* ${pedido.tipoProducto}\n`;
         txt += `${e.cal} *ENTREGA:* ${formatearFechaLocal(pedido.fechaEntrega)}\n`;
@@ -359,6 +361,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         
         txt += `${e.nota} *DETALLES:* ${pedido.detalles || 'Ninguno'}\n\n`;
 
+        // 2. FINANZAS
         txt += `${e.bolsa} *ESTADO DE CUENTA* ${e.bolsa}\n`;
         txt += `--------------------------------\n`;
         txt += `${e.billete} *TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
@@ -375,7 +378,13 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
             txt += `${e.punto} *ESTADO:* ${pagosHechos >= 1 ? `${e.check} PAGADO` : `${e.warn} PENDIENTE DE PAGO`}\n`; 
         }
         
-        txt += `--------------------------------\n`;
+        txt += `--------------------------------\n\n`;
+
+        // 3. UBICACIÓN (ACTUALIZADA)
+        txt += `${e.pin} *UBICACIÓN:* Segunda Calle Ote. Nte., Nuevo Mexico, 30540 Pijijiapan, Chis.\n`;
+        txt += `${e.mapa} *VER MAPA:* https://maps.app.goo.gl/eRH7dffC6PMpKWh47?g_st=ac\n\n`;
+
+        // 4. DESPEDIDA
         txt += `${e.brillo} *¡Gracias por tu preferencia!* ${e.brillo}`;
 
         window.open(`https://wa.me/52${tel}?text=${encodeURIComponent(txt)}`, '_blank');
