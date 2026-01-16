@@ -187,14 +187,15 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* TARJETA PASTELERÍA (Sin etiqueta 'VER DETALLES') */}
                 <div onClick={() => setModalAbierto('pasteleria')} className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">VER DETALLES</div>
                     <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-pink-800 flex items-center gap-2">Área Pastelería</h3><p className="text-pink-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1"><Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}</p></div><div className="bg-pink-100 p-2 rounded-lg text-pink-600 group-hover:scale-110 transition-transform"><Wallet size={24} /></div></div>
                     <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-pink-700">${datosPasteleria.total.toFixed(2)}</span><span className="text-sm text-pink-400 font-medium">recaudado</span></div>
                     <div className="border-t border-pink-100 pt-3 mt-2 flex justify-between items-center text-sm"><span className="text-gray-500">Movimientos / Pagos:</span><span className="font-bold text-gray-700 bg-pink-50 px-2 py-0.5 rounded">{datosPasteleria.items.length}</span></div>
                 </div>
+                
+                {/* TARJETA CAFETERÍA (Sin etiqueta 'VER DETALLES') */}
                 <div onClick={() => setModalAbierto('cafeteria')} className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
-                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg opacity-0 group-hover:opacity-100 transition-opacity">VER DETALLES</div>
                     <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-orange-800 flex items-center gap-2">Área Cafetería</h3><p className="text-orange-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1"><Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}</p></div><div className="bg-orange-100 p-2 rounded-lg text-orange-600 group-hover:scale-110 transition-transform"><Coffee size={24} /></div></div>
                     <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-orange-700">${datosCafeteria.total.toFixed(2)}</span><span className="text-sm text-orange-400 font-medium">recaudado</span></div>
                     <div className="border-t border-orange-100 pt-3 mt-2 flex justify-between items-center text-sm"><span className="text-gray-500">Tickets cobrados:</span><span className="font-bold text-gray-700 bg-orange-50 px-2 py-0.5 rounded">{datosCafeteria.items.length}</span></div>

@@ -482,12 +482,13 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                     return (
                                         <React.Fragment key={i}>
                                             {mostrarSeparador && (
-                                                <tr ref={atrasadosRef} className="scroll-mt-32"> {/* <--- REF AGREGADA AQUÍ PARA EL SCROLL */}
+                                                <tr ref={atrasadosRef} className="scroll-mt-32">
                                                     <td colSpan="7" className="bg-red-50 text-red-500 font-bold text-center text-xs uppercase py-2 tracking-widest border-y border-red-200 shadow-inner">
                                                         🔻 Pedidos Atrasados / No Recogidos 🔻
                                                     </td>
                                                 </tr>
                                             )}
+                                            {/* La fila completa sigue siendo clickeable para ver detalles */}
                                             <tr onClick={() => onVerDetalles(p)} className={claseFila}>
                                                 <td className="p-4 font-mono font-bold text-gray-600">{p.folio}</td>
                                                 <td className="p-4">
@@ -501,7 +502,7 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
                                                 <td className="p-4"><button onClick={(e) => { e.stopPropagation(); onIniciarEntrega(p.folio); }} className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center w-fit gap-1 transition-all bg-yellow-100 text-yellow-800 hover:bg-green-100 hover:text-green-800 border border-yellow-200 hover:scale-105" title="Marcar como Entregado"><Clock size={12} /> Pendiente</button></td>
                                                 <td className="p-4 flex gap-2">
                                                     <button onClick={(e) => { e.stopPropagation(); enviarComandaWhatsApp(p); }} className="p-2 bg-green-50 hover:bg-green-100 rounded-lg text-green-600 border border-green-200 transition-colors"><MessageCircle size={18} /></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); onVerDetalles(p); }} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600"><Eye size={18} /></button>
+                                                    {/* --- CAMBIO: Se ha eliminado el botón del OJO --- */}
                                                     <button onClick={(e) => { e.stopPropagation(); onEditar(p); }} className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-blue-600"><Edit size={18} /></button>
                                                     <button onClick={(e) => { e.stopPropagation(); onCancelar(p.folio); }} className="p-2 bg-red-50 hover:bg-red-100 rounded-lg text-red-600"><Trash2 size={18} /></button>
                                                 </td>
