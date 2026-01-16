@@ -4,7 +4,7 @@ import {
     AlertCircle, CheckCircle, X, Trash2, ShoppingBag, CalendarDays, Calculator, Eye, Calendar as CalendarIcon, 
     Printer, FileText, CalendarRange, Menu, LogOut, DollarSign, Monitor, Users, Box, PauseCircle, Shield,
     Minus, Plus, Info, ChevronUp, ChevronDown, Loader, Database,
-    Maximize2, Minimize2 
+    Maximize2, Minimize2, ChefHat 
 } from 'lucide-react';
 import { imprimirTicket, formatearFechaLocal } from '../utils/config';
 
@@ -239,7 +239,8 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 
                 {modo === 'cafeteria' && ( 
                     <> 
-                        <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/>
+                        <BotonNav icon={<ChefHat size={18}/>} label="Pantalla Cocina" active={vistaActual === 'cocina'} onClick={() => handleNavClick(() => setVistaActual('cocina'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<Grid size={18}/>} label="Punto de Venta (QR)" active={vistaActual === 'mesas'} onClick={() => handleNavClick(() => setVistaActual('mesas'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<UtensilsCrossed size={18}/>} label="Gestión de Menú" active={vistaActual === 'menu'} onClick={() => handleNavClick(() => setVistaActual('menu'))} colorTheme={themeBtn}/> 
                     </> 

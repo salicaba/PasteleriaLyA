@@ -10,7 +10,7 @@ import { obtenerRutaInicial, formatearRol } from './utils/roles';
 
 import { Notificacion, LayoutConSidebar, ModalDetalles, ModalVentasDia, ModalConfirmacion, ModalAgendaDia } from './components/Shared';
 import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } from './features/Pasteleria';
-import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa } from './features/Cafeteria';
+import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa, VistaCocina } from './features/Cafeteria';
 
 // --- 1. IMPORTAMOS VistaBaseDatos AQUÍ ---
 import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios, VistaBaseDatos } from './features/Admin';
@@ -472,7 +472,7 @@ export default function PasteleriaApp() {
   };
 
   const agregarProductoASesion = async (idSesion, producto, cantidad = 1) => { 
-    const itemNuevo = { ...producto, cantidad: cantidad, origen: 'personal' };
+    const itemNuevo = { ...producto, cantidad: cantidad, origen: 'personal', confirmado: false };
     let cantidadTotalProducto = cantidad;
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
@@ -505,6 +505,48 @@ export default function PasteleriaApp() {
     const sufijo = cantidadTotalProducto > 1 ? ` (x${cantidadTotalProducto})` : '';
     mostrarNotificacion(`Agregado: ${producto.nombre}${sufijo}`, "exito");
   };
+
+  const confirmarOrdenCocina = async (idSesion) => {
+    const timestamp = Date.now();
+    
+    if (cuentaActiva.tipo === 'mesa') {
+        const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
+        if (mesa) {
+            const cuentasNuevas = mesa.cuentas.map(c => {
+                if (c.id === idSesion) {
+                    // Marcamos todos los items como confirmados
+                    const itemsConfirmados = c.cuenta.map(i => ({ ...i, confirmado: true }));
+                    // Actualizamos timestampCocina para avisar a la pantalla que hubo cambios
+                    return { ...c, cuenta: itemsConfirmados, total: c.total, timestampCocina: timestamp };
+                }
+                return c;
+            });
+            await actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
+            // Actualizamos la vista local si está abierta
+            if (cuentaActiva.id === idSesion) {
+                setCuentaActiva(prev => ({ 
+                    ...prev, 
+                    cuenta: prev.cuenta.map(i => ({ ...i, confirmado: true })),
+                    timestampCocina: timestamp
+                }));
+            }
+        }
+    } else {
+        const sesion = sesionesLlevar.find(s => s.id === idSesion);
+        if (sesion) {
+            const itemsConfirmados = sesion.cuenta.map(i => ({ ...i, confirmado: true }));
+            await updateSession(sesion.id, { 
+                cuenta: itemsConfirmados, 
+                total: sesion.total,
+                timestampCocina: timestamp // Importante para re-activar la orden en cocina
+            });
+            if (cuentaActiva.id === idSesion) {
+                setCuentaActiva(prev => ({ ...prev, cuenta: itemsConfirmados, timestampCocina: timestamp }));
+            }
+        }
+    }
+    mostrarNotificacion("Pedido enviado a cocina", "exito");
+};
 
   const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObjetivo) => {
     if (cuentaActiva.tipo === 'mesa') {
@@ -666,6 +708,15 @@ export default function PasteleriaApp() {
                     onEliminarDePapelera={eliminarDePapelera}
                 />
             )} 
+
+            {vistaActual === 'cocina' && (
+          <VistaCocina 
+              mesas={mesas} 
+              pedidosLlevar={sesionesLlevar} 
+              mostrarNotificacion={mostrarNotificacion} // <--- ¡IMPORTANTE! Agrega esta línea
+          />
+          )}
+
             {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
             
             {vistaActual === 'mesas' && (
@@ -693,6 +744,7 @@ export default function PasteleriaApp() {
           onCancelarCuenta={cancelarCuentaSinPagar}
           onDividirCuentaManual={dividirCuentaManual} 
           onDesunirCuentas={desunirCuentas} 
+          onConfirmarOrden={confirmarOrdenCocina} // <--- AGREGAR ESTA LÍNEA
       />}
       
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
