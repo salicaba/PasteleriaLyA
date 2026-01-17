@@ -509,24 +509,34 @@ export default function PasteleriaApp() {
   const confirmarOrdenCocina = async (idSesion) => {
     const timestamp = Date.now();
     
+    // Función auxiliar para procesar los ítems
+    // Si el ítem YA estaba confirmado, mantenemos su fecha original.
+    // Si NO estaba confirmado (es nuevo), le ponemos la fecha de AHORA.
+    const procesarItems = (items) => {
+        return items.map(i => ({
+            ...i,
+            confirmado: true,
+            timestampEntrega: i.confirmado ? (i.timestampEntrega || timestamp) : timestamp
+        }));
+    };
+
     if (cuentaActiva.tipo === 'mesa') {
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if (mesa) {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if (c.id === idSesion) {
-                    // Marcamos todos los items como confirmados
-                    const itemsConfirmados = c.cuenta.map(i => ({ ...i, confirmado: true }));
+                    const itemsConfirmados = procesarItems(c.cuenta);
                     // Actualizamos timestampCocina para avisar a la pantalla que hubo cambios
                     return { ...c, cuenta: itemsConfirmados, total: c.total, timestampCocina: timestamp };
                 }
                 return c;
             });
             await actualizarMesaEnBD({ ...mesa, cuentas: cuentasNuevas });
-            // Actualizamos la vista local si está abierta
+            
             if (cuentaActiva.id === idSesion) {
                 setCuentaActiva(prev => ({ 
                     ...prev, 
-                    cuenta: prev.cuenta.map(i => ({ ...i, confirmado: true })),
+                    cuenta: procesarItems(prev.cuenta),
                     timestampCocina: timestamp
                 }));
             }
@@ -534,11 +544,11 @@ export default function PasteleriaApp() {
     } else {
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
-            const itemsConfirmados = sesion.cuenta.map(i => ({ ...i, confirmado: true }));
+            const itemsConfirmados = procesarItems(sesion.cuenta);
             await updateSession(sesion.id, { 
                 cuenta: itemsConfirmados, 
                 total: sesion.total,
-                timestampCocina: timestamp // Importante para re-activar la orden en cocina
+                timestampCocina: timestamp 
             });
             if (cuentaActiva.id === idSesion) {
                 setCuentaActiva(prev => ({ ...prev, cuenta: itemsConfirmados, timestampCocina: timestamp }));

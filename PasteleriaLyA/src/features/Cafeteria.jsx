@@ -1284,18 +1284,62 @@ export const VistaMenuCafeteria = ({ productos, onGuardarProducto, onEliminarPro
     );
 };
 
-// 2. NUEVO COMPONENTE: PANTALLA DE COCINA (Pégalo antes de VistaInicioCafeteria)
-// En src/features/Cafeteria.jsx
+// --- COMPONENTE DE RELOJ EN TIEMPO REAL (Segundos y Minutos) ---
+const ContadorTiempo = ({ inicio }) => {
+    // Estado para guardar el texto del tiempo
+    const [tiempoTexto, setTiempoTexto] = useState('Calculando...');
 
+    useEffect(() => {
+        // Si no hay fecha de inicio válida, no hacemos nada
+        if (!inicio) return;
+
+        const actualizarReloj = () => {
+            const ahora = Date.now();
+            // Calculamos la diferencia en milisegundos
+            // Math.max(0, ...) evita números negativos si la hora del sistema varía un poco
+            const diferencia = Math.max(0, ahora - inicio);
+
+            // Convertimos a unidades
+            const segundosTotales = Math.floor(diferencia / 1000);
+            const horas = Math.floor(segundosTotales / 3600);
+            const minutos = Math.floor((segundosTotales % 3600) / 60);
+            const segundos = segundosTotales % 60;
+
+            // Formateamos el texto
+            if (horas > 0) {
+                // Si pasa de 1 hora: "1h 15m" (sin segundos para no saturar)
+                setTiempoTexto(`${horas}h ${minutos}m`);
+            } else {
+                // Si es menos de 1 hora: "15m 30s" (con segundos)
+                // padStart(2, '0') asegura que se vea "05s" en lugar de "5s"
+                setTiempoTexto(`${minutos}m ${String(segundos).padStart(2, '0')}s`);
+            }
+        };
+
+        // 1. Ejecutamos inmediatamente para que no tarde 1 segundo en aparecer
+        actualizarReloj();
+
+        // 2. Creamos el intervalo que se repite CADA SEGUNDO (1000 ms)
+        const intervalo = setInterval(actualizarReloj, 1000);
+
+        // 3. Limpiamos el intervalo cuando el componente se desmonte
+        return () => clearInterval(intervalo);
+    }, [inicio]);
+
+    // Usamos una fuente monoespaciada (font-mono) para que los números no "bailen"
+    return <span className="font-mono font-bold tracking-tight">{tiempoTexto}</span>;
+};
+
+// --- VISTA COCINA (REEMPLAZAR COMPLETA) ---
 export const VistaCocina = ({ mesas, pedidosLlevar, mostrarNotificacion }) => {
-    // Usamos un objeto ahora para guardar el timestamp de despacho
     const [despachados, setDespachados] = useState(() => {
-        const guardados = localStorage.getItem('lya_cocina_despachados_v2'); // Nueva clave para evitar conflictos
-        return guardados ? JSON.parse(guardados) : {}; // Formato: { "id_pedido": timestamp_despacho }
+        const guardados = localStorage.getItem('lya_cocina_despachados_v2');
+        return guardados ? JSON.parse(guardados) : {};
     });
 
     const [pedidoParaCompletar, setPedidoParaCompletar] = useState(null);
 
+    // Filtramos y ordenamos las comandas activas
     const comandasActivas = useMemo(() => {
         const listaMesas = mesas.flatMap(m => 
             m.cuentas.map(c => ({ ...c, tipo: 'mesa', origenNombre: `Mesa ${m.nombre}`, idMesa: m.id }))
@@ -1305,18 +1349,15 @@ export const VistaCocina = ({ mesas, pedidosLlevar, mostrarNotificacion }) => {
 
         return [...listaMesas, ...listaLlevar]
             .map(c => {
-                // Filtramos SOLO los items confirmados
-                // (Si 'confirmado' es undefined, asumimos true para compatibilidad con datos viejos)
+                // Filtramos SOLO los items confirmados (enviados a cocina)
                 const itemsCocina = c.cuenta.filter(i => i.confirmado !== false);
                 return { ...c, cuenta: itemsCocina };
             })
-            .filter(c => c.cuenta.length > 0) // Que tenga items para cocinar
+            .filter(c => c.cuenta.length > 0)
             .filter(c => {
-                // Lógica de re-aparición:
-                // Si NO está en despachados -> Mostrar
-                // Si ESTÁ, pero el pedido se actualizó DESPUÉS de despacharse -> Mostrar de nuevo
+                // Lógica para reaparecer si llegan nuevos items después de despachar
                 const tsDespacho = despachados[c.id];
-                const tsUltimaActualizacion = c.timestampCocina || c.timestamp; // Usamos el nuevo timestamp
+                const tsUltimaActualizacion = c.timestampCocina || c.timestamp;
                 
                 if (!tsDespacho) return true;
                 return tsUltimaActualizacion > tsDespacho;
@@ -1328,7 +1369,7 @@ export const VistaCocina = ({ mesas, pedidosLlevar, mostrarNotificacion }) => {
         if (pedidoParaCompletar) {
             const nuevosDespachados = { 
                 ...despachados, 
-                [pedidoParaCompletar]: Date.now() // Guardamos CUÁNDO se despachó
+                [pedidoParaCompletar]: Date.now() 
             };
             setDespachados(nuevosDespachados);
             localStorage.setItem('lya_cocina_despachados_v2', JSON.stringify(nuevosDespachados));
@@ -1340,59 +1381,108 @@ export const VistaCocina = ({ mesas, pedidosLlevar, mostrarNotificacion }) => {
         }
     };
 
-    // ... (El resto del return es idéntico al que ya tenías, solo asegúrate de usar confirmarDespacho y getTiempoTranscurrido) ...
-    // Copia el return de tu componente VistaCocina anterior, es compatible.
-    
-    // Solo cambia la llamada al map para asegurarte que itera sobre 'comandasActivas'
-    const getTiempoTranscurrido = (timestamp) => {
-        if (!timestamp) return 'Reciente';
-        const minutos = Math.floor((Date.now() - timestamp) / 60000);
-        if (minutos < 1) return 'Ahora';
-        if (minutos > 60) return '> 1h';
-        return `${minutos} min`;
-    };
-
     return (
         <div className="p-4 md:p-6 bg-gray-900 min-h-screen text-white">
-             {/* ... Header igual ... */}
              <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
-                <div><h2 className="text-3xl font-bold flex items-center gap-3"><ChefHat size={32} className="text-orange-500" /> Pantalla Cocina</h2><p className="text-gray-400 text-sm mt-1">Mostrando {comandasActivas.length} órdenes pendientes.</p></div>
+                <div>
+                    <h2 className="text-3xl font-bold flex items-center gap-3">
+                        <ChefHat size={32} className="text-orange-500" /> Pantalla Cocina
+                    </h2>
+                    <p className="text-gray-400 text-sm mt-1">Mostrando {comandasActivas.length} órdenes pendientes.</p>
+                </div>
                 <div className="text-right"><p className="text-xs text-gray-500 font-mono uppercase">FIFO</p></div>
             </div>
 
             {comandasActivas.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[60vh] opacity-50"><ChefHat size={80} className="text-gray-600 mb-4" /><h3 className="text-2xl font-bold text-gray-500">Todo tranquilo</h3></div>
+                <div className="flex flex-col items-center justify-center h-[60vh] opacity-50">
+                    <ChefHat size={80} className="text-gray-600 mb-4" />
+                    <h3 className="text-2xl font-bold text-gray-500">Todo tranquilo</h3>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {comandasActivas.map((comanda, index) => (
-                        <div key={comanda.id} className="bg-white text-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col animate-fade-in-up border-l-8 border-orange-500 relative">
-                            {/* Header Card */}
-                            <div className={`p-3 flex justify-between items-start border-b border-gray-100 ${index === 0 ? 'bg-orange-50' : 'bg-white'}`}>
-                                <div><h4 className="font-bold text-lg leading-tight uppercase">{comanda.cliente || comanda.nombreCliente}</h4><span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded mt-1 inline-block">{comanda.origenNombre}</span></div>
-                                <div className="text-right flex flex-col items-end gap-1"><span className={`block text-xl font-bold ${index === 0 ? 'text-red-600 animate-pulse' : 'text-gray-800'}`}>#{index + 1}</span><span className="text-[12px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-200 flex items-center gap-1">⏱ {getTiempoTranscurrido(comanda.timestamp)}</span></div>
+                    {comandasActivas.map((comanda, index) => {
+                        const ultimoDespacho = despachados[comanda.id] || 0;
+                        const itemsNuevos = comanda.cuenta.filter(i => (i.timestampEntrega || 0) > ultimoDespacho);
+                        const itemsAnteriores = comanda.cuenta.filter(i => (i.timestampEntrega || 0) <= ultimoDespacho);
+
+                        // --- LÓGICA DEL RELOJITO ---
+                        // Calculamos el tiempo basado en el item NUEVO más antiguo.
+                        // Si no hay items nuevos, usamos la fecha de la comanda.
+                        const timestampsPendientes = itemsNuevos.map(i => i.timestampEntrega || comanda.timestamp);
+                        const inicioReloj = timestampsPendientes.length > 0 ? Math.min(...timestampsPendientes) : comanda.timestamp;
+                        
+                        return (
+                            <div key={comanda.id} className="bg-white text-gray-800 rounded-xl overflow-hidden shadow-lg flex flex-col animate-fade-in-up border-l-8 border-orange-500 relative">
+                                {/* Header Card */}
+                                <div className={`p-3 flex justify-between items-start border-b border-gray-100 ${index === 0 ? 'bg-orange-50' : 'bg-white'}`}>
+                                    <div>
+                                        <h4 className="font-bold text-lg leading-tight uppercase">{comanda.cliente || comanda.nombreCliente}</h4>
+                                        <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded mt-1 inline-block">{comanda.origenNombre}</span>
+                                    </div>
+                                    <div className="text-right flex flex-col items-end gap-1">
+                                        <span className={`block text-xl font-bold ${index === 0 ? 'text-red-600 animate-pulse' : 'text-gray-800'}`}>#{index + 1}</span>
+                                        
+                                        {/* --- AQUÍ ESTÁ EL RELOJ EN TIEMPO REAL --- */}
+                                        <div className="text-[12px] text-blue-700 bg-blue-100 px-2 py-1 rounded border border-blue-200 flex items-center gap-1 shadow-sm">
+                                            <span>⏱</span> 
+                                            {/* Pasamos la fecha de inicio al componente */}
+                                            <ContadorTiempo inicio={inicioReloj} />
+                                        </div>
+                                        {/* ----------------------------------------- */}
+                                    </div>
+                                </div>
+
+                                {/* Lista de Items */}
+                                <div className="p-4 flex-1 overflow-y-auto max-h-[300px] bg-gray-50">
+                                    <ul className="space-y-3">
+                                        {/* Items Nuevos (Resaltados) */}
+                                        {itemsNuevos.map((item, idx) => (
+                                            <li key={`new-${idx}`} className="flex justify-between items-start border-b border-gray-200 pb-2 last:border-0 last:pb-0 animate-pulse bg-yellow-50 p-2 rounded-lg border border-yellow-200 mb-2">
+                                                <div className="flex items-start gap-2 w-full">
+                                                    <span className="font-bold text-lg bg-yellow-400 text-yellow-900 w-8 h-8 flex items-center justify-center rounded-lg shadow-sm">{item.cantidad || 1}</span>
+                                                    <div className="flex-1">
+                                                        <div className="flex justify-between">
+                                                            <p className="font-bold text-gray-900 leading-snug text-lg">{item.nombre}</p>
+                                                            <span className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider h-fit">NUEVO</span>
+                                                        </div>
+                                                        {item.descripcion && <p className="text-xs text-gray-600 italic mt-0.5">{item.descripcion}</p>}
+                                                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{item.categoria || 'GENERAL'}</span>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        ))}
+
+                                        {/* Items Anteriores (Grisáceos) */}
+                                        {itemsAnteriores.length > 0 && (
+                                            <>
+                                                {itemsNuevos.length > 0 && <div className="text-center my-2"><span className="text-[10px] bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-bold uppercase">Ya Preparados</span></div>}
+                                                {itemsAnteriores.map((item, idx) => (
+                                                    <li key={`old-${idx}`} className="flex justify-between items-start opacity-50 grayscale hover:grayscale-0 transition-all p-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-bold text-sm text-gray-500 bg-gray-100 border border-gray-200 w-6 h-6 flex items-center justify-center rounded shadow-sm">{item.cantidad || 1}</span>
+                                                            <div><p className="font-bold text-gray-500 text-sm line-through decoration-gray-400">{item.nombre}</p></div>
+                                                        </div>
+                                                        <CheckCircle size={16} className="text-green-500"/>
+                                                    </li>
+                                                ))}
+                                            </>
+                                        )}
+                                    </ul>
+                                </div>
+                                
+                                {/* Botón de Acción */}
+                                <div className="p-3 bg-gray-100 border-t border-gray-200">
+                                    <button onClick={() => setPedidoParaCompletar(comanda.id)} className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95">
+                                        <CheckCircle size={20} /> 
+                                        {itemsNuevos.length > 0 ? "MARCAR NUEVOS COMO LISTOS" : "MARCAR TODO LISTO"}
+                                    </button>
+                                </div>
                             </div>
-                            {/* Items */}
-                            <div className="p-4 flex-1 overflow-y-auto max-h-[300px] bg-gray-50">
-                                <ul className="space-y-3">
-                                    {comanda.cuenta.map((item, idx) => (
-                                        <li key={idx} className="flex justify-between items-start border-b border-gray-200 pb-2 last:border-0 last:pb-0">
-                                            <div className="flex items-start gap-2">
-                                                <span className="font-bold text-lg bg-white border border-gray-200 w-8 h-8 flex items-center justify-center rounded-lg shadow-sm">{item.cantidad || 1}</span>
-                                                <div><p className="font-bold text-gray-800 leading-snug">{item.nombre}</p>{item.descripcion && <p className="text-xs text-gray-500 italic">{item.descripcion}</p>}<span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{item.categoria || 'GENERAL'}</span></div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                            {/* Botón */}
-                            <div className="p-3 bg-gray-100 border-t border-gray-200">
-                                <button onClick={() => setPedidoParaCompletar(comanda.id)} className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95"><CheckCircle size={20} /> ¡LISTO!</button>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
-             <ModalConfirmacion isOpen={!!pedidoParaCompletar} onClose={() => setPedidoParaCompletar(null)} onConfirm={confirmarDespacho} titulo="¿Orden Completada?" mensaje="¿Confirmas que los alimentos ya están preparados?" tipo="entregar" />
+             <ModalConfirmacion isOpen={!!pedidoParaCompletar} onClose={() => setPedidoParaCompletar(null)} onConfirm={confirmarDespacho} titulo="¿Orden Completada?" mensaje="¿Confirmas que los ALIMENTOS NUEVOS ya están preparados?" tipo="entregar" />
         </div>
     );
 };
