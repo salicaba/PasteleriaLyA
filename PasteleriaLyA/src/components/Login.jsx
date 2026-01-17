@@ -293,7 +293,7 @@ export const VistaLogin = ({ onLogin, usuariosDB = [] }) => {
                         </div>
                         
                         <div className="bg-gray-50 p-4 text-center text-[10px] md:text-xs text-gray-800 font-bold border-t border-purple-100 mt-auto">
-                            © 2025 Pastelería y Cafetería LyA
+                            © 2026 Pastelería LyA • Sistema v2.0
                         </div>
                     </>
                 )}

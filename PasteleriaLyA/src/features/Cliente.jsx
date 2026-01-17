@@ -135,7 +135,7 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
             </div>
             
             <div className="mt-8 text-white/80 font-bold text-xs">
-                © 2025 Pastelería y Cafetería LyA
+                © 2026 Pastelería y Cafetería LyA
             </div>
         </div>
     );
