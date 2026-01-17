@@ -471,18 +471,28 @@ export default function PasteleriaApp() {
     }
   };
 
-  const agregarProductoASesion = async (idSesion, producto, cantidad = 1) => { 
+  // 1. Modifica esta función (agrega la condición && i.confirmado === false)
+const agregarProductoASesion = async (idSesion, producto, cantidad = 1) => { 
     const itemNuevo = { ...producto, cantidad: cantidad, origen: 'personal', confirmado: false };
     let cantidadTotalProducto = cantidad;
+    
     if (cuentaActiva.tipo === 'mesa') { 
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
-                    const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
-                    if (itemIndex > -1) { const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad; items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; cantidadTotalProducto = nuevaCant; }
-                    else items.push(itemNuevo);
+                    // CAMBIO AQUÍ: Solo se une si es el mismo producto Y aún NO está confirmado
+                    const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal' && i.confirmado === false);
+                    
+                    if (itemIndex > -1) { 
+                        const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad; 
+                        items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; 
+                        cantidadTotalProducto = nuevaCant; 
+                    } else {
+                        items.push(itemNuevo);
+                    }
+                    
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -495,16 +505,24 @@ export default function PasteleriaApp() {
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
-            const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal');
-            if (itemIndex > -1) { const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad; items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; cantidadTotalProducto = nuevaCant; }
-            else items.push(itemNuevo);
+            // CAMBIO AQUÍ TAMBIÉN
+            const itemIndex = items.findIndex(i => i.id === producto.id && i.origen === 'personal' && i.confirmado === false);
+            
+            if (itemIndex > -1) { 
+                const nuevaCant = (items[itemIndex].cantidad || 1) + cantidad; 
+                items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; 
+                cantidadTotalProducto = nuevaCant; 
+            } else {
+                items.push(itemNuevo);
+            }
+            
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
             await updateSession(sesion.id, { cuenta: items, total });
         }
     } 
     const sufijo = cantidadTotalProducto > 1 ? ` (x${cantidadTotalProducto})` : '';
     mostrarNotificacion(`Agregado: ${producto.nombre}${sufijo}`, "exito");
-  };
+};
 
   const confirmarOrdenCocina = async (idSesion) => {
     const timestamp = Date.now();
@@ -558,15 +576,31 @@ export default function PasteleriaApp() {
     mostrarNotificacion("Pedido enviado a cocina", "exito");
 };
 
-  const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObjetivo) => {
+  // 2. Modifica esta función para aceptar "esConfirmado" (añádelo a los argumentos)
+const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObjetivo, esConfirmado = false) => {
+    // Función auxiliar para encontrar el índice correcto
+    const encontrarIndice = (items) => {
+        // Buscamos coincidencia exacta incluyendo si está confirmado o no
+        return items.findIndex(i => 
+            i.id === idProducto && 
+            i.origen === origenObjetivo && 
+            (i.confirmado === esConfirmado)
+        );
+    };
+
     if (cuentaActiva.tipo === 'mesa') {
         const mesa = mesas.find(m => m.id === cuentaActiva.idMesa);
         if(mesa) {
             const cuentasNuevas = mesa.cuentas.map(c => {
                 if(c.id === cuentaActiva.id) {
                     let items = [...c.cuenta];
-                    const itemIndex = items.findIndex(i => i.id === idProducto && i.origen === origenObjetivo);
-                    if(itemIndex > -1) { const nuevaCant = (items[itemIndex].cantidad || 1) + delta; if(nuevaCant <= 0) items.splice(itemIndex, 1); else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; }
+                    const itemIndex = encontrarIndice(items);
+                    
+                    if(itemIndex > -1) { 
+                        const nuevaCant = (items[itemIndex].cantidad || 1) + delta; 
+                        if(nuevaCant <= 0) items.splice(itemIndex, 1); 
+                        else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; 
+                    }
                     const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
                     setCuentaActiva(prev => ({...prev, cuenta: items, total}));
                     return { ...c, cuenta: items, total };
@@ -579,13 +613,18 @@ export default function PasteleriaApp() {
         const sesion = sesionesLlevar.find(s => s.id === idSesion);
         if (sesion) {
             let items = [...sesion.cuenta];
-            const itemIndex = items.findIndex(i => i.id === idProducto && i.origen === origenObjetivo);
-            if(itemIndex > -1) { const nuevaCant = (items[itemIndex].cantidad || 1) + delta; if(nuevaCant <= 0) items.splice(itemIndex, 1); else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; }
+            const itemIndex = encontrarIndice(items);
+            
+            if(itemIndex > -1) { 
+                const nuevaCant = (items[itemIndex].cantidad || 1) + delta; 
+                if(nuevaCant <= 0) items.splice(itemIndex, 1); 
+                else items[itemIndex] = { ...items[itemIndex], cantidad: nuevaCant }; 
+            }
             const total = items.reduce((a, b) => a + (b.precio * (b.cantidad || 1)), 0);
             await updateSession(sesion.id, { cuenta: items, total });
         }
     }
-  };
+};
 
   const pagarCuenta = async (sesion) => { 
     const total = sesion.cuenta.reduce((acc, p) => acc + (p.precio * (p.cantidad || 1)), 0); 

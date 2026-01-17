@@ -740,9 +740,9 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
     }, [sesion.cuenta]);
 
     // ... (Funciones handleUpdate, handleImprimir, etc. se mantienen igual) ...
-    const handleUpdate = (e, idItem, cantidad, origenItem) => {
+    const handleUpdate = (e, idItem, cantidad, origenItem, confirmado) => {
         if (e && e.stopPropagation) e.stopPropagation();
-        onActualizarProducto(sesion.id, idItem, cantidad, origenItem);
+        onActualizarProducto(sesion.id, idItem, cantidad, origenItem, confirmado);
     };
     
     const handleImprimir = () => { /* ... lógica existente ... */ };
@@ -923,8 +923,20 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             <ModalConfirmacion isOpen={confirmacionCancelarOpen} onClose={() => setConfirmacionCancelarOpen(false)} onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }} titulo="¿Cancelar Cuenta?" mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo." />
             <ModalDividirItems isOpen={modalDividirManualOpen} onClose={() => setModalDividirManualOpen(false)} cuenta={sesion} onConfirm={(nombre, items) => { onDividirCuentaManual(sesion.id, nombre, items); }} />
             <ModalDesunirCuentas isOpen={modalDesunirOpen} onClose={() => setModalDesunirOpen(false)} cuenta={sesion} onConfirm={(ids) => { onDesunirCuentas(sesion.idMesa, sesion.id, ids); }} />
-            <ModalConfirmacion isOpen={!!itemParaEliminar} onClose={() => setItemParaEliminar(null)} onConfirm={() => { if (itemParaEliminar) { onActualizarProducto(sesion.id, itemParaEliminar.item.id, -itemParaEliminar.cantidad, itemParaEliminar.origen); setItemParaEliminar(null); }}} titulo="¿Eliminar Producto?" mensaje={itemParaEliminar ? `¿Estás seguro de quitar "${itemParaEliminar.item.nombre}" de la cuenta?` : ''} tipo="eliminar" />
-        </div>
+<ModalConfirmacion 
+        isOpen={!!itemParaEliminar} 
+        onClose={() => setItemParaEliminar(null)} 
+        onConfirm={() => { 
+            if (itemParaEliminar) { 
+                // AQUÍ AGREGAMOS EL ÚLTIMO PARÁMETRO: itemParaEliminar.item.confirmado
+                onActualizarProducto(sesion.id, itemParaEliminar.item.id, -itemParaEliminar.cantidad, itemParaEliminar.origen, itemParaEliminar.item.confirmado); 
+                setItemParaEliminar(null); 
+            }
+        }} 
+        titulo="¿Eliminar Producto?" 
+        mensaje={itemParaEliminar ? `¿Estás seguro de quitar "${itemParaEliminar.item.nombre}" de la cuenta?` : ''} 
+        tipo="eliminar" 
+    />        </div>
     );
 };
 
