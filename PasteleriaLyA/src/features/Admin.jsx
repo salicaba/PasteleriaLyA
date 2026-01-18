@@ -1,5 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign, Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake, Database, ServerCrash, AlertTriangle, Filter } from 'lucide-react';
+import { BarChart3, X, Trash2, Users, Shield, Briefcase, UserPlus, Edit, Check, DollarSign,
+Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake, Database, ServerCrash, AlertTriangle, 
+Filter, PackagePlus, Plus, Info, ChevronDown, ChevronUp } from 'lucide-react';
+
 import { CardStat, ModalConfirmacion } from '../components/Shared';
 import { formatearFechaLocal, getFechaHoy } from '../utils/config';
 
@@ -12,6 +15,8 @@ import { collection, writeBatch, getDocs } from 'firebase/firestore';
 
 // --- IMPORTAMOS LOS ROLES DEFINIDOS ---
 import { ROLES } from '../utils/roles';
+
+import { saveInsumo, deleteInsumo, subscribeToInsumos, registrarCompraInsumo, guardarRecetaProducto, subscribeToProducts } from '../services/products.service';
 
 // ... [El componente ModalDetalleCorte se mantiene IGUAL, no es necesario cambiarlo] ...
 const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
@@ -1045,6 +1050,529 @@ export const VistaBaseDatos = () => {
                 onConfirm={ejecutarBorradoBD} 
                 titulo="⚠️ DESTRUCCIÓN TOTAL ⚠️" 
                 mensaje="Estás a punto de borrar TODO el sistema. No habrá vuelta atrás. ¿Confirmas esta acción destructiva?"
+                tipo="eliminar" 
+            />
+        </div>
+    );
+};
+
+// --- COMPONENTE: VISTA ALMACÉN Y COSTOS (OPTIMIZADO Y COLAPSABLE) ---
+export const VistaAlmacen = ({ mostrarNotificacion }) => {
+    const [pestaña, setPestaña] = useState('insumos'); 
+    const [insumos, setInsumos] = useState([]);
+    const [productos, setProductos] = useState([]);
+    
+    // Estados para Modales
+    const [modalInsumo, setModalInsumo] = useState(false);
+    const [modalCompra, setModalCompra] = useState(false);
+    
+    // Objetos en edición / eliminación
+    const [insumoEdit, setInsumoEdit] = useState(null);
+    const [insumoAEliminar, setInsumoAEliminar] = useState(null); 
+    const [productoReceta, setProductoReceta] = useState(null);
+
+    useEffect(() => {
+        const unsubInsumos = subscribeToInsumos(setInsumos);
+        const unsubProductos = subscribeToProducts(setProductos);
+        return () => { unsubInsumos(); unsubProductos(); };
+    }, []);
+
+    // --- COMPONENTE INTERNO: TARJETA DE INFORMACIÓN COLAPSABLE ---
+    const InfoCardCollapsible = ({ color, icon: Icon, title, description, children }) => {
+        const [expandido, setExpandido] = useState(false);
+        
+        // Mapeo de colores para clases dinámicas
+        const themes = {
+            indigo: { bg: 'bg-indigo-50', border: 'border-indigo-100', text: 'text-indigo-800', icon: 'text-indigo-500', hover: 'hover:bg-indigo-100' },
+            pink: { bg: 'bg-pink-50', border: 'border-pink-100', text: 'text-pink-800', icon: 'text-pink-500', hover: 'hover:bg-pink-100' },
+            green: { bg: 'bg-green-50', border: 'border-green-100', text: 'text-green-800', icon: 'text-green-600', hover: 'hover:bg-green-100' }
+        };
+        const t = themes[color] || themes.indigo;
+
+        return (
+            <div 
+                className={`${t.bg} border ${t.border} rounded-xl overflow-hidden transition-all duration-300 mb-4 cursor-pointer group ${t.hover}`}
+                onClick={() => setExpandido(!expandido)}
+            >
+                <div className="p-4 flex justify-between items-start gap-3">
+                    <div className="flex gap-3 items-center">
+                        <Icon className={`${t.icon} shrink-0`} size={20}/>
+                        <div>
+                            <p className={`font-bold text-sm ${t.text}`}>{title}</p>
+                            {/* Descripción corta siempre visible */}
+                            <p className={`text-xs ${t.text} opacity-80 leading-tight`}>{description}</p>
+                        </div>
+                    </div>
+                    <button className={`${t.text} opacity-50 group-hover:opacity-100 transition-opacity`}>
+                        {expandido ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
+                    </button>
+                </div>
+                
+                {/* Contenido oculto/desplegable */}
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expandido ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className={`px-4 pb-4 pt-0 text-xs ${t.text} border-t ${t.border} mt-2 pt-3 mx-4`}>
+                        {children}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // --- ACCIONES DE BASE DE DATOS ---
+    const handleGuardarInsumo = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = {
+            id: insumoEdit?.id,
+            nombre: formData.get('nombre').toUpperCase(),
+            unidad: formData.get('unidad'),
+            stock: parseFloat(formData.get('stock')) || 0,
+            costoPromedio: parseFloat(formData.get('costo')) || 0,
+            minimo: parseFloat(formData.get('minimo')) || 5
+        };
+
+        try {
+            await saveInsumo(data);
+            setModalInsumo(false);
+            if (insumoEdit) mostrarNotificacion(`Insumo "${data.nombre}" actualizado`, "exito");
+            else mostrarNotificacion(`Materia prima "${data.nombre}" creada`, "exito");
+        } catch (error) {
+            mostrarNotificacion("Error al guardar insumo", "error");
+        }
+    };
+
+    const handleEliminarInsumo = async () => {
+        if (!insumoAEliminar) return;
+        try {
+            await deleteInsumo(insumoAEliminar.id);
+            mostrarNotificacion(`Se eliminó "${insumoAEliminar.nombre}" del almacén`, "info");
+            setInsumoAEliminar(null);
+        } catch (error) {
+            mostrarNotificacion("No se pudo eliminar", "error");
+        }
+    };
+
+    const handleRegistrarCompra = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const cant = parseFloat(formData.get('cantidad'));
+        const total = parseFloat(formData.get('total'));
+        
+        if (insumoEdit) {
+            try {
+                await registrarCompraInsumo(insumoEdit.id, cant, total, insumoEdit);
+                setModalCompra(false);
+                mostrarNotificacion(`Compra registrada para ${insumoEdit.nombre}`, "exito");
+            } catch (error) {
+                mostrarNotificacion("Error al registrar compra", "error");
+            }
+        }
+    };
+
+    // --- COMPONENTE INTERNO: CALCULADORA DE RECETA ---
+    const EditorReceta = ({ producto, onClose }) => {
+        const [ingredientes, setIngredientes] = useState(producto.receta || []);
+        const [insumoSeleccionado, setInsumoSeleccionado] = useState('');
+        const [cantidadUsar, setCantidadUsar] = useState('');
+
+        const agregarIngrediente = () => {
+            if (!insumoSeleccionado || !cantidadUsar) return;
+            const insumoReal = insumos.find(i => i.id === insumoSeleccionado);
+            if (!insumoReal) return;
+
+            const nuevoIngrediente = {
+                insumoId: insumoReal.id,
+                nombre: insumoReal.nombre,
+                unidad: insumoReal.unidad,
+                cantidad: parseFloat(cantidadUsar),
+                costoUnitarioSnapshot: insumoReal.costoPromedio 
+            };
+
+            setIngredientes([...ingredientes, nuevoIngrediente]);
+            setInsumoSeleccionado('');
+            setCantidadUsar('');
+        };
+
+        const removerIngrediente = (index) => {
+            const nuevos = [...ingredientes];
+            nuevos.splice(index, 1);
+            setIngredientes(nuevos);
+        };
+
+        const calcularCostoTotal = () => {
+            return ingredientes.reduce((total, ing) => {
+                const insumoActual = insumos.find(i => i.id === ing.insumoId);
+                const costoReal = insumoActual ? insumoActual.costoPromedio : (ing.costoUnitarioSnapshot || 0);
+                return total + (costoReal * ing.cantidad);
+            }, 0);
+        };
+
+        const costoTotal = calcularCostoTotal();
+        const precioVenta = parseFloat(producto.precio) || 0;
+        const margen = precioVenta - costoTotal;
+        const margenPorcentaje = precioVenta > 0 ? (margen / precioVenta) * 100 : 0;
+
+        const guardarEscandallo = async () => {
+            try {
+                await guardarRecetaProducto(producto.id, ingredientes, costoTotal);
+                mostrarNotificacion(`Receta de "${producto.nombre}" guardada correctamente`, "exito");
+                onClose();
+            } catch (error) {
+                mostrarNotificacion("Error al guardar receta", "error");
+            }
+        };
+
+        return (
+            <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl w-full max-w-2xl h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-fade-in-up">
+                    <div className="p-4 bg-gray-900 text-white flex justify-between items-center">
+                        <h3 className="font-bold text-lg flex items-center gap-2"><Cake size={20}/> Receta: {producto.nombre}</h3>
+                        <button onClick={onClose}><X/></button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Agregar Insumo</h4>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <select 
+                                    value={insumoSeleccionado} 
+                                    onChange={e => setInsumoSeleccionado(e.target.value)}
+                                    className="flex-1 p-2 border rounded-lg text-sm bg-gray-50 focus:bg-white transition"
+                                >
+                                    <option value="">-- Seleccionar Materia Prima --</option>
+                                    {insumos.map(i => (
+                                        <option key={i.id} value={i.id}>{i.nombre} ({i.unidad}) - ${i.costoPromedio.toFixed(2)}</option>
+                                    ))}
+                                </select>
+                                <input 
+                                    type="number" 
+                                    placeholder="Cant." 
+                                    className="w-24 p-2 border rounded-lg text-sm"
+                                    value={cantidadUsar}
+                                    onChange={e => setCantidadUsar(e.target.value)}
+                                />
+                                <button onClick={agregarIngrediente} className="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-pink-700 transition">
+                                    <Plus size={16}/>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            {ingredientes.map((ing, idx) => {
+                                const insumoActual = insumos.find(i => i.id === ing.insumoId);
+                                const costoU = insumoActual ? insumoActual.costoPromedio : 0;
+                                const subtotal = costoU * ing.cantidad;
+                                return (
+                                    <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
+                                        <div>
+                                            <p className="font-bold text-gray-700 text-sm">{ing.nombre}</p>
+                                            <p className="text-xs text-gray-400">{ing.cantidad} {ing.unidad} x ${costoU.toFixed(2)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-mono font-bold text-gray-600">${subtotal.toFixed(2)}</span>
+                                            <button onClick={() => removerIngrediente(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {ingredientes.length === 0 && <p className="text-center text-gray-400 text-sm italic py-4">Este producto no tiene receta definida.</p>}
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-white border-t border-gray-200 shadow-lg z-10">
+                        <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                            <div className="bg-gray-50 p-2 rounded-lg">
+                                <p className="text-[10px] uppercase text-gray-400 font-bold">Costo Producción</p>
+                                <p className="text-xl font-bold text-gray-800">${costoTotal.toFixed(2)}</p>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded-lg">
+                                <p className="text-[10px] uppercase text-gray-400 font-bold">Precio Venta</p>
+                                <p className="text-xl font-bold text-blue-600">${precioVenta.toFixed(2)}</p>
+                            </div>
+                            <div className={`p-2 rounded-lg ${margenPorcentaje < 30 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                                <p className="text-[10px] uppercase opacity-70 font-bold">Margen / Ganancia</p>
+                                <p className="text-xl font-bold">{margenPorcentaje.toFixed(0)}% <span className="text-sm">(${margen.toFixed(2)})</span></p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={guardarEscandallo}
+                            className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition shadow-lg flex justify-center items-center gap-2"
+                        >
+                            <Check size={18}/> Guardar Escandallo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="p-4 md:p-8 h-full flex flex-col">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                        <Database className="text-indigo-600" /> Almacén y Costos
+                    </h2>
+                    <p className="text-gray-500 text-sm mt-1">Controla materia prima, recetas y analiza tu rentabilidad.</p>
+                </div>
+                {pestaña === 'insumos' && (
+                    <button onClick={() => { setInsumoEdit(null); setModalInsumo(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                        <PackagePlus size={18}/> Nuevo Insumo
+                    </button>
+                )}
+            </div>
+
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full md:w-fit mb-6">
+                <button onClick={() => setPestaña('insumos')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-bold transition ${pestaña === 'insumos' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}>
+                    Materia Prima
+                </button>
+                <button onClick={() => setPestaña('recetas')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-bold transition ${pestaña === 'recetas' ? 'bg-white text-pink-700 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}>
+                    Recetario & Costos
+                </button>
+                <button onClick={() => setPestaña('analisis')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-sm font-bold transition ${pestaña === 'analisis' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}>
+                    Rentabilidad
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pb-8">
+                
+                {/* --- VISTA 1: INSUMOS --- */}
+                {pestaña === 'insumos' && (
+                    <div className="space-y-4">
+                        <InfoCardCollapsible 
+                            color="indigo" 
+                            icon={Info} 
+                            title="¿Qué es la Materia Prima?" 
+                            description="Toca aquí para ver cómo registrar tus ingredientes base."
+                        >
+                            Aquí registras los ingredientes base que compras para fabricar tus productos. Define en qué unidad los mides (Kilos, Litros, Piezas) y lleva el control de tu stock.
+                            <div className="bg-white/50 p-2 rounded-lg text-xs border border-indigo-200 mt-2">
+                                <strong>💡 Ejemplo Práctico:</strong><br/>
+                                Si compras costales de harina, crea el insumo <strong>"HARINA TRIGO"</strong> con unidad <strong>KG</strong>.<br/>
+                                Si compras cajas de leche, crea <strong>"LECHE ENTERA"</strong> con unidad <strong>LT</strong>.<br/>
+                                Cuando registres una compra con el botón <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-1 rounded font-bold"><Wallet size={10}/></span>, el sistema promediará automáticamente el costo nuevo con el viejo.
+                            </div>
+                        </InfoCardCollapsible>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {insumos.map(insumo => (
+                                <div key={insumo.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition group relative overflow-hidden">
+                                    <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl opacity-10 rounded-bl-full transition-colors ${insumo.stock <= insumo.minimo ? 'from-red-500' : 'from-indigo-500'}`}></div>
+                                    
+                                    <div className="flex justify-between items-start mb-2 relative z-10">
+                                        <h3 className="font-bold text-gray-800 text-lg">{insumo.nombre}</h3>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => { setInsumoEdit(insumo); setModalCompra(true); }} className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100" title="Registrar Compra"><Wallet size={16}/></button>
+                                            <button onClick={() => { setInsumoEdit(insumo); setModalInsumo(true); }} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="Editar"><Edit size={16}/></button>
+                                            <button onClick={() => setInsumoAEliminar(insumo)} className="p-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100" title="Eliminar"><Trash2 size={16}/></button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-end gap-1 mb-4">
+                                        <span className={`text-3xl font-bold ${insumo.stock <= insumo.minimo ? 'text-red-500' : 'text-gray-700'}`}>{insumo.stock}</span>
+                                        <span className="text-xs font-bold text-gray-400 uppercase mb-1.5">{insumo.unidad}</span>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-sm border border-gray-100">
+                                        <span className="text-gray-500">Costo Promedio:</span>
+                                        <span className="font-bold text-indigo-600">${insumo.costoPromedio?.toFixed(2) || '0.00'} / {insumo.unidad}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {insumos.length === 0 && <div className="col-span-full text-center py-10 text-gray-400 italic">No hay materia prima registrada.</div>}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- VISTA 2: RECETARIO --- */}
+                {pestaña === 'recetas' && (
+                    <div className="space-y-4">
+                        <InfoCardCollapsible 
+                            color="pink" 
+                            icon={Info} 
+                            title="¿Cómo funcionan las Recetas (Escandallo)?" 
+                            description="Toca aquí para ver cómo calcular tus costos de producción."
+                        >
+                            El "Escandallo" es el desglose exacto de qué ingredientes lleva cada producto. Esto permite calcular <strong>cuánto te cuesta realmente</strong> producir una unidad basándose en el precio actual de tus insumos.
+                            <div className="bg-white/50 p-2 rounded-lg text-xs border border-pink-200 mt-2">
+                                <strong>💡 Ejemplo Práctico:</strong><br/>
+                                Para un <strong>"PASTEL DE CHOCOLATE"</strong>, podrías agregar:<br/>
+                                - 0.5 KG de Harina<br/>
+                                - 0.2 KG de Cocoa<br/>
+                                - 4 PZA de Huevos<br/>
+                                El sistema sumará el costo de cada pequeña porción para darte el <strong>Costo Total de Producción</strong>.
+                            </div>
+                        </InfoCardCollapsible>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {productos.map(prod => (
+                                <div 
+                                    key={prod.id} 
+                                    onClick={() => setProductoReceta(prod)}
+                                    className={`bg-white p-4 rounded-xl border cursor-pointer hover:shadow-lg transition group ${prod.tieneReceta ? 'border-green-200 shadow-sm' : 'border-gray-200 border-dashed opacity-80 hover:opacity-100'}`}
+                                >
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="font-bold text-gray-800">{prod.nombre}</h3>
+                                        {prod.tieneReceta ? 
+                                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold flex items-center gap-1"><Check size={10}/> ESCANDALLO OK</span> :
+                                            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-full font-bold">SIN RECETA</span>
+                                        }
+                                    </div>
+                                    
+                                    {prod.tieneReceta ? (
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between text-xs text-gray-500"><span>Costo:</span> <span className="font-bold text-gray-800">${prod.costoProduccion?.toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-xs text-gray-500"><span>Venta:</span> <span className="font-bold text-blue-600">${parseFloat(prod.precio).toFixed(2)}</span></div>
+                                            <div className="mt-2 pt-2 border-t border-gray-100 flex justify-between items-center">
+                                                <span className="text-xs font-bold text-gray-400">MARGEN</span>
+                                                <span className={`text-sm font-bold ${((prod.precio - prod.costoProduccion)/prod.precio) < 0.3 ? 'text-red-500' : 'text-green-600'}`}>
+                                                    {(((prod.precio - prod.costoProduccion)/prod.precio)*100).toFixed(0)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-20 text-gray-300 gap-2">
+                                            <Edit size={20}/> <span className="text-sm font-bold">Crear Receta</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* --- VISTA 3: RENTABILIDAD --- */}
+                {pestaña === 'analisis' && (
+                    <div className="space-y-4">
+                        <InfoCardCollapsible 
+                            color="green" 
+                            icon={Info} 
+                            title="Análisis de Rentabilidad" 
+                            description="Toca aquí para aprender a interpretar tu margen de ganancia."
+                        >
+                            Esta tabla cruza el <strong>Precio de Venta</strong> (lo que paga el cliente) contra el <strong>Costo de Producción</strong> (lo que te cuesta a ti en materia prima). El objetivo es detectar productos que te dejan poca ganancia.
+                            <div className="bg-white/50 p-2 rounded-lg text-xs border border-green-200 mt-2">
+                                <strong>💡 ¿Cómo leer esto?</strong><br/>
+                                - <span className="text-red-600 font-bold">CRÍTICO:</span> Ganas menos del 20%. Estás "cambiando dinero" o perdiendo si consideras luz/gas.<br/>
+                                - <span className="text-yellow-600 font-bold">REGULAR:</span> Ganas entre 20% y 40%. Es aceptable, pero podría mejorar.<br/>
+                                - <span className="text-green-600 font-bold">EXCELENTE:</span> Ganas más del 40%. Estos son tus productos estrella.
+                            </div>
+                        </InfoCardCollapsible>
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                                        <tr>
+                                            <th className="p-4">Producto</th>
+                                            <th className="p-4 text-right">Precio Venta</th>
+                                            <th className="p-4 text-right">Costo Insumos</th>
+                                            <th className="p-4 text-right">Ganancia Neta</th>
+                                            <th className="p-4 text-center">Margen %</th>
+                                            <th className="p-4 text-center">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {productos.filter(p => p.tieneReceta).map(prod => {
+                                            const margen = prod.precio - prod.costoProduccion;
+                                            const porcentaje = (margen / prod.precio) * 100;
+                                            let color = 'bg-green-100 text-green-700';
+                                            let texto = 'EXCELENTE';
+
+                                            if (porcentaje < 20) { color = 'bg-red-100 text-red-700'; texto = 'CRÍTICO'; }
+                                            else if (porcentaje < 40) { color = 'bg-yellow-100 text-yellow-800'; texto = 'REGULAR'; }
+
+                                            return (
+                                                <tr key={prod.id} className="hover:bg-gray-50">
+                                                    <td className="p-4 font-bold text-gray-800">{prod.nombre}</td>
+                                                    <td className="p-4 text-right text-gray-600">${parseFloat(prod.precio).toFixed(2)}</td>
+                                                    <td className="p-4 text-right text-gray-600">${prod.costoProduccion.toFixed(2)}</td>
+                                                    <td className="p-4 text-right font-bold text-gray-800">${margen.toFixed(2)}</td>
+                                                    <td className="p-4 text-center font-mono text-gray-600">{porcentaje.toFixed(1)}%</td>
+                                                    <td className="p-4 text-center"><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${color}`}>{texto}</span></td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                                {productos.filter(p => p.tieneReceta).length === 0 && <div className="p-8 text-center text-gray-400">Aún no has configurado recetas para ver el análisis.</div>}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* MODAL CREAR/EDITAR INSUMO */}
+            {modalInsumo && (
+                <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <form onSubmit={handleGuardarInsumo} className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-fade-in-up border-t-8 border-indigo-600">
+                        <h3 className="font-bold text-xl mb-4 text-gray-800">{insumoEdit ? 'Editar Insumo' : 'Nueva Materia Prima'}</h3>
+                        <div className="space-y-3">
+                            <div><label className="text-xs font-bold text-gray-400">NOMBRE</label><input name="nombre" defaultValue={insumoEdit?.nombre} required className="w-full border rounded-lg p-2 uppercase" placeholder="EJ. HARINA BLANCA"/></div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-xs font-bold text-gray-400">UNIDAD</label>
+                                    <select name="unidad" defaultValue={insumoEdit?.unidad || 'kg'} className="w-full border rounded-lg p-2 bg-white">
+                                        <option value="kg">KILOGRAMOS</option>
+                                        <option value="lt">LITROS</option>
+                                        <option value="pza">PIEZAS</option>
+                                        <option value="g">GRAMOS</option>
+                                        <option value="ml">MILILITROS</option>
+                                    </select>
+                                </div>
+                                <div><label className="text-xs font-bold text-gray-400">STOCK ACTUAL</label><input name="stock" type="number" step="0.01" defaultValue={insumoEdit?.stock} required className="w-full border rounded-lg p-2"/></div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-xs font-bold text-gray-400">COSTO UNITARIO ($)</label><input name="costo" type="number" step="0.01" defaultValue={insumoEdit?.costoPromedio} required className="w-full border rounded-lg p-2" placeholder="0.00"/></div>
+                                <div><label className="text-xs font-bold text-gray-400">ALERTA MÍNIMA</label><input name="minimo" type="number" defaultValue={insumoEdit?.minimo || 5} className="w-full border rounded-lg p-2"/></div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-6">
+                            <button type="button" onClick={() => setModalInsumo(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                            <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* MODAL REGISTRAR COMPRA */}
+            {modalCompra && insumoEdit && (
+                <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <form onSubmit={handleRegistrarCompra} className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm animate-fade-in-up border-t-8 border-green-500">
+                        <h3 className="font-bold text-xl mb-1 text-gray-800">Registrar Compra</h3>
+                        <p className="text-sm text-gray-500 mb-4">Ingresando stock para: <strong className="text-green-600">{insumoEdit.nombre}</strong></p>
+                        
+                        <div className="space-y-4 bg-gray-50 p-4 rounded-xl mb-4">
+                            <div>
+                                <label className="text-xs font-bold text-gray-400">CANTIDAD COMPRADA ({insumoEdit.unidad})</label>
+                                <input name="cantidad" type="number" step="0.01" required className="w-full border rounded-lg p-2 text-lg font-bold text-gray-700" placeholder="0.00"/>
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-gray-400">TOTAL PAGADO ($)</label>
+                                <input name="total" type="number" step="0.01" required className="w-full border rounded-lg p-2 text-lg font-bold text-gray-700" placeholder="$0.00"/>
+                                <p className="text-[10px] text-gray-400 mt-1">* Esto actualizará el Costo Promedio automáticamente.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button type="button" onClick={() => setModalCompra(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-xl">Cancelar</button>
+                            <button type="submit" className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg">Registrar</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* MODAL EDITOR RECETA */}
+            {productoReceta && (
+                <EditorReceta producto={productoReceta} onClose={() => setProductoReceta(null)} />
+            )}
+
+            {/* MODAL CONFIRMACIÓN BORRADO */}
+            <ModalConfirmacion 
+                isOpen={!!insumoAEliminar} 
+                onClose={() => setInsumoAEliminar(null)} 
+                onConfirm={handleEliminarInsumo} 
+                titulo="¿Eliminar Materia Prima?" 
+                mensaje={`Estás a punto de borrar "${insumoAEliminar?.nombre}". Esto podría afectar los costos de las recetas donde se utilice.`}
                 tipo="eliminar" 
             />
         </div>

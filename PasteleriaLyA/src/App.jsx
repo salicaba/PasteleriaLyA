@@ -13,7 +13,7 @@ import { VistaInicioPasteleria, VistaNuevoPedido, VistaCalendarioPasteleria } fr
 import { VistaInicioCafeteria, VistaMenuCafeteria, VistaGestionMesas, VistaDetalleCuenta, VistaHubMesa, VistaCocina } from './features/Cafeteria';
 
 // --- 1. IMPORTAMOS VistaBaseDatos AQUÍ ---
-import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios, VistaBaseDatos } from './features/Admin';
+import { VistaInicioAdmin, VistaReporteUniversal, VistaGestionUsuarios, VistaBaseDatos, VistaAlmacen } from './features/Admin';
 
 import { VistaCliente } from './features/Cliente';
 import { VistaLogin } from './components/Login';
@@ -706,9 +706,11 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
             {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} onVerDetalles={(item) => setPedidoVerDetalles(item)} />} 
             {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
             {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
-            
-            {/* 2. AGREGAMOS EL RENDERIZADO DE LA NUEVA VISTA */}
             {vistaActual === 'basedatos' && <VistaBaseDatos />}
+
+            {/* --- AQUÍ AGREGAMOS LA NUEVA VISTA --- */}
+            {vistaActual === 'almacen' && (
+    <VistaAlmacen mostrarNotificacion={mostrarNotificacion} />)}
         </> 
       )}
       
