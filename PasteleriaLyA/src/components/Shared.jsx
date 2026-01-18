@@ -223,10 +223,10 @@ export const Sidebar = ({ modo, vistaActual, setVistaActual, setModo, isOpen, to
                 {modo === 'admin' && ( 
                     <> 
                         <BotonNav icon={<LayoutDashboard size={18}/>} label="Inicio Admin" active={vistaActual === 'inicio'} onClick={() => handleNavClick(() => setVistaActual('inicio'))} colorTheme={themeBtn}/> 
-                        <BotonNav icon={<BarChart3 size={18}/>} label="Reporte de Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/> 
+                        <BotonNav icon={<BarChart3 size={18}/>} label="Reporte de Ventas" active={vistaActual === 'ventas'} onClick={() => handleNavClick(() => setVistaActual('ventas'))} colorTheme={themeBtn}/>
+                        <BotonNav icon={<Box size={18}/>} label="Almacén y Costos" active={vistaActual === 'almacen'} onClick={() => handleNavClick(() => setVistaActual('almacen'))} colorTheme={themeBtn}/>
                         <BotonNav icon={<Users size={18}/>} label="Gestión Usuarios" active={vistaActual === 'usuarios'} onClick={() => handleNavClick(() => setVistaActual('usuarios'))} colorTheme={themeBtn}/> 
                         <BotonNav icon={<Database size={18}/>} label="Base de Datos" active={vistaActual === 'basedatos'} onClick={() => handleNavClick(() => setVistaActual('basedatos'))} colorTheme={themeBtn}/>
-                        <BotonNav icon={<Box size={18}/>} label="Almacén y Costos" active={vistaActual === 'almacen'} onClick={() => handleNavClick(() => setVistaActual('almacen'))} colorTheme={themeBtn}/> 
                     </> 
                 )} 
 

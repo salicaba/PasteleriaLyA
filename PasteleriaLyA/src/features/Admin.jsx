@@ -1375,7 +1375,11 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
 
                                     <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-sm border border-gray-100">
                                         <span className="text-gray-500">Costo Promedio:</span>
-                                        <span className="font-bold text-indigo-600">${insumo.costoPromedio?.toFixed(2) || '0.00'} / {insumo.unidad}</span>
+                                        <span className="font-bold text-indigo-600">${(insumo.costoPromedio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-sm border border-gray-100">
+                                        <span className="text-gray-500">Valor Total:</span>
+                                        <span className="font-bold text-indigo-600">${((insumo.stock || 0) * (insumo.costoPromedio || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                     </div>
                                 </div>
                             ))}
