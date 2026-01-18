@@ -240,7 +240,23 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 export default function PasteleriaApp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('lya_session_active') === 'true');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+      const sesionActiva = localStorage.getItem('lya_session_active') === 'true';
+      const fechaGuardada = localStorage.getItem('lya_session_date'); // Leemos la fecha guardada
+      const fechaHoy = getFechaHoy(); // Obtenemos la fecha actual del sistema
+
+      // Solo si está activa Y la fecha coincide con hoy, permitimos el acceso
+      if (sesionActiva && fechaGuardada === fechaHoy) {
+          return true;
+      } else {
+          // Si no hay fecha o es de un día anterior, limpiamos todo para obligar a loguear
+          localStorage.removeItem('lya_session_active');
+          localStorage.removeItem('lya_session_date');
+          localStorage.removeItem('lya_user_role');
+          return false;
+      }
+  });  
+  
   const [userRole, setUserRole] = useState(() => localStorage.getItem('lya_user_role') || 'admin');
   const [vistaActual, setVistaActual] = useState('inicio');
 
@@ -396,6 +412,10 @@ export default function PasteleriaApp() {
   // --- FUNCIÓN LOGIN ---
   const handleLogin = (usuario) => {
       localStorage.setItem('lya_session_active', 'true'); 
+      
+      // ¡NUEVO! Guardamos la fecha de hoy al iniciar sesión
+      localStorage.setItem('lya_session_date', getFechaHoy());
+
       setIsAuthenticated(true);
       
       const rol = usuario.rol ? usuario.rol.toLowerCase() : 'admin';
@@ -413,12 +433,33 @@ export default function PasteleriaApp() {
   const handleLogout = () => {
       localStorage.removeItem('lya_session_active'); 
       localStorage.removeItem('lya_user_role'); 
+      localStorage.removeItem('lya_session_date'); // <--- Recuerda agregar esto si no lo has hecho
       
       setIsAuthenticated(false);
       setUserRole('admin'); 
       navigate('/login');
       mostrarNotificacion("Sesión cerrada", "info");
   };
+
+  // --- PEGA AQUÍ EL BLOQUE NUEVO ---
+  useEffect(() => {
+    const verificarCambioDia = () => {
+        if (isAuthenticated) {
+            const fechaGuardada = localStorage.getItem('lya_session_date');
+            const fechaHoy = getFechaHoy();
+            
+            if (fechaGuardada && fechaGuardada !== fechaHoy) {
+                // Si la fecha cambió mientras la app estaba abierta, cerramos sesión
+                handleLogout();
+                mostrarNotificacion("Tu sesión expiró por cambio de día", "info");
+            }
+        }
+    };
+
+    // Verifica cuando la ventana vuelve a tener foco (el usuario regresa a la pestaña)
+    window.addEventListener('focus', verificarCambioDia);
+    return () => window.removeEventListener('focus', verificarCambioDia);
+  }, [isAuthenticated]);
 
   const cambiarModoDesdeSidebar = (nuevoModo) => { navigate(`/${nuevoModo}`); setVistaActual('inicio'); };
 

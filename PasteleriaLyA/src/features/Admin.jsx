@@ -1347,7 +1347,7 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                         >
                             Aquí registras los ingredientes base que compras para fabricar tus productos. Define en qué unidad los mides (Kilos, Litros, Piezas) y lleva el control de tu stock.
                             <div className="bg-white/50 p-2 rounded-lg text-xs border border-indigo-200 mt-2">
-                                <strong>💡 Ejemplo Práctico:</strong><br/>
+                                <strong>💡 Ejemplo:</strong><br/>
                                 Si compras costales de harina, crea el insumo <strong>"HARINA TRIGO"</strong> con unidad <strong>KG</strong>.<br/>
                                 Si compras cajas de leche, crea <strong>"LECHE ENTERA"</strong> con unidad <strong>LT</strong>.<br/>
                                 Cuando registres una compra con el botón <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-1 rounded font-bold"><Wallet size={10}/></span>, el sistema promediará automáticamente el costo nuevo con el viejo.
@@ -1395,7 +1395,7 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                         >
                             El "Escandallo" es el desglose exacto de qué ingredientes lleva cada producto. Esto permite calcular <strong>cuánto te cuesta realmente</strong> producir una unidad basándose en el precio actual de tus insumos.
                             <div className="bg-white/50 p-2 rounded-lg text-xs border border-pink-200 mt-2">
-                                <strong>💡 Ejemplo Práctico:</strong><br/>
+                                <strong>💡 Ejemplo:</strong><br/>
                                 Para un <strong>"PASTEL DE CHOCOLATE"</strong>, podrías agregar:<br/>
                                 - 0.5 KG de Harina<br/>
                                 - 0.2 KG de Cocoa<br/>
