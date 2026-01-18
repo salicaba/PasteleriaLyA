@@ -2,6 +2,13 @@ import { jsPDF } from "jspdf";
 
 const URL_PRODUCCION = 'https://pastelerialya-cd733.web.app'; 
 
+export const formatoMoneda = (cantidad) => {
+    return (cantidad || 0).toLocaleString('es-MX', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+};
+
 export const OBTENER_URL_BASE = () => {
     // Si estamos probando en tu compu, usa localhost.
     // Si ya está subido, usa la dirección de internet.
@@ -73,7 +80,7 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
                     <span>${item.cantidad || 1}x ${item.nombre}</span>
                     <span class="item-calc">$${item.precio} x ${item.cantidad || 1}</span>
                 </div>
-                <span>$${(item.precio * (item.cantidad || 1)).toFixed(2)}</span>
+                <span>$${formatoMoneda(item.precio * (item.cantidad || 1))}</span>
             </div>
         `).join('');
 
@@ -83,19 +90,16 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
                 <span class="subtitle">Ticket de Venta</span>
             </div>
             <div class="info-row"><span class="bold">Folio:</span> <span>${datos.folio || datos.id}</span></div>
-            <div class="info-row"><span class="bold">Fecha:</span> <span>${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</span></div>
-            <div class="info-row"><span class="bold">Cliente:</span> <span>${datos.cliente || datos.nombreCliente}</span></div>
-            <div class="divider"></div>
             ${itemsHtml.length > 0 ? itemsHtml : `<div class="item-row"><span>${datos.tipoProducto || 'Consumo General'}</span><span>$${datos.total}</span></div>`}
             <div class="divider"></div>
-            <div class="total-row"><span>TOTAL</span><span>$${parseFloat(datos.total).toFixed(2)}</span></div>
+            <div class="total-row"><span>TOTAL</span><span>$${formatoMoneda(datos.total)}</span></div>
             
             ${datos.recibido ? `
-                <div class="info-row" style="margin-top: 5px;"><span>Efectivo recibido:</span> <span>$${parseFloat(datos.recibido).toFixed(2)}</span></div>
-                <div class="info-row"><span>Cambio:</span> <span>$${parseFloat(datos.cambio).toFixed(2)}</span></div>
+                <div class="info-row" style="margin-top: 5px;"><span>Efectivo recibido:</span> <span>$${formatoMoneda(datos.recibido)}</span></div>
+                <div class="info-row"><span>Cambio:</span> <span>$${formatoMoneda(datos.cambio)}</span></div>
             ` : ''}
 
-            ${datos.saldoPendiente ? `<div class="info-row" style="margin-top:5px"><span>Restante:</span> <span>$${datos.saldoPendiente.toFixed(2)}</span></div>` : ''}
+            ${datos.saldoPendiente ? `<div class="info-row" style="margin-top:5px"><span>Restante:</span> <span>$${formatoMoneda(datos.saldoPendiente)}</span></div>` : ''}
             <div class="footer">¡Gracias por su compra!<br/>Vuelva pronto</div>
         `;
     } else if (tipo === 'comanda') {
@@ -193,7 +197,7 @@ export const generarTicketPDF = (datos) => {
     const items = datos.items || datos.cuenta || [];
     items.forEach(item => {
         const cantidad = item.cantidad || 1;
-        const totalItem = (item.precio * cantidad).toFixed(2);
+        const totalItem = formatoMoneda(item.precio * cantidad);    
         
         // Cortar nombre si es muy largo para que no se salga del ticket
         let nombre = item.nombre;
@@ -228,7 +232,7 @@ export const generarTicketPDF = (datos) => {
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("TOTAL", 5, y);
-    doc.text(`$${parseFloat(datos.total).toFixed(2)}`, 75, y, { align: "right" });
+    doc.text(`$${formatoMoneda(datos.total)}`, 75, y, { align: "right" });
     y += 10;
 
     // --- PIE DE PÁGINA ---

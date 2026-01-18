@@ -4,7 +4,7 @@ Wallet, Coffee, Receipt, Eye, Calendar, Clock, Cake, Database, ServerCrash, Aler
 Filter, PackagePlus, Plus, Info, ChevronDown, ChevronUp } from 'lucide-react';
 
 import { CardStat, ModalConfirmacion } from '../components/Shared';
-import { formatearFechaLocal, getFechaHoy } from '../utils/config';
+import { formatearFechaLocal, formatoMoneda, getFechaHoy } from '../utils/config';
 
 // --- IMPORTACIÓN: RECHARTS ---
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -75,7 +75,7 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                                     )}
                                 </div>
                                 <div className="text-right">
-                                    <p className={`font-bold text-lg ${theme.iconColor}`}>+${item.monto.toFixed(2)}</p>
+                                    <p className={`font-bold text-lg ${theme.iconColor}`}>+${formatoMoneda(item.monto)}</p>
                                     <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1"><Eye size={10}/> Ver</span>
                                 </div>
                             </div>
@@ -84,7 +84,7 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                 </div>
                 <div className={`${theme.footerBg} p-5 text-white flex justify-between items-center`}>
                     <span className="font-bold text-white/80 text-sm uppercase tracking-wider">Total Recaudado</span>
-                    <span className="font-bold text-2xl text-white">${total.toFixed(2)}</span>
+                    <span className="font-bold text-2xl text-white">${formatoMoneda(total)}</span>
                 </div>
             </div>
         </div>
@@ -195,14 +195,14 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
                 {/* TARJETA PASTELERÍA (Sin etiqueta 'VER DETALLES') */}
                 <div onClick={() => setModalAbierto('pasteleria')} className="bg-gradient-to-br from-pink-50 to-white p-6 rounded-2xl border border-pink-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
                     <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-pink-800 flex items-center gap-2">Área Pastelería</h3><p className="text-pink-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1"><Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}</p></div><div className="bg-pink-100 p-2 rounded-lg text-pink-600 group-hover:scale-110 transition-transform"><Wallet size={24} /></div></div>
-                    <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-pink-700">${datosPasteleria.total.toFixed(2)}</span><span className="text-sm text-pink-400 font-medium">recaudado</span></div>
+                    <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-pink-700">${formatoMoneda(datosPasteleria.total)}</span><span className="text-sm text-pink-400 font-medium">recaudado</span></div>
                     <div className="border-t border-pink-100 pt-3 mt-2 flex justify-between items-center text-sm"><span className="text-gray-500">Movimientos / Pagos:</span><span className="font-bold text-gray-700 bg-pink-50 px-2 py-0.5 rounded">{datosPasteleria.items.length}</span></div>
                 </div>
                 
                 {/* TARJETA CAFETERÍA (Sin etiqueta 'VER DETALLES') */}
                 <div onClick={() => setModalAbierto('cafeteria')} className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-1">
                     <div className="flex justify-between items-start mb-4"><div><h3 className="text-xl font-bold text-orange-800 flex items-center gap-2">Área Cafetería</h3><p className="text-orange-400 text-xs font-bold uppercase tracking-wider mt-1 flex items-center gap-1"><Eye size={12}/> Ver Corte {esHoy ? 'de Hoy' : `del ${formatearFechaLocal(fechaCorte)}`}</p></div><div className="bg-orange-100 p-2 rounded-lg text-orange-600 group-hover:scale-110 transition-transform"><Coffee size={24} /></div></div>
-                    <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-orange-700">${datosCafeteria.total.toFixed(2)}</span><span className="text-sm text-orange-400 font-medium">recaudado</span></div>
+                    <div className="flex items-baseline gap-2 mb-2"><span className="text-4xl font-bold text-orange-700">${formatoMoneda(datosCafeteria.total)}</span><span className="text-sm text-orange-400 font-medium">recaudado</span></div>
                     <div className="border-t border-orange-100 pt-3 mt-2 flex justify-between items-center text-sm"><span className="text-gray-500">Tickets cobrados:</span><span className="font-bold text-gray-700 bg-orange-50 px-2 py-0.5 rounded">{datosCafeteria.items.length}</span></div>
                 </div>
             </div>
@@ -358,11 +358,11 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                     <p className="font-bold text-gray-700 mb-1">Día {label}</p>
                     {payload.map((entry, index) => (
                         <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
-                            {entry.name}: ${entry.value.toFixed(2)}
+                            {entry.name}: ${formatoMoneda(entry.value)}
                         </p>
                     ))}
                     <div className="border-t pt-1 mt-1">
-                        <p className="font-bold text-gray-800 text-sm">Total: ${(payload.reduce((acc, curr) => acc + curr.value, 0)).toFixed(2)}</p>
+                        <p className="font-bold text-gray-800 text-sm">Total: ${formatoMoneda(payload.reduce((acc, curr) => acc + curr.value, 0))}</p>
                     </div>
                 </div>
             );
@@ -459,13 +459,13 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 animate-fade-in">
                 {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
-                    <CardStat titulo="Total Pastelería" valor={`$${datosReporte.totalPasteleria.toFixed(2)}`} color="bg-pink-100 text-pink-800" />
+                    <CardStat titulo="Total Pastelería" valor={`$${formatoMoneda(datosReporte.totalPasteleria)}`} color="bg-pink-100 text-pink-800" />
                 )}
                 {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (
-                    <CardStat titulo="Total Cafetería" valor={`$${datosReporte.totalCafeteria.toFixed(2)}`} color="bg-orange-100 text-orange-800" />
+                    <CardStat titulo="Total Cafetería" valor={`$${formatoMoneda(datosReporte.totalCafeteria)}`} color="bg-orange-100 text-orange-800" />
                 )}
                 {vistaActiva === 'todos' && (
-                    <CardStat titulo="Gran Total" valor={`$${datosReporte.totalGlobal.toFixed(2)}`} color="bg-green-100 text-green-800" />
+                    <CardStat titulo="Gran Total" valor={`$${formatoMoneda(datosReporte.totalGlobal)}`} color="bg-green-100 text-green-800" />
                 )}
             </div>
 
@@ -1241,7 +1241,7 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                                 >
                                     <option value="">-- Seleccionar Materia Prima --</option>
                                     {insumos.map(i => (
-                                        <option key={i.id} value={i.id}>{i.nombre} ({i.unidad}) - ${i.costoPromedio.toFixed(2)}</option>
+                                        <option key={i.id} value={i.id}>{i.nombre} ({i.unidad}) - ${formatoMoneda(i.costoPromedio)}</option>
                                     ))}
                                 </select>
                                 <input 
@@ -1266,10 +1266,10 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                                     <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-lg border border-gray-100">
                                         <div>
                                             <p className="font-bold text-gray-700 text-sm">{ing.nombre}</p>
-                                            <p className="text-xs text-gray-400">{ing.cantidad} {ing.unidad} x ${costoU.toFixed(2)}</p>
+                                            <p className="text-xs text-gray-400">{ing.cantidad} {ing.unidad} x ${formatoMoneda(costoU)}</p>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <span className="font-mono font-bold text-gray-600">${subtotal.toFixed(2)}</span>
+                                            <span className="font-mono font-bold text-gray-600">${formatoMoneda(subtotal)}</span>
                                             <button onClick={() => removerIngrediente(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={14}/></button>
                                         </div>
                                     </div>
@@ -1283,15 +1283,15 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                         <div className="grid grid-cols-3 gap-4 mb-4 text-center">
                             <div className="bg-gray-50 p-2 rounded-lg">
                                 <p className="text-[10px] uppercase text-gray-400 font-bold">Costo Producción</p>
-                                <p className="text-xl font-bold text-gray-800">${costoTotal.toFixed(2)}</p>
+                                <p className="text-xl font-bold text-gray-800">${formatoMoneda(costoTotal)}</p>
                             </div>
                             <div className="bg-gray-50 p-2 rounded-lg">
                                 <p className="text-[10px] uppercase text-gray-400 font-bold">Precio Venta</p>
-                                <p className="text-xl font-bold text-blue-600">${precioVenta.toFixed(2)}</p>
+                                <p className="text-xl font-bold text-blue-600">${formatoMoneda(precioVenta)}</p>
                             </div>
                             <div className={`p-2 rounded-lg ${margenPorcentaje < 30 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
                                 <p className="text-[10px] uppercase opacity-70 font-bold">Margen / Ganancia</p>
-                                <p className="text-xl font-bold">{margenPorcentaje.toFixed(0)}% <span className="text-sm">(${margen.toFixed(2)})</span></p>
+                                <p className="text-xl font-bold">{margenPorcentaje.toFixed(0)}% <span className="text-sm">(${formatoMoneda(margen)})</span></p>
                             </div>
                         </div>
                         <button 
@@ -1375,7 +1375,7 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
 
                                     <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-sm border border-gray-100">
                                         <span className="text-gray-500">Costo Promedio:</span>
-                                        <span className="font-bold text-indigo-600">${(insumo.costoPromedio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        <span className="font-bold text-indigo-600">${(insumo.costoPromedio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/{insumo.unidad}</span>
                                     </div>
                                     <div className="bg-gray-50 rounded-xl p-3 flex justify-between items-center text-sm border border-gray-100">
                                         <span className="text-gray-500">Valor Total:</span>
