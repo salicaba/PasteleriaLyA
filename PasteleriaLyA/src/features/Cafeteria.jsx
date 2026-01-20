@@ -13,7 +13,7 @@ import QRCode from "react-qr-code";
 
 import { Notificacion, CardStat, CardProducto, ModalConfirmacion, ModalInfoProducto } from '../components/Shared';
 // --- CAMBIO 1: IMPORTAMOS OBTENER_URL_BASE ---
-import { ORDEN_CATEGORIAS, imprimirTicket, OBTENER_URL_BASE } from '../utils/config';
+import { ORDEN_CATEGORIAS, imprimirTicket, OBTENER_URL_BASE, formatoMoneda } from '../utils/config';
 import { cambiarEstadoServicio } from '../services/config.service';
 import Cropper from 'react-easy-crop';
 
@@ -52,12 +52,12 @@ const ModalCorteCaja = ({ isOpen, onClose, ventas }) => {
                                         {venta.hora && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {venta.hora}</span>}
                                     </div>
                                 </div>
-                                <div className="text-right"><p className="font-bold text-lg text-orange-700">+${venta.total.toFixed(2)}</p></div>
+                                <div className="text-right"><p className="font-bold text-lg text-orange-700">+${formatoMoneda(venta.total)}</p></div>
                             </div>
                         ))
                     )}
                 </div>
-                <div className="bg-orange-900 p-5 text-white flex justify-between items-center"><span className="font-bold text-orange-100 text-sm uppercase tracking-wider">Total Recaudado</span><span className="font-bold text-2xl text-white">${total.toFixed(2)}</span></div>
+                <div className="bg-orange-900 p-5 text-white flex justify-between items-center"><span className="font-bold text-orange-100 text-sm uppercase tracking-wider">Total Recaudado</span><span className="font-bold text-2xl text-white">${formatoMoneda(total)}</span></div>
             </div>
         </div>
     );
@@ -308,7 +308,7 @@ const ModalDividirItems = ({ isOpen, onClose, cuenta, onConfirm }) => {
                         {items.length === 0 ? (<p className="p-4 text-center text-gray-400 text-sm">No hay productos.</p>) : (
                             items.map((item, index) => (
                                 <div key={index} onClick={() => toggleItem(index)} className={`p-3 flex justify-between items-center border-b border-gray-50 last:border-0 cursor-pointer transition-colors ${itemsSeleccionados.includes(index) ? 'bg-purple-50' : 'hover:bg-gray-50'}`}>
-                                    <div><span className="font-bold text-gray-700 text-sm">{item.cantidad || 1}x {item.nombre}</span><p className="text-xs text-gray-400">${(item.precio * (item.cantidad || 1)).toFixed(2)}</p></div>
+                                    <div><span className="font-bold text-gray-700 text-sm">{item.cantidad || 1}x {item.nombre}</span><p className="text-xs text-gray-400">${formatoMoneda(item.precio * (item.cantidad || 1))}</p></div>
                                     {itemsSeleccionados.includes(index) ? <div className="bg-purple-500 text-white rounded-full p-1"><CheckCheck size={14}/></div> : <div className="w-5 h-5 rounded-full border-2 border-gray-200"></div>}
                                 </div>
                             ))
@@ -777,7 +777,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     
                     <div className="flex flex-col items-end gap-1">
                         <span className={`text-[10px] font-medium ${esPersonal ? 'text-blue-400' : 'text-gray-400'}`}>${item.precio} x {cantidad}</span>
-                        <span className={`font-bold text-lg ${esPersonal ? 'text-blue-900' : 'text-gray-900'}`}>${subtotalItem.toFixed(2)}</span>
+                        <span className={`font-bold text-lg ${esPersonal ? 'text-blue-900' : 'text-gray-900'}`}>${formatoMoneda(subtotalItem)}</span>
                         
                         <div className={`flex items-center gap-1 p-1 rounded-lg z-10 relative ${esPersonal ? 'bg-white border border-blue-100' : 'bg-gray-50 border border-gray-100'}`}>
                             <button type="button" onClick={(e) => {
@@ -835,7 +835,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     })}
                 </div>
                 {/* ... Botón flotante móvil (igual) ... */}
-                 {!comandaVisible && (<div className="absolute bottom-6 right-6 z-50 animate-bounce-in"><button onClick={() => setComandaVisible(true)} className="bg-gray-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg hover:bg-gray-800 transition transform hover:scale-105 border-2 border-orange-500"><Receipt size={24} className="text-orange-400"/> <span>Ver Cuenta</span><span className="bg-white text-gray-900 px-2 py-0.5 rounded text-sm">${total.toFixed(2)}</span></button></div>)}
+                 {!comandaVisible && (<div className="absolute bottom-6 right-6 z-50 animate-bounce-in"><button onClick={() => setComandaVisible(true)} className="bg-gray-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg hover:bg-gray-800 transition transform hover:scale-105 border-2 border-orange-500"><Receipt size={24} className="text-orange-400"/> <span>Ver Cuenta</span><span className="bg-white text-gray-900 px-2 py-0.5 rounded text-sm">${formatoMoneda(total)}</span></button></div>)}
             </div>
 
             {/* DERECHA: TICKET / CUENTA */}
@@ -899,7 +899,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                                 )}
 
                                 {/* Resto de botones (Cerrar cuenta, etc.) */}
-                                <div className="bg-white p-3 rounded-xl border border-gray-200 mb-2 shadow-sm"><label className="text-xs font-bold text-gray-400 uppercase mb-2 block flex items-center gap-1"><Calculator size={12}/> Cambio</label><div className="flex gap-3 items-center"><div className="flex-1"><input type="number" placeholder="Recibido..." className="w-full p-2 border rounded-lg font-bold text-gray-700 text-sm focus:border-orange-500 focus:outline-none" value={montoRecibido} onChange={e => setMontoRecibido(e.target.value)} /></div><div className="flex-1 text-right"><p className="text-[10px] text-gray-400 uppercase font-bold">Cambio</p><p className={`text-xl font-bold ${cambio < 0 ? 'text-red-400' : 'text-green-600'}`}>{montoRecibido ? cambio.toFixed(2) : '0.00'}</p></div></div></div>
+                                <div className="bg-white p-3 rounded-xl border border-gray-200 mb-2 shadow-sm"><label className="text-xs font-bold text-gray-400 uppercase mb-2 block flex items-center gap-1"><Calculator size={12}/> Cambio</label><div className="flex gap-3 items-center"><div className="flex-1"><input type="number" placeholder="Recibido..." className="w-full p-2 border rounded-lg font-bold text-gray-700 text-sm focus:border-orange-500 focus:outline-none" value={montoRecibido} onChange={e => setMontoRecibido(e.target.value)} /></div><div className="flex-1 text-right"><p className="text-[10px] text-gray-400 uppercase font-bold">Cambio</p><p className={`text-xl font-bold ${cambio < 0 ? 'text-red-400' : 'text-green-600'}`}>{montoRecibido ? formatoMoneda(cambio) : '0.00'}</p></div></div></div>
                                 
                                 <button onClick={handleImprimir} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold flex justify-center items-center gap-2 transition"><Printer size={20} /> Imprimir Cuenta</button>
                                 <button onClick={() => setConfirmacionPagoOpen(true)} disabled={!sesion.cuenta || sesion.cuenta.length === 0 || procesandoPago || itemsPendientes > 0} className={`w-full py-4 rounded-xl font-bold shadow-lg flex justify-center items-center gap-2 transition-all ${(!sesion.cuenta || sesion.cuenta.length === 0 || procesandoPago || itemsPendientes > 0) ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white hover:scale-[1.02]'}`}>
@@ -919,7 +919,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             
             {/* Modales (se mantienen igual) */}
             <ModalInfoProducto isOpen={!!productoVerDetalles} onClose={() => setProductoVerDetalles(null)} producto={productoVerDetalles} onAgregar={(prod, cant) => onAgregarProducto(sesion.id, prod, cant)} />
-            <ModalConfirmacion isOpen={confirmacionPagoOpen} onClose={() => !procesandoPago && setConfirmacionPagoOpen(false)} onConfirm={handleConfirmarPago} titulo="¿Confirmar Cobro?" mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${total.toFixed(2)}.`} tipo="pago" />
+            <ModalConfirmacion isOpen={confirmacionPagoOpen} onClose={() => !procesandoPago && setConfirmacionPagoOpen(false)} onConfirm={handleConfirmarPago} titulo="¿Confirmar Cobro?" mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${formatoMoneda(total)}.`} tipo="pago" />
             <ModalConfirmacion isOpen={confirmacionCancelarOpen} onClose={() => setConfirmacionCancelarOpen(false)} onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }} titulo="¿Cancelar Cuenta?" mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo." />
             <ModalDividirItems isOpen={modalDividirManualOpen} onClose={() => setModalDividirManualOpen(false)} cuenta={sesion} onConfirm={(nombre, items) => { onDividirCuentaManual(sesion.id, nombre, items); }} />
             <ModalDesunirCuentas isOpen={modalDesunirOpen} onClose={() => setModalDesunirOpen(false)} cuenta={sesion} onConfirm={(ids) => { onDesunirCuentas(sesion.idMesa, sesion.id, ids); }} />

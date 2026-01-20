@@ -130,7 +130,7 @@ export const imprimirTicket = (datos, tipo = 'ticket') => {
                 <div class="divider"></div>
                 
                 <span class="comanda-label">Costo Total del Pedido</span>
-                <span class="comanda-value" style="font-size: 18px">$${parseFloat(datos.total).toFixed(2)}</span>
+                <span class="comanda-value" style="font-size: 18px">$${formatoMoneda(parseFloat(datos.total))}</span>
             </div>
             <div class="footer">Impreso: ${new Date().toLocaleDateString()}</div>
         `;

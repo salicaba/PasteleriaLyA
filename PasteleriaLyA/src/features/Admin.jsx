@@ -1425,8 +1425,8 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                                     
                                     {prod.tieneReceta ? (
                                         <div className="space-y-1">
-                                            <div className="flex justify-between text-xs text-gray-500"><span>Costo:</span> <span className="font-bold text-gray-800">${prod.costoProduccion?.toFixed(2)}</span></div>
-                                            <div className="flex justify-between text-xs text-gray-500"><span>Venta:</span> <span className="font-bold text-blue-600">${parseFloat(prod.precio).toFixed(2)}</span></div>
+                                            <div className="flex justify-between text-xs text-gray-500"><span>Costo:</span> <span className="font-bold text-gray-800">${formatoMoneda(prod.costoProduccion)}</span></div>
+                                            <div className="flex justify-between text-xs text-gray-500"><span>Venta:</span> <span className="font-bold text-blue-600">${formatoMoneda(parseFloat(prod.precio))}</span></div>
                                             <div className="mt-2 pt-2 border-t border-gray-100 flex justify-between items-center">
                                                 <span className="text-xs font-bold text-gray-400">MARGEN</span>
                                                 <span className={`text-sm font-bold ${((prod.precio - prod.costoProduccion)/prod.precio) < 0.3 ? 'text-red-500' : 'text-green-600'}`}>
@@ -1489,9 +1489,9 @@ export const VistaAlmacen = ({ mostrarNotificacion }) => {
                                             return (
                                                 <tr key={prod.id} className="hover:bg-gray-50">
                                                     <td className="p-4 font-bold text-gray-800">{prod.nombre}</td>
-                                                    <td className="p-4 text-right text-gray-600">${parseFloat(prod.precio).toFixed(2)}</td>
-                                                    <td className="p-4 text-right text-gray-600">${prod.costoProduccion.toFixed(2)}</td>
-                                                    <td className="p-4 text-right font-bold text-gray-800">${margen.toFixed(2)}</td>
+                                                    <td className="p-4 text-right text-gray-600">${formatoMoneda(parseFloat(prod.precio))}</td>
+                                                    <td className="p-4 text-right text-gray-600">${formatoMoneda(prod.costoProduccion)}</td>
+                                                    <td className="p-4 text-right font-bold text-gray-800">${formatoMoneda(margen)}</td>
                                                     <td className="p-4 text-center font-mono text-gray-600">{porcentaje.toFixed(1)}%</td>
                                                     <td className="p-4 text-center"><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${color}`}>{texto}</span></td>
                                                 </tr>

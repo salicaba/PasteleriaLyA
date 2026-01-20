@@ -6,7 +6,7 @@ import {
     Minus, Plus, Info, ChevronUp, ChevronDown, Loader, Database,
     Maximize2, Minimize2, ChefHat 
 } from 'lucide-react';
-import { imprimirTicket, formatearFechaLocal } from '../utils/config';
+import { imprimirTicket, formatearFechaLocal, formatoMoneda } from '../utils/config';
 
 // --- IMPORTAMOS LA UTILIDAD DE ROLES ---
 import { tienePermiso } from '../utils/roles';
@@ -112,7 +112,7 @@ export const CardProducto = ({ producto, onClick, onAdd }) => {
                 </div>
                 
                 <div className="flex justify-between items-center border-t border-gray-50 pt-2 mt-1">
-                    <span className={`text-lg font-bold ${estaPausado ? 'text-gray-400 line-through' : 'text-orange-600'}`}>${parseFloat(producto.precio).toFixed(2)}</span>
+                    <span className={`text-lg font-bold ${estaPausado ? 'text-gray-400 line-through' : 'text-orange-600'}`}>${formatoMoneda(parseFloat(producto.precio))}</span>
                     {!estaPausado && onAdd && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onAdd(producto); }}
@@ -151,7 +151,7 @@ export const ModalInfoProducto = ({ isOpen, onClose, producto, onAgregar }) => {
                 <div className="p-5 flex-1 overflow-y-auto">
                     <div className="flex justify-between items-start gap-3 mb-2">
                         <h3 className="text-xl font-bold text-gray-800 leading-tight">{producto.nombre}</h3>
-                        <span className="text-xl font-bold text-orange-600 shrink-0">${parseFloat(producto.precio).toFixed(2)}</span>
+                        <span className="text-xl font-bold text-orange-600 shrink-0">${formatoMoneda(parseFloat(producto.precio))}</span>
                     </div>
                     <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full uppercase tracking-wider mb-4 inline-block">{producto.categoria}</span>
                     <div className="relative"><p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{producto.descripcion || "Sin descripción detallada."}</p></div>
@@ -175,7 +175,7 @@ export const ModalInfoProducto = ({ isOpen, onClose, producto, onAgregar }) => {
                                         <button onClick={() => setCantidad(cantidad + 1)} className="p-3 hover:bg-white rounded-lg text-orange-600 transition shadow-sm"><Plus size={18}/></button>
                                     </div>
                                 </div>
-                                <button onClick={() => { onAgregar(producto, cantidad); onClose(); }} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base"><ShoppingBag size={18}/> Agregar - ${(producto.precio * cantidad).toFixed(2)}</button>
+                                <button onClick={() => { onAgregar(producto, cantidad); onClose(); }} className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-gray-800 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm md:text-base"><ShoppingBag size={18}/> Agregar - ${formatoMoneda(producto.precio * cantidad)}</button>
                             </div>
                         )}
                     </div>
@@ -397,7 +397,7 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">{pedido.telefono && <div><p className="text-xs text-gray-400">Teléfono</p><p className="font-medium text-gray-700">{pedido.telefono}</p></div>}{pedido.fechaEntrega && <div><p className="text-xs text-gray-400">Entrega Programada</p><p className="font-medium text-pink-700 flex items-center gap-1"><CalendarDays size={14} />{formatearFechaLocal(pedido.fechaEntrega)}</p></div>}<div><p className="text-xs text-gray-400">Fecha Registro</p><p className="font-medium text-gray-700 flex items-center gap-1"><CalendarDays size={14} />{formatearFechaLocal(pedido.fecha)}</p></div></div>
                     {!esCafeteria && (<div className="flex flex-col sm:flex-row gap-2"><button onClick={() => imprimirTicket(pedido, 'comanda')} className="flex-1 py-2 bg-pink-50 hover:bg-pink-100 rounded-lg text-xs font-bold flex items-center justify-center gap-2 text-pink-700"><FileText size={16}/> Comanda Cocina</button></div>)}
                     <hr className="border-gray-100" />
-                    {pedido.estado === 'Cancelado' ? (<div className="w-full bg-red-100 text-red-800 font-bold py-6 rounded-xl text-center flex flex-col justify-center items-center border border-red-200"><AlertCircle size={32} className="mb-2" /><span className="text-lg">Pedido cancelado</span></div>) : (<div><div className="flex justify-between items-end mb-2"><span className="text-3xl font-bold text-gray-800">${montoTotal.toFixed(2)}</span><span className="text-sm text-gray-500 mb-1">Total</span></div><div className="w-full bg-gray-200 rounded-full h-4 mb-4 overflow-hidden"><div className="bg-green-500 h-4 rounded-full transition-all duration-500" style={{ width: `${porcentajePagado}%` }}></div></div>{!esCafeteria && <div className="flex justify-between text-sm text-gray-600 mb-6"><span>Pagado: {pagosRealizados} de {numPagos}</span><span>Resta: ${saldoPendiente.toFixed(2)}</span></div>}
+                    {pedido.estado === 'Cancelado' ? (<div className="w-full bg-red-100 text-red-800 font-bold py-6 rounded-xl text-center flex flex-col justify-center items-center border border-red-200"><AlertCircle size={32} className="mb-2" /><span className="text-lg">Pedido cancelado</span></div>) : (<div><div className="flex justify-between items-end mb-2"><span className="text-3xl font-bold text-gray-800">${formatoMoneda(montoTotal)}</span><span className="text-sm text-gray-500 mb-1">Total</span></div><div className="w-full bg-gray-200 rounded-full h-4 mb-4 overflow-hidden"><div className="bg-green-500 h-4 rounded-full transition-all duration-500" style={{ width: `${porcentajePagado}%` }}></div></div>{!esCafeteria && <div className="flex justify-between text-sm text-gray-600 mb-6"><span>Pagado: {pagosRealizados} de {numPagos}</span><span>Resta: ${formatoMoneda(saldoPendiente)}</span></div>}
                     
                     {pagosRestantes > 0 ? (
                         <div className="bg-pink-50 rounded-xl p-4 md:p-5 border border-pink-100">
@@ -406,18 +406,18 @@ export const ModalDetalles = ({ pedido, cerrar, onRegistrarPago }) => {
                             {/* --- CAMBIO: Solo mostramos botones si hay más de 1 pago pendiente --- */}
                             {!esPagoUnico && pagosRestantes > 1 ? (
                                 <div className="flex space-x-2 mb-4">
-                                    <button onClick={() => { setEsLiquidacion(false); setMontoRecibido(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${!esLiquidacion ? 'bg-pink-600 text-white' : 'bg-white border'}`}>Abono (${montoPorPago.toFixed(2)})</button>
-                                    <button onClick={() => { setEsLiquidacion(true); setMontoRecibido(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${esLiquidacion ? 'bg-pink-600 text-white' : 'bg-white border'}`}>Liquidar (${saldoPendiente.toFixed(2)})</button>
+                                    <button onClick={() => { setEsLiquidacion(false); setMontoRecibido(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${!esLiquidacion ? 'bg-pink-600 text-white' : 'bg-white border'}`}>Abono (${formatoMoneda(montoPorPago)})</button>
+                                    <button onClick={() => { setEsLiquidacion(true); setMontoRecibido(''); }} className={`flex-1 py-2 rounded-lg text-sm font-bold transition ${esLiquidacion ? 'bg-pink-600 text-white' : 'bg-white border'}`}>Liquidar (${formatoMoneda(saldoPendiente)})</button>
                                 </div>
                             ) : (
                                 <div className="mb-4 p-2 bg-pink-100 text-pink-800 text-center rounded-lg text-sm font-bold border border-pink-200">
-                                    {esPagoUnico ? "Pago de Contado" : "Último Pago"} (Total: ${saldoPendiente.toFixed(2)})
+                                    {esPagoUnico ? "Pago de Contado" : "Último Pago"} (Total: ${formatoMoneda(saldoPendiente)})
                                 </div>
                             )}
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                                 <div><label className="text-xs font-bold text-gray-500">Recibido</label><input type="number" min="0" className="w-full p-2 rounded border font-bold" value={montoRecibido} onChange={e => setMontoRecibido(e.target.value)} /></div>
-                                <div><label className="text-xs font-bold text-gray-500">Cambio</label><div className="w-full p-2 rounded border font-bold bg-white text-green-600">${cambio >= 0 ? cambio.toFixed(2) : '0.00'}</div></div>
+                                <div><label className="text-xs font-bold text-gray-500">Cambio</label><div className="w-full p-2 rounded border font-bold bg-white text-green-600">${cambio >= 0 ? formatoMoneda(cambio) : '0.00'}</div></div>
                             </div>
                     
                             <button 

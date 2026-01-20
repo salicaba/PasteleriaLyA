@@ -6,7 +6,7 @@ import {
     ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen, Lock,
     Maximize2, Minimize2 // <--- IMPORTAMOS AMBOS ICONOS
 } from 'lucide-react';
-import { ORDEN_CATEGORIAS, generarTicketPDF } from '../utils/config'; 
+import { ORDEN_CATEGORIAS, formatoMoneda, generarTicketPDF } from '../utils/config'; 
 // IMPORTAMOS EL HOOK DESDE SHARED
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto, usePantallaCompleta } from '../components/Shared';
 
@@ -161,12 +161,12 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                         {cuenta.map((item, i) => (
                             <div key={i} className="flex justify-between text-sm mb-2 border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                                 <span className="text-gray-700"><span className="font-bold">{item.cantidad}x</span> {item.nombre}</span>
-                                <span className="font-bold text-gray-900">${(Number(item.precio) * Number(item.cantidad)).toFixed(2)}</span>
+                                <span className="font-bold text-gray-900">${formatoMoneda(Number(item.precio) * Number(item.cantidad))}</span>
                             </div>
                         ))}
                         <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-gray-300">
                             <span>Total</span>
-                            <span className="text-orange-600">${total.toFixed(2)}</span>
+                            <span className="text-orange-600">${formatoMoneda(total)}</span>
                         </div>
                     </div>
                     <div className="flex gap-3">
@@ -214,7 +214,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                             {!expandido && <span className="text-[10px] text-gray-400 font-medium">Tocá para desplegar</span>}
                         </div>
                     </div>
-                    <span className="text-xl font-bold text-orange-600">${total.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-orange-600">${formatoMoneda(total)}</span>
                 </div>
                 
                 {expandido && (
@@ -225,7 +225,7 @@ const CarritoFlotante = ({ cuenta, onUpdateCantidad, onEliminar, onConfirmar, en
                                     <div className="flex-1 pr-2">
                                         <p className="font-bold text-sm text-gray-800 line-clamp-1">{item.nombre}</p>
                                         <p className="text-xs text-orange-600 font-bold">
-                                            ${(Number(item.precio) * Number(item.cantidad)).toFixed(2)}
+                                            ${formatoMoneda(Number(item.precio) * Number(item.cantidad))}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-sm border border-gray-200">
@@ -319,7 +319,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
                                                         ${item.precio} x {item.cantidad || 1}
                                                     </p>
                                                     <span className="font-bold text-gray-900">
-                                                        ${(item.precio * (item.cantidad || 1)).toFixed(2)}
+                                                        ${formatoMoneda(item.precio * (item.cantidad || 1))}
                                                     </span>
                                                 </div>
                                             </div>
@@ -347,7 +347,7 @@ const VistaMiCuentaTotal = ({ cuentaAcumulada, onVolver, onSolicitarSalida, onVe
                                                         ${item.precio} x {item.cantidad || 1}
                                                     </p>
                                                     <span className="font-bold text-gray-900">
-                                                        ${(item.precio * (item.cantidad || 1)).toFixed(2)}
+                                                        ${formatoMoneda(item.precio * (item.cantidad || 1))}
                                                     </span>
                                                 </div>
                                             </div>

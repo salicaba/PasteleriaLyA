@@ -6,7 +6,7 @@ import {
     MessageCircle, ArrowDown 
 } from 'lucide-react';
 import { CardStat, ModalConfirmacion } from '../components/Shared';
-import { formatearFechaLocal, getFechaHoy } from '../utils/config';
+import { formatearFechaLocal, formatoMoneda, getFechaHoy } from '../utils/config';
 
 // --- HELPER PARA FORMATEAR HORA ---
 const formatearHora = (isoString) => {
@@ -213,14 +213,14 @@ const ModalCorteCaja = ({ pedidosDelDia, totalCaja, onClose }) => {
                                                 {p.horaPago && <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {p.horaPago}</span>}
                                             </div>
                                         </div>
-                                        <div className="text-right"><span className="block font-bold text-pink-600 text-lg">+${montoIngresado.toFixed(2)}</span></div>
+                                        <div className="text-right"><span className="block font-bold text-pink-600 text-lg">+${formatoMoneda(montoIngresado)}</span></div>
                                     </div>
                                 );
                             })}
                         </div>
                     )}
                 </div>
-                <div className="bg-pink-900 p-4 text-white flex justify-between items-center shrink-0"><span className="font-bold text-pink-200 uppercase tracking-wider text-sm">Total Recaudado</span><span className="font-bold text-3xl">${totalCaja.toFixed(2)}</span></div>
+                <div className="bg-pink-900 p-4 text-white flex justify-between items-center shrink-0"><span className="font-bold text-pink-200 uppercase tracking-wider text-sm">Total Recaudado</span><span className="font-bold text-3xl">${formatoMoneda(totalCaja)}</span></div>
             </div>
         </div>
     );
@@ -364,13 +364,13 @@ export const VistaInicioPasteleria = ({ pedidos, onEditar, onIniciarEntrega, onV
         // 2. FINANZAS
         txt += `${e.bolsa} *ESTADO DE CUENTA* ${e.bolsa}\n`;
         txt += `--------------------------------\n`;
-        txt += `${e.billete} *TOTAL A PAGAR:* $${total.toFixed(2)}\n`;
+        txt += `${e.billete} *TOTAL A PAGAR:* $${formatoMoneda(total)}\n`;
 
         if (numPagos > 1) { 
-            txt += `${e.tarjeta} *ABONADO:* $${abonado.toFixed(2)} (${pagosHechos}/${numPagos} pagos)\n`; 
+            txt += `${e.tarjeta} *ABONADO:* $${formatoMoneda(abonado)} (${pagosHechos}/${numPagos} pagos)\n`; 
             
             if (resta > 0.5) {
-                txt += `${e.alerta} *RESTA:* $${resta.toFixed(2)}\n`;
+                txt += `${e.alerta} *RESTA:* $${formatoMoneda(resta)}\n`;
             } else {
                 txt += `${e.check} *LIQUIDADO* (Pagado al 100%)\n`;
             }
@@ -660,7 +660,7 @@ const manejarSubmit = (e) => {
     }
 };
 
-    const montoPorPago = formulario.total && formulario.numPagos > 0 ? (parseFloat(formulario.total) / parseInt(formulario.numPagos)).toFixed(2) : '0.00';
+    const montoPorPago = formulario.total && formulario.numPagos > 0 ? formatoMoneda(parseFloat(formulario.total) / parseInt(formulario.numPagos)) : '0.00';
 
     return (
         <div className="p-4 md:p-8 max-w-4xl mx-auto">
