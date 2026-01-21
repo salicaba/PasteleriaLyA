@@ -745,13 +745,19 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
       {modo === 'admin' && ( 
         <> 
             {vistaActual === 'inicio' && <VistaInicioAdmin pedidos={pedidosPasteleria} ventasCafeteria={ventasCafeteria} onVerDetalles={(item) => setPedidoVerDetalles(item)} />} 
-            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={ventasCafeteria} modo="admin" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+            
+            {/* CORRECCIÓN AQUÍ: Agregamos onVerDetalles */}
+            {vistaActual === 'ventas' && (
+                <VistaReporteUniversal 
+                    pedidosPasteleria={pedidosPasteleria} 
+                    ventasCafeteria={ventasCafeteria} 
+                    onVerDetalles={(item) => setPedidoVerDetalles(item)} 
+                />
+            )} 
+            
             {vistaActual === 'usuarios' && <VistaGestionUsuarios usuarios={usuariosSistema} onGuardar={guardarUsuario} onEliminar={eliminarUsuario} />}
             {vistaActual === 'basedatos' && <VistaBaseDatos />}
-
-            {/* --- AQUÍ AGREGAMOS LA NUEVA VISTA --- */}
-            {vistaActual === 'almacen' && (
-    <VistaAlmacen mostrarNotificacion={mostrarNotificacion} />)}
+            {vistaActual === 'almacen' && <VistaAlmacen mostrarNotificacion={mostrarNotificacion} />}
         </> 
       )}
       
@@ -779,7 +785,15 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
                 />
             )} 
             {vistaActual === 'agenda' && <VistaCalendarioPasteleria pedidos={pedidosPasteleria} onSeleccionarDia={(f) => setFechaAgendaSeleccionada(f)} />} 
-            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={pedidosPasteleria} ventasCafeteria={[]} modo="pasteleria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+            
+            {/* CORRECCIÓN AQUÍ: Agregamos onVerDetalles */}
+            {vistaActual === 'ventas' && (
+                <VistaReporteUniversal 
+                    pedidosPasteleria={pedidosPasteleria} 
+                    ventasCafeteria={[]} 
+                    onVerDetalles={(item) => setPedidoVerDetalles(item)} 
+                />
+            )} 
         </> 
       )}
       
@@ -802,12 +816,8 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
             )} 
 
             {vistaActual === 'cocina' && (
-          <VistaCocina 
-              mesas={mesas} 
-              pedidosLlevar={sesionesLlevar} 
-              mostrarNotificacion={mostrarNotificacion} // <--- ¡IMPORTANTE! Agrega esta línea
-          />
-          )}
+                <VistaCocina mesas={mesas} pedidosLlevar={sesionesLlevar} mostrarNotificacion={mostrarNotificacion} />
+            )}
 
             {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
             
@@ -820,7 +830,14 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
                 />
             )} 
 
-            {vistaActual === 'ventas' && <VistaReporteUniversal pedidosPasteleria={[]} ventasCafeteria={ventasCafeteria} modo="cafeteria" onAbrirModalDia={(d, m, a, v) => setDatosModalDia({ dia: d, mes: m, anio: a, ventas: v })} />} 
+            {/* CORRECCIÓN AQUÍ: Agregamos onVerDetalles */}
+            {vistaActual === 'ventas' && (
+                <VistaReporteUniversal 
+                    pedidosPasteleria={[]} 
+                    ventasCafeteria={ventasCafeteria} 
+                    onVerDetalles={(item) => setPedidoVerDetalles(item)} 
+                />
+            )} 
         </> 
       )}
       
@@ -836,10 +853,12 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
           onCancelarCuenta={cancelarCuentaSinPagar}
           onDividirCuentaManual={dividirCuentaManual} 
           onDesunirCuentas={desunirCuentas} 
-          onConfirmarOrden={confirmarOrdenCocina} // <--- AGREGAR ESTA LÍNEA
+          onConfirmarOrden={confirmarOrdenCocina}
       />}
       
+      {/* Este es el modal que se abrirá cuando hagas clic en la tarjetita */}
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
+      
       {datosModalDia && <ModalVentasDia dia={datosModalDia.dia} mes={datosModalDia.mes} anio={datosModalDia.anio} ventas={datosModalDia.ventas} cerrar={() => setDatosModalDia(null)} onVerDetalle={(item) => setPedidoVerDetalles(item)} />}
       
       {fechaAgendaSeleccionada && (
