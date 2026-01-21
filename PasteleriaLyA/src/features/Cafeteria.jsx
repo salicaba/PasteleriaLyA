@@ -607,74 +607,94 @@ export const ModalProducto = ({ isOpen, producto, onClose, onGuardar, onEliminar
 
 // Busca este componente en src/features/Cafeteria.jsx y reemplázalo completo
 
+// --- VISTA HUB MESA (CON TÍTULO CENTRADO EN MÓVIL) ---
 export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onUnirCuentas }) => { 
     const [modalUnirOpen, setModalUnirOpen] = useState(false); 
     const [modalCrearOpen, setModalCrearOpen] = useState(false); 
     
-    // --- LÓGICA AGREGADA: DETECCIÓN DE NUEVA CUENTA ---
+    // --- LÓGICA DE DETECCIÓN DE NUEVA CUENTA ---
     const [esperandoNuevaCuenta, setEsperandoNuevaCuenta] = useState(false);
     const cuentasRef = useRef(mesa?.cuentas?.length || 0);
 
     useEffect(() => {
         const cantidadActual = mesa?.cuentas?.length || 0;
-        
-        // Si hay más cuentas que antes Y estábamos esperando una nueva (porque el usuario la creó)
         if (cantidadActual > cuentasRef.current && esperandoNuevaCuenta) {
-            
-            // 1. Buscamos la cuenta más reciente (la que tenga el timestamp más alto)
             const cuentaNueva = [...mesa.cuentas].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
-            
-            // 2. Si la encontramos, la abrimos automáticamente
             if (cuentaNueva) {
                 onAbrirCuenta(mesa.id, cuentaNueva.id);
             }
-            
-            // 3. Reseteamos la bandera
             setEsperandoNuevaCuenta(false);
         }
-        
-        // Actualizamos la referencia para la próxima comparación
         cuentasRef.current = cantidadActual;
     }, [mesa.cuentas, esperandoNuevaCuenta, mesa.id, onAbrirCuenta]);
-    // ----------------------------------------------------
 
     const cuentasOrdenadas = useMemo(() => {
         if (!mesa || !mesa.cuentas) return [];
         return [...mesa.cuentas].sort((a, b) => {
             const timeA = a.timestamp || 0;
             const timeB = b.timestamp || 0;
-            return timeA - timeB; // Mantenemos el orden visual (más viejo primero)
+            return timeA - timeB; 
         });
     }, [mesa.cuentas]);
 
     return ( 
         <div className="h-full w-full bg-gray-50 flex flex-col animate-fade-in-up"> 
-            <div className="bg-white p-4 shadow-md flex justify-between items-center"> 
-                <div className="flex items-center gap-4">
-                    <button onClick={onVolver} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft /></button>
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-800">{mesa.nombre}</h2>
-                        <div className="flex items-center gap-2 text-sm text-gray-500"><Users size={16} /> <span>{mesa.cuentas.length} cuentas activas</span></div>
+            
+            {/* --- HEADER RESPONSIVO MEJORADO --- */}
+            <div className="bg-white p-4 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 z-10 relative"> 
+                
+                {/* Parte Superior: Volver y Título */}
+                <div className="flex items-center gap-4 w-full md:w-auto border-b md:border-b-0 pb-3 md:pb-0 border-gray-100">
+                    <button onClick={onVolver} className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors active:scale-95">
+                        <ArrowLeft size={20} />
+                    </button>
+                    
+                    {/* AQUÍ ESTÁ EL CAMBIO: Centrado en móvil, izquierda en PC */}
+                    <div className="flex-1 text-center md:text-left">
+                        <h2 className="text-2xl font-bold text-gray-800 leading-none">{mesa.nombre}</h2>
+                        <div className="flex items-center justify-center md:justify-start gap-2 text-sm text-gray-500 mt-1">
+                            <Users size={14} /> 
+                            <span>{mesa.cuentas.length} {mesa.cuentas.length === 1 ? 'cuenta activa' : 'cuentas activas'}</span>
+                        </div>
                     </div>
                 </div> 
-                <div className="flex items-center gap-3">
-                    {mesa.cuentas.length > 1 && (<button onClick={() => setModalUnirOpen(true)} className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 flex items-center gap-2"><Merge size={18}/> Unir Cuentas</button>)}
-                    <div className="bg-orange-100 text-orange-800 px-4 py-2 rounded-lg font-bold">Total Mesa: ${mesa.cuentas.reduce((acc, c) => acc + c.total, 0)}</div>
+
+                {/* Parte Inferior (Móvil) / Derecha (PC): Acciones y Total */}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {mesa.cuentas.length > 1 && (
+                        <button 
+                            onClick={() => setModalUnirOpen(true)} 
+                            className="flex-1 md:flex-none px-4 py-3 md:py-2 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl font-bold hover:bg-blue-100 flex items-center justify-center gap-2 transition active:scale-95 text-sm md:text-base"
+                        >
+                            <Merge size={18}/> 
+                            <span>Unir Cuentas</span>
+                        </button>
+                    )}
+                    <div className="flex-1 md:flex-none bg-orange-600 text-white px-4 py-3 md:py-2 rounded-xl font-bold shadow-md text-center flex flex-col md:block justify-center items-center">
+                        <span className="text-[10px] uppercase opacity-80 md:hidden block leading-none mb-1">Total Mesa</span>
+                        <span className="text-lg md:text-base">${mesa.cuentas.reduce((acc, c) => acc + c.total, 0)}</span>
+                    </div>
                 </div> 
             </div> 
-            <div className="flex-1 p-8 overflow-y-auto"> 
+            {/* ------------------------- */}
+
+            <div className="flex-1 p-4 md:p-8 overflow-y-auto"> 
                 {cuentasOrdenadas.length === 0 ? ( 
-                    <div className="text-center py-20 opacity-50"><Users size={64} className="mx-auto mb-4 text-gray-400" /><h3 className="text-xl font-bold text-gray-600">Mesa Disponible</h3><p>No hay cuentas abiertas. Esperando clientes...</p></div> 
+                    <div className="text-center py-20 opacity-50">
+                        <Users size={64} className="mx-auto mb-4 text-gray-400" />
+                        <h3 className="text-xl font-bold text-gray-600">Mesa Disponible</h3>
+                        <p>No hay cuentas abiertas. Esperando clientes...</p>
+                    </div> 
                 ) : ( 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 pb-20">
                         {cuentasOrdenadas.map(cuenta => (
-                            <div key={cuenta.id} onClick={() => onAbrirCuenta(mesa.id, cuenta.id)} className="bg-white border-l-8 border-orange-500 rounded-xl shadow-sm hover:shadow-md cursor-pointer p-6 transition-all transform hover:-translate-y-1 relative group">
+                            <div key={cuenta.id} onClick={() => onAbrirCuenta(mesa.id, cuenta.id)} className="bg-white border-l-8 border-orange-500 rounded-xl shadow-sm hover:shadow-md cursor-pointer p-5 transition-all transform hover:-translate-y-1 relative group active:bg-gray-50">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h4 className="font-bold text-lg text-gray-800 uppercase">{cuenta.cliente}</h4>
+                                    <div className="overflow-hidden mr-2">
+                                        <h4 className="font-bold text-lg text-gray-800 uppercase truncate">{cuenta.cliente}</h4>
                                         <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded font-mono">{cuenta.id}</span>
                                     </div>
-                                    <div className="bg-orange-50 p-2 rounded-full text-orange-600"><Edit size={20} /></div>
+                                    <div className="bg-orange-50 p-2 rounded-full text-orange-600 flex-shrink-0"><Edit size={20} /></div>
                                 </div>
                                 <div className="mb-4 text-sm text-gray-500 max-h-24 overflow-hidden relative">
                                     {cuenta.cuenta.length === 0 ? <span className="italic opacity-50">Sin pedidos aún</span> : (
@@ -693,17 +713,21 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
                     </div> 
                 )} 
             </div> 
-            <div className="p-4 bg-white border-t border-gray-200">
-                <button onClick={() => setModalCrearOpen(true)} className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-lg shadow-lg flex justify-center items-center gap-2"><PlusCircle /> Agregar Cuenta Manualmente</button>
+            
+            {/* Botón flotante inferior o fijo en la parte baja */}
+            <div className="p-4 bg-white border-t border-gray-200 md:relative fixed bottom-0 left-0 right-0 z-20 md:z-0 pb-safe">
+                <button onClick={() => setModalCrearOpen(true)} className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold text-lg shadow-lg flex justify-center items-center gap-2 active:scale-95 transition-transform">
+                    <PlusCircle /> Agregar Cuenta Manualmente
+                </button>
             </div> 
+            
             <ModalFusionCuentas isOpen={modalUnirOpen} onClose={() => setModalUnirOpen(false)} cuentas={mesa.cuentas} onConfirmarFusion={(destino, origenes) => { onUnirCuentas(mesa.id, destino, origenes); setModalUnirOpen(false); }} /> 
             
-            {/* AQUÍ ESTÁ EL CAMBIO EN EL MODAL: Activamos la bandera 'esperandoNuevaCuenta' */}
             <ModalNuevaCuentaMesa 
                 isOpen={modalCrearOpen} 
                 onClose={() => setModalCrearOpen(false)} 
                 onConfirm={(nombre) => { 
-                    setEsperandoNuevaCuenta(true); // <--- Marcamos que esperamos una cuenta nueva
+                    setEsperandoNuevaCuenta(true); 
                     onCrearCuenta(mesa.id, nombre); 
                     setModalCrearOpen(false); 
                 }} 
@@ -712,21 +736,23 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
     ); 
 };
 
-// COMPONENTE PARA TOMAR LA ORDEN (COMANDA)
-// En src/features/Cafeteria.jsx
 
-export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProducto, onPagarCuenta, onActualizarProducto, onCancelarCuenta, onDividirCuentaManual, onDesunirCuentas, onConfirmarOrden }) => { // <--- Recibimos onConfirmarOrden
+// --- VISTA DETALLE CUENTA (COMANDA) ---
+export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProducto, onPagarCuenta, onActualizarProducto, onCancelarCuenta, onDividirCuentaManual, onDesunirCuentas, onConfirmarOrden }) => { 
     if (!sesion) return null;
     const nombreCliente = sesion.tipo === 'llevar' ? sesion.nombreCliente : sesion.cliente;
     const identificador = sesion.tipo === 'llevar' ? 'Para Llevar' : sesion.nombreMesa;
     
-    // ... (Estados existentes: montoRecibido, confirmacionPagoOpen, etc. se mantienen igual) ...
+    // Estados
     const [montoRecibido, setMontoRecibido] = useState('');
     const [confirmacionPagoOpen, setConfirmacionPagoOpen] = useState(false);
     const [confirmacionCancelarOpen, setConfirmacionCancelarOpen] = useState(false);
     const [procesandoPago, setProcesandoPago] = useState(false); 
-    const [modalDividirManualOpen, setModalDividirManualOpen] = useState(false); 
+    
+    // --- CAMBIO: Quitamos el estado de 'Dividir Manual' y dejamos solo el de 'Desunir' ---
     const [modalDesunirOpen, setModalDesunirOpen] = useState(false); 
+    // ---------------------------------------------------------------------------------
+
     const [mostrarControles, setMostrarControles] = useState(true);
     const [comandaVisible, setComandaVisible] = useState(window.innerWidth >= 768);
     const [busqueda, setBusqueda] = useState('');
@@ -739,20 +765,34 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
         return sesion.cuenta ? sesion.cuenta.filter(i => i.confirmado === false).length : 0;
     }, [sesion.cuenta]);
 
-    // ... (Funciones handleUpdate, handleImprimir, etc. se mantienen igual) ...
+    // Detectar si la cuenta es una fusión (tiene historial)
+    const esCuentaFusionada = sesion.historicoFusion && sesion.historicoFusion.length > 0;
+
     const handleUpdate = (e, idItem, cantidad, origenItem, confirmado) => {
         if (e && e.stopPropagation) e.stopPropagation();
         onActualizarProducto(sesion.id, idItem, cantidad, origenItem, confirmado);
     };
     
-    const handleImprimir = () => { /* ... lógica existente ... */ };
-    const handleConfirmarPago = () => { /* ... lógica existente ... */ };
+    const handleImprimir = () => { /* Lógica de impresión */ };
+    const handleConfirmarPago = () => { 
+        setProcesandoPago(true);
+        onPagarCuenta(sesion, montoRecibido);
+        // El cierre del modal y reset se manejan por el efecto de desmontaje o el padre
+    };
 
     const total = sesion.total || 0;
     const cambio = montoRecibido ? parseFloat(montoRecibido) - total : 0;
 
-    // ... (productosFiltrados se mantiene igual) ...
-    const productosFiltrados = useMemo(() => { /* ... */ return productos; }, [productos, busqueda, categoriaFiltro]); // (Simplificado para el ejemplo, usa tu lógica actual)
+    const productosFiltrados = useMemo(() => {
+        let filtrados = productos;
+        if (busqueda) {
+            filtrados = filtrados.filter(p => p.nombre.toLowerCase().includes(busqueda.toLowerCase()));
+        }
+        if (categoriaFiltro !== 'Todas') {
+            filtrados = filtrados.filter(p => p.categoria === categoriaFiltro);
+        }
+        return filtrados;
+    }, [productos, busqueda, categoriaFiltro]);
 
     const renderListaItems = (itemsOrigen, esPersonal) => {
         return itemsOrigen.map((item, idx) => {
@@ -761,14 +801,13 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
             const productoReal = productos.find(p => p.id === item.id); 
             const estaPausado = productoReal?.pausado;
             const origenItem = item.origen || (esPersonal ? 'personal' : 'cliente');
-            const esPendiente = item.confirmado === false; // <--- DETECTAR SI ES PENDIENTE
+            const esPendiente = item.confirmado === false;
 
             return (
                 <div key={`${esPersonal ? 'personal' : 'cliente'}-${idx}-${item.id}`} className={`flex justify-between items-start border-b ${esPendiente ? 'bg-orange-50/50 border-orange-100' : (esPersonal ? 'border-blue-100' : 'border-gray-100')} py-3 last:border-0 transition-colors`}>
                     <div className="flex flex-col pr-2 flex-1 justify-center">
                         <div className="flex items-center gap-2">
                             <p className="font-bold text-gray-800 text-sm uppercase leading-tight">{item.nombre}</p>
-                            {/* ETIQUETA DE PENDIENTE */}
                             {esPendiente && <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold animate-pulse">POR CONFIRMAR</span>}
                             {estaPausado && <span className="bg-red-100 text-red-600 text-[9px] px-1 rounded font-bold">PAUSADO</span>}
                         </div>
@@ -797,28 +836,25 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
         });
     };
 
-    // ... (El resto del renderizado del menú izquierdo se mantiene igual) ...
-
     return (
         <div className="fixed inset-0 bg-gray-100 z-[60] flex animate-fade-in-up">
-            {/* IZQUIERDA: MENÚ (Copia tu código existente de la sección izquierda aquí) */}
+            
+            {/* IZQUIERDA: MENÚ DE PRODUCTOS */}
             <div className={`${comandaVisible ? 'hidden md:flex' : 'flex'} flex-1 flex-col h-full overflow-hidden border-r border-gray-300 relative`}>
-                {/* ... Contenido del menú (igual que antes) ... */}
                  <div className="bg-white p-4 shadow-sm z-20 flex justify-between items-center border-b border-gray-100">
                     <div><h2 className="text-2xl font-bold text-gray-800">Menú Comanda</h2><p className="text-sm text-gray-500">{identificador} • <span className="font-bold text-orange-600">{nombreCliente}</span></p></div>
                     <button onClick={onCerrar} className="text-gray-500 hover:text-gray-800 flex items-center gap-1 font-bold"><ArrowLeft size={20} /> Volver</button>
                 </div>
-                {/* ... Buscador y Categorías (igual) ... */}
+                
                 <div className="bg-white/95 backdrop-blur-sm z-10 px-4 py-3 border-b border-gray-200 shadow-sm">
                     <div className="relative mb-3"><Search className="absolute left-3 top-2.5 text-gray-400" size={18} /><input type="text" placeholder="Buscar producto..." className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm text-gray-700 focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all placeholder:text-gray-400" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />{busqueda && (<button onClick={() => setBusqueda('')} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"><X size={16} /></button>)}</div>
                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1"><button onClick={() => setCategoriaFiltro('Todas')} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === 'Todas' ? 'bg-gray-800 text-white border-gray-800 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}>Todas</button>{ORDEN_CATEGORIAS.map(cat => (<button key={cat} onClick={() => setCategoriaFiltro(cat)} className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${categoriaFiltro === cat ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'}`}>{cat}</button>))}</div>
                 </div>
-                {/* ... Grid de productos (igual) ... */}
+                
                  <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                     {ORDEN_CATEGORIAS.map(cat => { 
                         if (categoriaFiltro !== 'Todas' && categoriaFiltro !== cat) return null; 
-                        // ... filtra productos ...
-                        const prods = productos.filter(p => { const matchNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase()); const matchCategoria = categoriaFiltro === 'Todas' || p.categoria === categoriaFiltro; return matchNombre && matchCategoria; }).filter(p => p.categoria === cat); // (Simplificado)
+                        const prods = productosFiltrados.filter(p => p.categoria === cat);
                         if (prods.length === 0) return null; 
                         return (
                             <div key={cat} className="mb-8 animate-fade-in-up">
@@ -834,7 +870,7 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                         );
                     })}
                 </div>
-                {/* ... Botón flotante móvil (igual) ... */}
+                
                  {!comandaVisible && (<div className="absolute bottom-6 right-6 z-50 animate-bounce-in"><button onClick={() => setComandaVisible(true)} className="bg-gray-900 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 font-bold text-lg hover:bg-gray-800 transition transform hover:scale-105 border-2 border-orange-500"><Receipt size={24} className="text-orange-400"/> <span>Ver Cuenta</span><span className="bg-white text-gray-900 px-2 py-0.5 rounded text-sm">${formatoMoneda(total)}</span></button></div>)}
             </div>
 
@@ -843,7 +879,6 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 <div className="w-full md:w-96 bg-white shadow-2xl flex flex-col h-full border-l border-gray-200 animate-fade-in">
                     {/* Header Ticket */}
                     <div className="p-6 bg-gray-900 text-white">
-                        {/* ... (igual que antes) ... */}
                         <div className="flex justify-between items-start mb-4">
                             <div><h3 className="text-xl font-bold">Comanda</h3><p className="text-gray-400 text-xs font-mono">{sesion.id}</p></div>
                             <div className="flex items-center gap-3">
@@ -856,7 +891,6 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                     
                     {/* Lista Items */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-                        {/* Renderizamos las listas igual, pero con el renderListaItems actualizado */}
                         {(!sesion.cuenta || sesion.cuenta.length === 0) ? ( <div className="text-center text-gray-400 py-10 italic">Cuenta vacía.</div> ) : ( 
                             <>
                                 {sesion.cuenta.some(i => i.origen !== 'personal') && (
@@ -883,12 +917,11 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
 
                     {/* Footer y Controles */}
                     <div className="p-6 bg-gray-50 border-t border-gray-200 transition-all duration-300">
-                        {/* ... Total ... */}
                         <div className="flex justify-between items-center mb-4"><span className="text-lg font-bold text-gray-600">Total</span><div className="flex items-center gap-3"><span className="text-3xl font-bold text-gray-900">${sesion.total || 0}</span><button onClick={() => setMostrarControles(!mostrarControles)} className="p-1 bg-gray-200 rounded-full hover:bg-gray-300 text-gray-600 transition">{mostrarControles ? <ChevronDown size={20}/> : <ChevronUp size={20}/>}</button></div></div>
 
                         {mostrarControles && (
                             <div className="animate-fade-in flex flex-col gap-2">
-                                {/* BOTÓN DE CONFIRMACIÓN (NUEVO) */}
+                                {/* BOTÓN ENVIAR A COCINA (Si hay pendientes) */}
                                 {itemsPendientes > 0 && (
                                     <button 
                                         onClick={() => onConfirmarOrden(sesion.id)} 
@@ -898,7 +931,6 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                                     </button>
                                 )}
 
-                                {/* Resto de botones (Cerrar cuenta, etc.) */}
                                 <div className="bg-white p-3 rounded-xl border border-gray-200 mb-2 shadow-sm"><label className="text-xs font-bold text-gray-400 uppercase mb-2 block flex items-center gap-1"><Calculator size={12}/> Cambio</label><div className="flex gap-3 items-center"><div className="flex-1"><input type="number" placeholder="Recibido..." className="w-full p-2 border rounded-lg font-bold text-gray-700 text-sm focus:border-orange-500 focus:outline-none" value={montoRecibido} onChange={e => setMontoRecibido(e.target.value)} /></div><div className="flex-1 text-right"><p className="text-[10px] text-gray-400 uppercase font-bold">Cambio</p><p className={`text-xl font-bold ${cambio < 0 ? 'text-red-400' : 'text-green-600'}`}>{montoRecibido ? formatoMoneda(cambio) : '0.00'}</p></div></div></div>
                                 
                                 <button onClick={handleImprimir} disabled={!sesion.cuenta || sesion.cuenta.length === 0} className="w-full py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold flex justify-center items-center gap-2 transition"><Printer size={20} /> Imprimir Cuenta</button>
@@ -908,7 +940,14 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                                 </button>
                                 
                                 <div className="flex gap-2">
-                                    {sesion.tipo === 'mesa' && (<button onClick={() => setModalDividirManualOpen(true)} className="flex-1 mt-2 py-2 rounded-lg text-xs font-bold text-purple-500 bg-purple-50 hover:bg-purple-100 hover:text-purple-700 flex justify-center items-center gap-1 transition"><Split size={14}/> Items</button>)}
+                                    {/* --- AQUÍ ESTÁ EL CAMBIO SOLICITADO --- */}
+                                    {/* 1. Quitamos botón 'Dividir Items' */}
+                                    {/* 2. Ponemos botón 'Desunir' SOLO si hay histórico */}
+                                    {esCuentaFusionada && (
+                                        <button onClick={() => setModalDesunirOpen(true)} className="flex-1 mt-2 py-2 rounded-lg text-xs font-bold text-indigo-500 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-700 flex justify-center items-center gap-1 transition">
+                                            <Undo2 size={14}/> Desunir
+                                        </button>
+                                    )}
                                     <button onClick={() => setConfirmacionCancelarOpen(true)} className="flex-1 mt-2 py-2 rounded-lg text-xs font-bold text-red-400 bg-red-50 hover:text-red-600 hover:bg-red-100 flex justify-center items-center gap-1 transition"><Trash2 size={14}/> Cancelar</button>
                                 </div>
                             </div>
@@ -917,26 +956,28 @@ export const VistaDetalleCuenta = ({ sesion, productos, onCerrar, onAgregarProdu
                 </div>
             )}
             
-            {/* Modales (se mantienen igual) */}
+            {/* Modales */}
             <ModalInfoProducto isOpen={!!productoVerDetalles} onClose={() => setProductoVerDetalles(null)} producto={productoVerDetalles} onAgregar={(prod, cant) => onAgregarProducto(sesion.id, prod, cant)} />
             <ModalConfirmacion isOpen={confirmacionPagoOpen} onClose={() => !procesandoPago && setConfirmacionPagoOpen(false)} onConfirm={handleConfirmarPago} titulo="¿Confirmar Cobro?" mensaje={`Se cerrará la cuenta de ${nombreCliente} por un total de $${formatoMoneda(total)}.`} tipo="pago" />
             <ModalConfirmacion isOpen={confirmacionCancelarOpen} onClose={() => setConfirmacionCancelarOpen(false)} onConfirm={() => { onCancelarCuenta(sesion); setConfirmacionCancelarOpen(false); }} titulo="¿Cancelar Cuenta?" mensaje="La cuenta se moverá a la 'Papelera', tendrás el resto del día por si necesitas recuperarlo." />
-            <ModalDividirItems isOpen={modalDividirManualOpen} onClose={() => setModalDividirManualOpen(false)} cuenta={sesion} onConfirm={(nombre, items) => { onDividirCuentaManual(sesion.id, nombre, items); }} />
+            
+            {/* Modal para Desunir (Reemplaza al de Dividir) */}
             <ModalDesunirCuentas isOpen={modalDesunirOpen} onClose={() => setModalDesunirOpen(false)} cuenta={sesion} onConfirm={(ids) => { onDesunirCuentas(sesion.idMesa, sesion.id, ids); }} />
-<ModalConfirmacion 
-        isOpen={!!itemParaEliminar} 
-        onClose={() => setItemParaEliminar(null)} 
-        onConfirm={() => { 
-            if (itemParaEliminar) { 
-                // AQUÍ AGREGAMOS EL ÚLTIMO PARÁMETRO: itemParaEliminar.item.confirmado
-                onActualizarProducto(sesion.id, itemParaEliminar.item.id, -itemParaEliminar.cantidad, itemParaEliminar.origen, itemParaEliminar.item.confirmado); 
-                setItemParaEliminar(null); 
-            }
-        }} 
-        titulo="¿Eliminar Producto?" 
-        mensaje={itemParaEliminar ? `¿Estás seguro de quitar "${itemParaEliminar.item.nombre}" de la cuenta?` : ''} 
-        tipo="eliminar" 
-    />        </div>
+
+            <ModalConfirmacion 
+                isOpen={!!itemParaEliminar} 
+                onClose={() => setItemParaEliminar(null)} 
+                onConfirm={() => { 
+                    if (itemParaEliminar) { 
+                        onActualizarProducto(sesion.id, itemParaEliminar.item.id, -itemParaEliminar.cantidad, itemParaEliminar.origen, itemParaEliminar.item.confirmado); 
+                        setItemParaEliminar(null); 
+                    }
+                }} 
+                titulo="¿Eliminar Producto?" 
+                mensaje={itemParaEliminar ? `¿Estás seguro de quitar "${itemParaEliminar.item.nombre}" de la cuenta?` : ''} 
+                tipo="eliminar" 
+            />        
+        </div>
     );
 };
 
