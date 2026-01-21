@@ -3,14 +3,15 @@ import {
     ShoppingBag, PlusCircle, MinusCircle, Trash2, ArrowRight, CheckCircle, 
     Coffee, AlertCircle, ArrowLeft, Receipt, DollarSign, Phone, Package, 
     LogOut, UserCheck, Info, Box, X, Search, Filter, Download, Clock, XCircle,
-    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, BookOpen, Lock,
-    Maximize2, Minimize2 // <--- IMPORTAMOS AMBOS ICONOS
+    ChevronUp, ChevronDown, WifiOff, ServerOff, HelpCircle, RefreshCw, Loader, 
+    BookOpen, Lock, Maximize2, Minimize2
 } from 'lucide-react';
 import { ORDEN_CATEGORIAS, formatoMoneda, generarTicketPDF } from '../utils/config'; 
 // IMPORTAMOS EL HOOK DESDE SHARED
 import { Notificacion, ModalConfirmacion, CardProducto, ModalInfoProducto, usePantallaCompleta } from '../components/Shared';
 
 // --- PANTALLA LOGIN ---
+// --- PANTALLA LOGIN CORREGIDA ---
 const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cuentasActivas = [] }) => {
     const [nombre, setNombre] = useState('');
     const [telefono, setTelefono] = useState('');
@@ -18,10 +19,94 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
     const [mensajeBienvenida, setMensajeBienvenida] = useState('');
     const [tieneCuentaActiva, setTieneCuentaActiva] = useState(false);
 
-    // USAMOS EL HOOK AQUÍ
+    // ============ NUEVO: VERIFICACIÓN DE INTERNET ============
+    const [online, setOnline] = useState(navigator.onLine);
+    const [reintentando, setReintentando] = useState(false);
+
+    useEffect(() => {
+        const setOnlineTrue = () => setOnline(true);
+        const setOnlineFalse = () => setOnline(false);
+
+        window.addEventListener('online', setOnlineTrue);
+        window.addEventListener('offline', setOnlineFalse);
+
+        const intervalo = setInterval(() => {
+            if (navigator.onLine !== online) {
+                setOnline(navigator.onLine);
+            }
+        }, 500);
+
+        return () => {
+            window.removeEventListener('online', setOnlineTrue);
+            window.removeEventListener('offline', setOnlineFalse);
+            clearInterval(intervalo);
+        };
+    }, [online]);
+
+    const handleReintentar = () => {
+        setReintentando(true);
+        setTimeout(() => {
+            if (navigator.onLine) {
+                setOnline(true);
+                setReintentando(false);
+            } else {
+                setReintentando(false);
+            }
+        }, 1500);
+    };
+    // ============ FIN NUEVO CÓDIGO ============
+
     const { esPantallaCompleta, togglePantalla } = usePantallaCompleta();
 
     const esParaLlevar = mesaNombre.toLowerCase().includes('llevar');
+
+    // ============ PRIMERO: VERIFICAR INTERNET ============
+    if (!online) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-orange-50 to-pink-50 flex flex-col items-center justify-center p-6 animate-fade-in-up fixed inset-0 z-50">
+                <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                    <div className="p-8 text-center">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <WifiOff size={40} className="text-red-500" />
+                        </div>
+                        
+                        <h1 className="text-2xl font-bold text-gray-800 mb-3 leading-tight">¡Ups! Sin Internet</h1>
+                        <p className="text-gray-500 text-sm leading-relaxed mb-8 px-2">
+                            Parece que perdiste la conexión. Revisa tu WiFi o datos móviles.
+                        </p>
+
+                        <button 
+                            onClick={handleReintentar} 
+                            disabled={reintentando}
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70"
+                        >
+                            <RefreshCw size={20} /> {reintentando ? "Verificando..." : "Ya tengo internet"}
+                        </button>
+                    </div>
+
+                    <div className="bg-orange-50/50 p-6 border-t border-orange-100">
+                        <div className="flex items-start gap-3">
+                            <div className="bg-orange-100 p-2 rounded-full text-orange-600 shrink-0">
+                                <Info size={20} />
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-gray-800 text-sm mb-1">Acceso Requerido</h3>
+                                <p className="text-xs text-gray-600 leading-relaxed">
+                                    Necesitas conexión a internet para verificar tu identidad y acceder al menú digital.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-8 text-gray-400 text-xs font-medium flex items-center gap-1">
+                    <Info size={12}/> Sistema LyA v2.0
+                </div>
+            </div>
+        );
+    }
+
+    // ============ CONTINUAR CON LOGIN NORMAL SI HAY INTERNET ============
 
     const handleChangeNombre = (e) => {
         const valor = e.target.value.toUpperCase();
@@ -103,6 +188,12 @@ const PantallaLogin = ({ onIngresar, onVerCuentaDirecta, mesaNombre, onSalir, cu
                 <h1 className="text-3xl font-bold text-gray-800 mb-1">Bienvenido a <span className="italic font-serif text-orange-600">LyA</span></h1>
                 <p className="text-orange-500 font-medium italic mb-6 text-sm">¡Satisface tu antojo hoy!</p>
                 <p className="text-gray-500 mb-6 text-sm">Estás en: <span className="font-bold text-gray-800 bg-gray-100 px-2 py-1 rounded">{mesaNombre}</span></p>
+                
+                {/* ============ INDICADOR DE CONEXIÓN (opcional) ============ */}
+                <div className="mb-4 flex items-center justify-center gap-2 text-xs">
+                    <div className={`w-2 h-2 rounded-full ${online ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                    <span className="text-gray-500">{online ? 'Conectado' : 'Sin conexión'}</span>
+                </div>
                 
                 <div className="text-left space-y-4 mb-6">
                     <div>
@@ -531,6 +622,90 @@ export const VistaCliente = ({ mesa, productos, onRealizarPedido, onSalir, servi
     
     // USAMOS EL HOOK AQUÍ TAMBIÉN
     const { esPantallaCompleta, togglePantalla } = usePantallaCompleta();
+
+    // ============ NUEVO CÓDIGO A AGREGAR ============
+    // Estado para conexión
+    const [online, setOnline] = useState(navigator.onLine);
+    const [reintentando, setReintentando] = useState(false);
+
+    // Efecto para detectar conexión
+    useEffect(() => {
+        const setOnlineTrue = () => setOnline(true);
+        const setOnlineFalse = () => setOnline(false);
+
+        window.addEventListener('online', setOnlineTrue);
+        window.addEventListener('offline', setOnlineFalse);
+
+        const intervalo = setInterval(() => {
+            if (navigator.onLine !== online) {
+                setOnline(navigator.onLine);
+            }
+        }, 500);
+
+        return () => {
+            window.removeEventListener('online', setOnlineTrue);
+            window.removeEventListener('offline', setOnlineFalse);
+            clearInterval(intervalo);
+        };
+    }, [online]);
+
+    const handleReintentar = () => {
+        setReintentando(true);
+        setTimeout(() => {
+            if (navigator.onLine) {
+                setOnline(true);
+                setReintentando(false);
+            } else {
+                setReintentando(false);
+            }
+        }, 1500);
+    };
+
+    // ============ CONDICIÓN DE BLOQUEO ============
+    // ESTO VA INMEDIATAMENTE DESPUÉS DE LOS EFECTOS, ANTES DE CUALQUIER OTRA LÓGICA
+    if (!online) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-orange-50 to-pink-50 flex flex-col items-center justify-center p-6 animate-fade-in-up fixed inset-0 z-50">
+                <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                    <div className="p-8 text-center">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <WifiOff size={40} className="text-red-500" />
+                        </div>
+                        
+                        <h1 className="text-2xl font-bold text-gray-800 mb-3 leading-tight">¡Ups! Sin Internet</h1>
+                        <p className="text-gray-500 text-sm leading-relaxed mb-8 px-2">
+                            Parece que perdiste la conexión. Revisa tu WiFi o datos móviles.
+                        </p>
+
+                        <button 
+                            onClick={handleReintentar} 
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw size={20} /> {reintentando ? "Verificando..." : "Ya tengo internet"}
+                        </button>
+                    </div>
+
+                    <div className="bg-orange-50/50 p-6 border-t border-orange-100">
+                        <div className="flex items-start gap-3">
+                            <div className="bg-orange-100 p-2 rounded-full text-orange-600 shrink-0">
+                                <Info size={20} />
+                            </div>
+                            <div className="text-left">
+                                <h3 className="font-bold text-gray-800 text-sm mb-1">¿Qué puedes hacer?</h3>
+                                <p className="text-xs text-gray-600 leading-relaxed">
+                                    Sin internet no podrás enviar pedidos. Sin embargo, aún puedes ver el menú para decidir qué pedirás cuando recuperes la conexión.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-8 text-gray-400 text-xs font-medium flex items-center gap-1">
+                    <Info size={12}/> Sistema LyA v2.0
+                </div>
+            </div>
+        );
+    }
 
     const [carrito, setCarrito] = useState(() => {
         try {

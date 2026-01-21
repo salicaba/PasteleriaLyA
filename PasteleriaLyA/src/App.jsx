@@ -86,7 +86,8 @@ const ProtectorOffline = ({ children }) => {
     return children;
 };
 
-// --- COMPONENTE RUTA CLIENTE MEJORADO (VERSIÓN FINAL) ---
+// --- COMPONENTE RUTA CLIENTE CORREGIDO ---
+// --- COMPONENTE RUTA CLIENTE MEJORADO (VERSIÓN CORREGIDA) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
@@ -116,14 +117,14 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
             if (navigator.onLine !== online) {
                 setOnline(navigator.onLine);
             }
-        }, 1000);
+        }, 500); // Cambiado a 500ms para detección más rápida
 
         return () => {
             window.removeEventListener('online', setOnlineTrue);
             window.removeEventListener('offline', setOnlineFalse);
             clearInterval(intervalo);
         };
-    }, [online]); // Dependencia 'online' para que el intervalo tenga el valor fresco
+    }, [online]);
 
     useEffect(() => {
         let timer;
@@ -136,29 +137,6 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         return () => clearTimeout(timer);
     }, [loading, online, tiempoExcedido, reintentando]);
     
-    // --- LÓGICA DE MESA ---
-    const mesaObj = useMemo(() => {
-        if (loading) return null; // Quitamos !online de aquí para manejarlo en la UI
-        
-        if (esLlevar) {
-            const cuentasAdaptadas = sesionesLlevar.map(s => ({
-                id: s.id,
-                cliente: s.nombreCliente,
-                cuenta: s.cuenta,
-                total: s.total,
-                estado: s.estado || 'Activa'
-            }));
-            return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
-        }
-        return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
-    }, [id, mesas, sesionesLlevar, esLlevar, loading]);
-
-    const tienePedidoActivo = useMemo(() => {
-        if (!mesaObj || !nombreClienteLocal) return false;
-        const cuentaEncontrada = mesaObj.cuentas.find(c => c.cliente === nombreClienteLocal);
-        return !!cuentaEncontrada && cuentaEncontrada.estado !== 'Cancelado';
-    }, [mesaObj, nombreClienteLocal]);
-
     const handleReintentar = () => {
         setReintentando(true); 
         setTiempoExcedido(false);
@@ -174,15 +152,40 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         }, 1500);
     };
 
-    // ------------------------------------------------------------------------
-    // RENDERIZADO CON PRIORIDAD
-    // ------------------------------------------------------------------------
+    // --- LÓGICA DE MESA ---
+    const mesaObj = useMemo(() => {
+        // No buscamos mesa si no hay internet o estamos cargando
+        if (loading || !online) return null;
+        
+        if (esLlevar) {
+            const cuentasAdaptadas = sesionesLlevar.map(s => ({
+                id: s.id,
+                cliente: s.nombreCliente,
+                cuenta: s.cuenta,
+                total: s.total,
+                estado: s.estado || 'Activa'
+            }));
+            return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
+        }
+        return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
+    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]); // Agregado 'online' a dependencias
 
-    // --- CAMBIO PRINCIPAL: SE ELIMINARON LOS BLOQUEOS DE OFFLINE Y SERVICIO ---
-    // Ahora Cliente.jsx se encargará de mostrar esos mensajes.
-    // ------------------------------------------------------------------------
+    const tienePedidoActivo = useMemo(() => {
+        if (!mesaObj || !nombreClienteLocal) return false;
+        const cuentaEncontrada = mesaObj.cuentas.find(c => c.cliente === nombreClienteLocal);
+        return !!cuentaEncontrada && cuentaEncontrada.estado !== 'Cancelado';
+    }, [mesaObj, nombreClienteLocal]);
 
-    // 1. ¿CARGANDO? -> Mostrar animación (Solo si está cargando datos iniciales)
+    // ------------------------------------------------------------------------
+    // ORDEN CORRECTO DE PRIORIDADES PARA BLOQUEO
+    // ------------------------------------------------------------------------
+    
+    // 1. PRIMERO: ¿SIN INTERNET? -> Error inmediato
+    if (!online) {
+        return <PantallaError tipo="offline" onReintentar={handleReintentar} reintentando={reintentando} />;
+    }
+
+    // 2. SEGUNDO: ¿CARGANDO? -> Spinner (solo si hay internet)
     if ((loading || reintentando) && !tiempoExcedido) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 animate-fade-in">
@@ -204,14 +207,22 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         );
     }
 
-    // 2. ¿MESA NO ENCONTRADA O TIMEOUT? -> Errores de datos críticos
-    // Esto sí lo dejamos aquí porque si no existe la mesa, Cliente.jsx fallaría.
-    if (!mesaObj || tiempoExcedido) {
-        const tipo = tiempoExcedido ? 'timeout' : 'not_found';
-        return <PantallaError tipo={tipo} onReintentar={handleReintentar} />;
+    // 3. TERCERO: ¿TIMEOUT? -> Error
+    if (tiempoExcedido) {
+        return <PantallaError tipo="timeout" onReintentar={handleReintentar} />;
     }
 
-    // 3. SI TODO ESTÁ BIEN (O si está offline/servicio cerrado) -> Pasa a VistaCliente
+    // 4. CUARTO: ¿MESA NO ENCONTRADA? -> Error
+    if (!mesaObj) {
+        return <PantallaError tipo="not_found" onReintentar={handleReintentar} />;
+    }
+
+    // 5. QUINTO: ¿SERVICIO NO ACTIVO? -> Error
+    if (!servicioActivo) {
+        return <PantallaError tipo="service_off" onReintentar={handleReintentar} />;
+    }
+
+    // 6. SEXTO: SI TODO ESTÁ BIEN -> Pasa a VistaCliente
     return (
         <VistaCliente 
             mesa={mesaObj} 
@@ -225,7 +236,8 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 };
 
 // --- SUBCOMPONENTE PARA LAS PANTALLAS DE ERROR (Para no repetir código) ---
-const PantallaError = ({ tipo, onReintentar }) => {
+// --- SUBCOMPONENTE PARA LAS PANTALLAS DE ERROR ---
+const PantallaError = ({ tipo, onReintentar, reintentando }) => {
     const esLlevar = window.location.pathname.includes('llevar');
     
     const configError = {
@@ -235,7 +247,7 @@ const PantallaError = ({ tipo, onReintentar }) => {
             icono: WifiOff,
             color: "text-red-500",
             bgIcon: "bg-red-50",
-            btnTexto: "Ya tengo internet"
+            btnTexto: reintentando ? "Verificando..." : "Ya tengo internet"
         },
         service_off: {
             titulo: "Servicio Cerrado",
@@ -280,7 +292,8 @@ const PantallaError = ({ tipo, onReintentar }) => {
 
                     <button 
                         onClick={onReintentar} 
-                        className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                        disabled={reintentando}
+                        className={`w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2 ${reintentando ? 'opacity-70 cursor-not-allowed' : ''}`}
                     >
                         <RefreshCw size={20} /> {btnTexto}
                     </button>
