@@ -176,20 +176,13 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
 
     // ------------------------------------------------------------------------
     // RENDERIZADO CON PRIORIDAD
-    // El orden aquí es CRÍTICO: Primero validamos bloqueos (Internet/Servicio)
     // ------------------------------------------------------------------------
 
-    // 1. ¿SIN INTERNET? -> Bloqueo inmediato (Prioridad Máxima)
-    if (!online) {
-        return <PantallaError tipo="offline" onReintentar={handleReintentar} />;
-    }
+    // --- CAMBIO PRINCIPAL: SE ELIMINARON LOS BLOQUEOS DE OFFLINE Y SERVICIO ---
+    // Ahora Cliente.jsx se encargará de mostrar esos mensajes.
+    // ------------------------------------------------------------------------
 
-    // 2. ¿SERVICIO CERRADO? -> Bloqueo inmediato (Prioridad Alta)
-    if (!servicioActivo) {
-        return <PantallaError tipo="service_off" onReintentar={handleReintentar} />;
-    }
-
-    // 3. ¿CARGANDO? -> Mostrar animación (Solo si tenemos internet y servicio)
+    // 1. ¿CARGANDO? -> Mostrar animación (Solo si está cargando datos iniciales)
     if ((loading || reintentando) && !tiempoExcedido) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 animate-fade-in">
@@ -211,13 +204,14 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         );
     }
 
-    // 4. ¿MESA NO ENCONTRADA O TIMEOUT? -> Errores de datos
+    // 2. ¿MESA NO ENCONTRADA O TIMEOUT? -> Errores de datos críticos
+    // Esto sí lo dejamos aquí porque si no existe la mesa, Cliente.jsx fallaría.
     if (!mesaObj || tiempoExcedido) {
         const tipo = tiempoExcedido ? 'timeout' : 'not_found';
         return <PantallaError tipo={tipo} onReintentar={handleReintentar} />;
     }
 
-    // 5. SI TODO ESTÁ BIEN -> Mostrar la App
+    // 3. SI TODO ESTÁ BIEN (O si está offline/servicio cerrado) -> Pasa a VistaCliente
     return (
         <VistaCliente 
             mesa={mesaObj} 
