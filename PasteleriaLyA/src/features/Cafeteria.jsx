@@ -648,7 +648,7 @@ export const VistaHubMesa = ({ mesa, onVolver, onAbrirCuenta, onCrearCuenta, onU
     }, [mesa.cuentas]);
 
     return ( 
-        <div className="fixed inset-0 bg-gray-50 z-[50] flex flex-col animate-fade-in-up"> 
+        <div className="h-full w-full bg-gray-50 flex flex-col animate-fade-in-up"> 
             <div className="bg-white p-4 shadow-md flex justify-between items-center"> 
                 <div className="flex items-center gap-4">
                     <button onClick={onVolver} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft /></button>

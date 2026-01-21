@@ -44,29 +44,44 @@ const TextoCargandoAnimado = () => {
     );
 };
 
-// --- COMPONENTE RUTA CLIENTE MEJORADO ---
+// --- COMPONENTE RUTA CLIENTE MEJORADO (VERSIÓN FINAL) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
     const location = useLocation();
     const esLlevar = id === 'llevar' || location.pathname === '/llevar';
     
     const [tiempoExcedido, setTiempoExcedido] = useState(false);
+    
+    // Estado de conexión inicial
     const [online, setOnline] = useState(navigator.onLine);
     const [reintentando, setReintentando] = useState(false);
 
     // 1. Obtenemos el nombre guardado en el celular
     const nombreClienteLocal = localStorage.getItem('lya_cliente_nombre');
 
+    // --- DETECCIÓN DE INTERNET EN TIEMPO REAL ---
     useEffect(() => {
-        const handleOnline = () => setOnline(true);
-        const handleOffline = () => setOnline(false);
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
+        // Funciones para eventos
+        const setOnlineTrue = () => setOnline(true);
+        const setOnlineFalse = () => setOnline(false);
+
+        // 1. Escuchamos eventos del navegador (lo estándar)
+        window.addEventListener('online', setOnlineTrue);
+        window.addEventListener('offline', setOnlineFalse);
+
+        // 2. POLLING: Revisamos cada segundo "por si acaso" el navegador no avisó
+        const intervalo = setInterval(() => {
+            if (navigator.onLine !== online) {
+                setOnline(navigator.onLine);
+            }
+        }, 1000);
+
         return () => {
-            window.removeEventListener('online', handleOnline);
-            window.removeEventListener('offline', handleOffline);
+            window.removeEventListener('online', setOnlineTrue);
+            window.removeEventListener('offline', setOnlineFalse);
+            clearInterval(intervalo);
         };
-    }, []);
+    }, [online]); // Dependencia 'online' para que el intervalo tenga el valor fresco
 
     useEffect(() => {
         let timer;
@@ -79,8 +94,9 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         return () => clearTimeout(timer);
     }, [loading, online, tiempoExcedido, reintentando]);
     
+    // --- LÓGICA DE MESA ---
     const mesaObj = useMemo(() => {
-        if (loading || !online) return null; 
+        if (loading) return null; // Quitamos !online de aquí para manejarlo en la UI
         
         if (esLlevar) {
             const cuentasAdaptadas = sesionesLlevar.map(s => ({
@@ -93,7 +109,7 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
             return { id: 'QR_LLEVAR', nombre: 'Para Llevar (Mostrador)', cuentas: cuentasAdaptadas };
         }
         return mesas.find(m => m.id.toLowerCase() === id.toLowerCase());
-    }, [id, mesas, sesionesLlevar, esLlevar, loading, online]);
+    }, [id, mesas, sesionesLlevar, esLlevar, loading]);
 
     const tienePedidoActivo = useMemo(() => {
         if (!mesaObj || !nombreClienteLocal) return false;
@@ -101,28 +117,37 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
         return !!cuentaEncontrada && cuentaEncontrada.estado !== 'Cancelado';
     }, [mesaObj, nombreClienteLocal]);
 
-    // --- CAMBIO CLAVE: Lógica segura para reintentar ---
     const handleReintentar = () => {
-        setReintentando(true); // 1. Muestra "Reconectando..." inmediatamente
+        setReintentando(true); 
         setTiempoExcedido(false);
         
-        // 2. Esperamos 2 segundos para que el cliente vea la animación de carga
         setTimeout(() => {
             if (navigator.onLine) {
-                // 3. CAMBIO: En lugar de reload(), solo actualizamos el estado.
-                // Esto hace que vuelvas a la pantalla donde estabas suavemente.
                 setOnline(true);
                 setReintentando(false);
             } else {
-                // 4. Si sigue sin internet, quitamos el loading para que vea el error de nuevo
                 setReintentando(false);
                 setOnline(false); 
             }
-        }, 2000);
+        }, 1500);
     };
 
-    // --- PANTALLA DE CARGA ---
-    // Modificado: Ahora se muestra si 'reintentando' es true, aunque no haya 'online'
+    // ------------------------------------------------------------------------
+    // RENDERIZADO CON PRIORIDAD
+    // El orden aquí es CRÍTICO: Primero validamos bloqueos (Internet/Servicio)
+    // ------------------------------------------------------------------------
+
+    // 1. ¿SIN INTERNET? -> Bloqueo inmediato (Prioridad Máxima)
+    if (!online) {
+        return <PantallaError tipo="offline" onReintentar={handleReintentar} />;
+    }
+
+    // 2. ¿SERVICIO CERRADO? -> Bloqueo inmediato (Prioridad Alta)
+    if (!servicioActivo) {
+        return <PantallaError tipo="service_off" onReintentar={handleReintentar} />;
+    }
+
+    // 3. ¿CARGANDO? -> Mostrar animación (Solo si tenemos internet y servicio)
     if ((loading || reintentando) && !tiempoExcedido) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-orange-50 p-4 animate-fade-in">
@@ -137,94 +162,20 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
                     {reintentando ? "Reconectando..." : "Conectando..."}
                 </h2>
                 <p className="text-gray-500 text-sm bg-white px-4 py-1 rounded-full shadow-sm border border-orange-100 flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full animate-pulse ${reintentando ? 'bg-orange-500' : 'bg-green-500'}`}></span>
+                    <span className="w-2 h-2 rounded-full animate-pulse bg-orange-500"></span>
                     {reintentando ? "Verificando red..." : "Obteniendo menú actualizado"}
                 </p>
             </div>
         );
     }
 
-    // --- PANTALLA DE ERROR / AYUDA ---
-    if (!mesaObj || tiempoExcedido || !online) {
-        let tipoError = 'desconocido';
-        if (!online) tipoError = 'offline';
-        else if (tiempoExcedido) tipoError = 'timeout';
-        else if (!mesaObj) tipoError = 'not_found';
-
-        const configError = {
-            offline: {
-                titulo: "¡Ups! Sin Internet",
-                mensaje: "Parece que perdiste la conexión. Revisa tu WiFi o datos móviles para ver el menú.",
-                icono: WifiOff,
-                color: "text-red-500",
-                bgIcon: "bg-red-50"
-            },
-            timeout: {
-                titulo: "Conexión Inestable",
-                mensaje: "El servidor tarda en responder. Esto suele pasar cuando la señal es débil.",
-                icono: Clock,
-                color: "text-orange-500",
-                bgIcon: "bg-orange-50"
-            },
-            not_found: {
-                titulo: "Código no válido",
-                mensaje: "No encontramos información de esta mesa. Es posible que el código QR haya cambiado.",
-                icono: MapPinOff,
-                color: "text-gray-500",
-                bgIcon: "bg-gray-100"
-            }
-        };
-
-        const { titulo, mensaje, icono: Icono, color, bgIcon } = configError[tipoError] || configError.timeout;
-
-        return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 animate-fade-in-up">
-                <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-                    <div className="p-8 text-center">
-                        <div className={`w-20 h-20 ${bgIcon} rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner`}>
-                            <Icono size={40} className={color} />
-                        </div>
-                        
-                        <h1 className="text-2xl font-bold text-gray-800 mb-3 leading-tight">{titulo}</h1>
-                        <p className="text-gray-500 text-sm leading-relaxed mb-8 px-2">
-                            {mensaje}
-                        </p>
-
-                        <button 
-                            onClick={handleReintentar} 
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2"
-                        >
-                            <RefreshCw size={20} /> Intentar de nuevo
-                        </button>
-                    </div>
-
-                    <div className="bg-orange-50/50 p-6 border-t border-orange-100">
-                        <div className="flex items-start gap-3">
-                            <div className="bg-orange-100 p-2 rounded-full text-orange-600 shrink-0">
-                                <HelpCircle size={20} />
-                            </div>
-                            <div className="text-left">
-                                <h3 className="font-bold text-gray-800 text-sm mb-1">¿Sigues con problemas?</h3>
-                                <p className="text-xs text-gray-600 leading-relaxed">
-                                    No te preocupes. 
-                                    {esLlevar ? (
-                                        <span> Por favor, acércate a <strong>Caja</strong> o al <strong>Mostrador</strong>.</span>
-                                    ) : (
-                                        <span> Por favor, llama a un <strong>mesero</strong>. Con gusto tomará tu orden.</span>
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-8 text-gray-400 text-xs font-medium flex items-center gap-1">
-                    <Info size={12}/> Sistema LyA v1.0
-                </div>
-            </div>
-        );
+    // 4. ¿MESA NO ENCONTRADA O TIMEOUT? -> Errores de datos
+    if (!mesaObj || tiempoExcedido) {
+        const tipo = tiempoExcedido ? 'timeout' : 'not_found';
+        return <PantallaError tipo={tipo} onReintentar={handleReintentar} />;
     }
 
+    // 5. SI TODO ESTÁ BIEN -> Mostrar la App
     return (
         <VistaCliente 
             mesa={mesaObj} 
@@ -234,6 +185,94 @@ const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSal
             servicioActivo={servicioActivo}       
             tienePedidoActivo={tienePedidoActivo} 
         />
+    );
+};
+
+// --- SUBCOMPONENTE PARA LAS PANTALLAS DE ERROR (Para no repetir código) ---
+const PantallaError = ({ tipo, onReintentar }) => {
+    const esLlevar = window.location.pathname.includes('llevar');
+    
+    const configError = {
+        offline: {
+            titulo: "¡Ups! Sin Internet",
+            mensaje: "Parece que perdiste la conexión. Revisa tu WiFi o datos móviles.",
+            icono: WifiOff,
+            color: "text-red-500",
+            bgIcon: "bg-red-50",
+            btnTexto: "Ya tengo internet"
+        },
+        service_off: {
+            titulo: "Servicio Cerrado",
+            mensaje: "En este momento no estamos recibiendo pedidos por QR. Puede que ya haya terminado el servicio laboral.",
+            icono: Lock,
+            color: "text-gray-600",
+            bgIcon: "bg-gray-100",
+            btnTexto: "Actualizar estado"
+        },
+        timeout: {
+            titulo: "Conexión Inestable",
+            mensaje: "El servidor tarda en responder. Esto suele pasar cuando la señal es débil.",
+            icono: Clock,
+            color: "text-orange-500",
+            bgIcon: "bg-orange-50",
+            btnTexto: "Intentar de nuevo"
+        },
+        not_found: {
+            titulo: "Código no válido",
+            mensaje: "No encontramos información de esta mesa. Es posible que el código QR haya cambiado.",
+            icono: MapPinOff,
+            color: "text-gray-500",
+            bgIcon: "bg-gray-100",
+            btnTexto: "Escanear de nuevo"
+        }
+    };
+
+    const { titulo, mensaje, icono: Icono, color, bgIcon, btnTexto } = configError[tipo] || configError.timeout;
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 animate-fade-in-up fixed inset-0 z-50">
+            <div className="bg-white w-full max-w-sm rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+                <div className="p-8 text-center">
+                    <div className={`w-20 h-20 ${bgIcon} rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner`}>
+                        <Icono size={40} className={color} />
+                    </div>
+                    
+                    <h1 className="text-2xl font-bold text-gray-800 mb-3 leading-tight">{titulo}</h1>
+                    <p className="text-gray-500 text-sm leading-relaxed mb-8 px-2">
+                        {mensaje}
+                    </p>
+
+                    <button 
+                        onClick={onReintentar} 
+                        className="w-full bg-gray-900 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-200 transition-all transform active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw size={20} /> {btnTexto}
+                    </button>
+                </div>
+
+                <div className="bg-orange-50/50 p-6 border-t border-orange-100">
+                    <div className="flex items-start gap-3">
+                        <div className="bg-orange-100 p-2 rounded-full text-orange-600 shrink-0">
+                            <HelpCircle size={20} />
+                        </div>
+                        <div className="text-left">
+                            <h3 className="font-bold text-gray-800 text-sm mb-1">¿Estamos abiertos?</h3>
+                            <p className="text-xs text-gray-600 leading-relaxed">
+                                {esLlevar ? (
+                                    <span> Por favor, acércate a <strong>Caja</strong> o al <strong>Mostrador</strong>.</span>
+                                ) : (
+                                    <span> Por favor, llama a un <strong>Mesero</strong> para que tome tu orden personalmente.</span>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-8 text-gray-400 text-xs font-medium flex items-center gap-1">
+                <Info size={12}/> Sistema LyA v2.0
+            </div>
+        </div>
     );
 };
 
@@ -728,14 +767,24 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
       return ventasCafeteria.filter(v => v.fecha === hoy);
   }, [ventasCafeteria]);
 
+  // --- NUEVA FUNCIÓN PARA CONTROLAR LA NAVEGACIÓN ---
+  const handleCambioVista = (vista) => {
+    setVistaActual(vista);
+    
+    // Si cambiamos de vista, reseteamos cosas específicas
+    if (vista !== 'pedidos') setFechaParaNuevoPedido(null);
+    
+    // ESTO ES LO IMPORTANTE:
+    // Si te mueves en el menú (ej. vas a Cocina), cerramos la mesa o cuenta que tengas abierta
+    setMesaSeleccionadaId(null); 
+    setCuentaActiva(null);
+  };
+
   const renderContenidoProtegido = () => (
     <LayoutConSidebar 
         modo={modo} 
         vistaActual={vistaActual} 
-        setVistaActual={(vista) => {
-            setVistaActual(vista);
-            if(vista !== 'pedidos') setFechaParaNuevoPedido(null);
-        }} 
+        setVistaActual={handleCambioVista} 
         setModo={cambiarModoDesdeSidebar} 
         onLogout={handleLogout}
         userRole={userRole} 
@@ -799,62 +848,76 @@ const actualizarProductoEnSesion = async (idSesion, idProducto, delta, origenObj
       
       {modo === 'cafeteria' && ( 
         <> 
-            {vistaActual === 'inicio' && (
-                <VistaInicioCafeteria 
-                    mesas={mesas} 
-                    pedidosLlevar={sesionesLlevar} 
-                    ventasHoy={ventasCafeteriaHoy}
-                    cancelados={cancelados}
-                    onSeleccionarMesa={abrirHubMesa} 
-                    onCrearLlevar={crearSesionLlevar} 
-                    onAbrirLlevar={abrirPOSLlevar}
-                    onRestaurarVenta={restaurarDeHistorial}
-                    onDeshacerCancelacion={restaurarDeHistorial}
-                    onVaciarPapelera={vaciarPapelera}
-                    onEliminarDePapelera={eliminarDePapelera}
-                />
-            )} 
-
-            {vistaActual === 'cocina' && (
-                <VistaCocina mesas={mesas} pedidosLlevar={sesionesLlevar} mostrarNotificacion={mostrarNotificacion} />
-            )}
-
-            {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
+            {/* LÓGICA DE NAVEGACIÓN CAFETERÍA INTEGRADA */}
             
-            {vistaActual === 'mesas' && (
-                <VistaGestionMesas 
-                    mesas={mesas} 
-                    onAgregarMesa={agregarMesa} 
-                    onEliminarMesa={eliminarMesa} 
-                    servicioActivo={servicioActivo} 
+            {/* CASO 1: ¿Hay una cuenta abierta? Muéstrala AQUÍ DENTRO */}
+            {cuentaActiva ? (
+                <VistaDetalleCuenta 
+                  sesion={cuentaActiva} 
+                  productos={productosCafeteria} 
+                  onCerrar={() => setCuentaActiva(null)} 
+                  onAgregarProducto={agregarProductoASesion} 
+                  onPagarCuenta={pagarCuenta}
+                  onActualizarProducto={actualizarProductoEnSesion}
+                  onCancelarCuenta={cancelarCuentaSinPagar}
+                  onDividirCuentaManual={dividirCuentaManual} 
+                  onDesunirCuentas={desunirCuentas} 
+                  onConfirmarOrden={confirmarOrdenCocina}
                 />
-            )} 
+            ) : mesaSeleccionadaId ? (
+                /* CASO 2: ¿Hay una mesa seleccionada? Muéstrala AQUÍ DENTRO */
+                <VistaHubMesa 
+                    mesa={mesaSeleccionadaObj} 
+                    onVolver={() => setMesaSeleccionadaId(null)} 
+                    onAbrirCuenta={abrirPOSCuentaMesa} 
+                    onCrearCuenta={(id, nombre) => crearCuentaEnMesa(id, nombre.toUpperCase())} 
+                    onUnirCuentas={unirCuentas} 
+                />
+            ) : (
+                /* CASO 3: Si no hay mesa ni cuenta, muestra la navegación normal */
+                <>
+                    {vistaActual === 'inicio' && (
+                        <VistaInicioCafeteria 
+                            mesas={mesas} 
+                            pedidosLlevar={sesionesLlevar} 
+                            ventasHoy={ventasCafeteriaHoy}
+                            cancelados={cancelados}
+                            onSeleccionarMesa={abrirHubMesa} 
+                            onCrearLlevar={crearSesionLlevar} 
+                            onAbrirLlevar={abrirPOSLlevar}
+                            onRestaurarVenta={restaurarDeHistorial}
+                            onDeshacerCancelacion={restaurarDeHistorial}
+                            onVaciarPapelera={vaciarPapelera}
+                            onEliminarDePapelera={eliminarDePapelera}
+                        />
+                    )} 
 
-            {/* CORRECCIÓN AQUÍ: Agregamos onVerDetalles */}
-            {vistaActual === 'ventas' && (
-                <VistaReporteUniversal 
-                    pedidosPasteleria={[]} 
-                    ventasCafeteria={ventasCafeteria} 
-                    onVerDetalles={(item) => setPedidoVerDetalles(item)} 
-                />
-            )} 
+                    {vistaActual === 'cocina' && (
+                        <VistaCocina mesas={mesas} pedidosLlevar={sesionesLlevar} mostrarNotificacion={mostrarNotificacion} />
+                    )}
+
+                    {vistaActual === 'menu' && <VistaMenuCafeteria productos={productosCafeteria} onGuardarProducto={guardarProductoCafeteria} onEliminarProducto={eliminarProductoCafeteria} />} 
+                    
+                    {vistaActual === 'mesas' && (
+                        <VistaGestionMesas 
+                            mesas={mesas} 
+                            onAgregarMesa={agregarMesa} 
+                            onEliminarMesa={eliminarMesa} 
+                            servicioActivo={servicioActivo} 
+                        />
+                    )} 
+
+                    {vistaActual === 'ventas' && (
+                        <VistaReporteUniversal 
+                            pedidosPasteleria={[]} 
+                            ventasCafeteria={ventasCafeteria} 
+                            onVerDetalles={(item) => setPedidoVerDetalles(item)} 
+                        />
+                    )} 
+                </>
+            )}
         </> 
       )}
-      
-      {mesaSeleccionadaId && !cuentaActiva && <VistaHubMesa mesa={mesaSeleccionadaObj} onVolver={() => setMesaSeleccionadaId(null)} onAbrirCuenta={abrirPOSCuentaMesa} onCrearCuenta={(id, nombre) => crearCuentaEnMesa(id, nombre.toUpperCase())} onUnirCuentas={unirCuentas} />}
-      
-      {cuentaActiva && <VistaDetalleCuenta 
-          sesion={cuentaActiva} 
-          productos={productosCafeteria} 
-          onCerrar={() => setCuentaActiva(null)} 
-          onAgregarProducto={agregarProductoASesion} 
-          onPagarCuenta={pagarCuenta}
-          onActualizarProducto={actualizarProductoEnSesion}
-          onCancelarCuenta={cancelarCuentaSinPagar}
-          onDividirCuentaManual={dividirCuentaManual} 
-          onDesunirCuentas={desunirCuentas} 
-          onConfirmarOrden={confirmarOrdenCocina}
-      />}
       
       {/* Este es el modal que se abrirá cuando hagas clic en la tarjetita */}
       <ModalDetalles pedido={pedidoVerDetalles} cerrar={() => setPedidoVerDetalles(null)} onRegistrarPago={registrarPago} />
