@@ -44,6 +44,48 @@ const TextoCargandoAnimado = () => {
     );
 };
 
+// --- NUEVO COMPONENTE: PROTECTOR OFFLINE (EL GUARDAESPALDAS) ---
+// Este componente envuelve a cualquier vista y la bloquea si no hay internet
+const ProtectorOffline = ({ children }) => {
+    const [online, setOnline] = useState(navigator.onLine);
+    const [reintentando, setReintentando] = useState(false);
+
+    useEffect(() => {
+        const setOnlineTrue = () => setOnline(true);
+        const setOnlineFalse = () => setOnline(false);
+
+        window.addEventListener('online', setOnlineTrue);
+        window.addEventListener('offline', setOnlineFalse);
+
+        const intervalo = setInterval(() => {
+            // Doble chequeo por si el navegador miente
+            if (navigator.onLine !== online) {
+                setOnline(navigator.onLine);
+            }
+        }, 1000);
+
+        return () => {
+            window.removeEventListener('online', setOnlineTrue);
+            window.removeEventListener('offline', setOnlineFalse);
+            clearInterval(intervalo);
+        };
+    }, [online]);
+
+    const handleReintentar = () => {
+        setReintentando(true);
+        setTimeout(() => {
+            setOnline(navigator.onLine);
+            setReintentando(false);
+        }, 1500);
+    };
+
+    if (!online) {
+        return <PantallaError tipo="offline" onReintentar={handleReintentar} reintentando={reintentando} />;
+    }
+
+    return children;
+};
+
 // --- COMPONENTE RUTA CLIENTE MEJORADO (VERSIÓN FINAL) ---
 const RutaCliente = ({ mesas, sesionesLlevar, productos, onRealizarPedido, onSalir, loading, servicioActivo }) => { 
     const { id } = useParams(); 
