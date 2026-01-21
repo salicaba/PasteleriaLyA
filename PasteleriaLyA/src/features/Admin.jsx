@@ -22,24 +22,34 @@ import { saveInsumo, deleteInsumo, subscribeToInsumos, registrarCompraInsumo, gu
 const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, onItemClick, fecha }) => {
     if (!isOpen) return null;
 
-    const theme = {
-        bgHeader: colorTheme === 'orange' ? 'bg-orange-50' : 'bg-pink-50',
-        textHeader: colorTheme === 'orange' ? 'text-orange-900' : 'text-pink-900',
-        borderHeader: colorTheme === 'orange' ? 'border-orange-100' : 'border-pink-100',
-        iconColor: colorTheme === 'orange' ? 'text-orange-600' : 'text-pink-600',
-        badgeBg: colorTheme === 'orange' ? 'bg-orange-100' : 'bg-pink-100',
-        badgeText: colorTheme === 'orange' ? 'text-orange-700' : 'text-pink-700',
-        footerBg: colorTheme === 'orange' ? 'bg-orange-900' : 'bg-pink-900',
-        borderTop: colorTheme === 'orange' ? 'border-orange-500' : 'border-pink-500'
+    // Configuración del TEMA GLOBAL (Encabezado y Footer)
+    const getTheme = (color) => {
+        switch (color) {
+            case 'orange': return {
+                bgHeader: 'bg-orange-50', textHeader: 'text-orange-900', borderHeader: 'border-orange-100',
+                iconHead: 'text-orange-600', footerBg: 'bg-orange-900', borderTop: 'border-orange-500'
+            };
+            case 'pink': return {
+                bgHeader: 'bg-pink-50', textHeader: 'text-pink-900', borderHeader: 'border-pink-100',
+                iconHead: 'text-pink-600', footerBg: 'bg-pink-900', borderTop: 'border-pink-500'
+            };
+            default: return { // TEMA GLOBAL (Indigo)
+                bgHeader: 'bg-indigo-50', textHeader: 'text-indigo-900', borderHeader: 'border-indigo-100',
+                iconHead: 'text-indigo-600', footerBg: 'bg-indigo-900', borderTop: 'border-indigo-500'
+            };
+        }
     };
 
+    const theme = getTheme(colorTheme);
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[260] flex items-center justify-center p-4 backdrop-blur-sm">
+        // CAMBIO IMPORTANTE: Bajamos de z-[260] a z-[120] para que otras ventanas puedan estar encima
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[120] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in-up flex flex-col border-t-8 ${theme.borderTop}`}>
                 <div className={`p-5 ${theme.bgHeader} flex justify-between items-center border-b ${theme.borderHeader}`}>
                     <div>
                         <h3 className={`font-bold text-xl ${theme.textHeader} flex items-center gap-2`}>
-                            <Receipt size={20} className={theme.iconColor}/> {titulo}
+                            <Receipt size={20} className={theme.iconHead}/> {titulo}
                         </h3>
                         <p className="text-xs opacity-70 font-medium">Movimientos del {formatearFechaLocal(fecha)}.</p>
                     </div>
@@ -53,33 +63,42 @@ const ModalDetalleCorte = ({ isOpen, onClose, titulo, items, total, colorTheme, 
                             <p className="text-gray-500 text-sm">No hay ingresos registrados en esta fecha.</p>
                         </div>
                     ) : (
-                        items.map((item, index) => (
-                            <div 
-                                key={index} 
-                                onClick={() => onItemClick && onItemClick(item.original)} 
-                                className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-shadow group ${onItemClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-                            >
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <p className="font-bold text-gray-800 text-sm">{item.folio || item.id || 'S/N'}</p>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${theme.badgeBg} ${theme.badgeText} border-transparent uppercase`}>
-                                            {item.etiqueta || 'VENTA'}
-                                        </span>
+                        items.map((item, index) => {
+                            // LÓGICA DE COLOR INDIVIDUAL POR ÍTEM
+                            const esCafeteria = item.origen === 'Cafetería' || item.etiqueta === 'TICKET';
+                            const badgeBg = esCafeteria ? 'bg-orange-100' : 'bg-pink-100';
+                            const badgeText = esCafeteria ? 'text-orange-700' : 'text-pink-700';
+                            const montoColor = esCafeteria ? 'text-orange-600' : 'text-pink-600';
+
+                            return (
+                                <div 
+                                    key={index} 
+                                    // Al hacer clic, se ejecuta onItemClick (que abrirá tu otra ventana encima gracias al z-index corregido)
+                                    onClick={() => onItemClick && onItemClick(item.original)} 
+                                    className={`bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex justify-between items-center hover:shadow-md transition-shadow group ${onItemClick ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <p className="font-bold text-gray-800 text-sm">{item.folio || item.id || 'S/N'}</p>
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${badgeBg} ${badgeText} border-transparent uppercase`}>
+                                                {item.etiqueta || 'VENTA'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors uppercase">{item.descripcion}</p>
+                                        
+                                        {item.hora && (
+                                            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                                <Clock size={10}/> {item.hora}
+                                            </p>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-gray-500 group-hover:text-gray-700 transition-colors uppercase">{item.descripcion}</p>
-                                    
-                                    {item.hora && (
-                                        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                            <Clock size={10}/> {item.hora}
-                                        </p>
-                                    )}
+                                    <div className="text-right">
+                                        <p className={`font-bold text-lg ${montoColor}`}>+${formatoMoneda(item.monto)}</p>
+                                        <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1"><Eye size={10}/> Ver</span>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className={`font-bold text-lg ${theme.iconColor}`}>+${formatoMoneda(item.monto)}</p>
-                                    <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1"><Eye size={10}/> Ver</span>
-                                </div>
-                            </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
                 <div className={`${theme.footerBg} p-5 text-white flex justify-between items-center`}>
@@ -214,18 +233,22 @@ export const VistaInicioAdmin = ({ pedidos, ventasCafeteria, onVerDetalles }) =>
 };
 
 // --- VISTA REPORTE UNIVERSAL (CON RANGO POR DÍAS Y LÍMITES INTELIGENTES) ---
-export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAbrirModalDia }) => {
+export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onVerDetalles }) => { 
     const [vistaActiva, setVistaActiva] = useState('todos');
     
-    // Función para obtener mes actual
+    // Estados del modal
+    const [modalDetalleOpen, setModalDetalleOpen] = useState(false);
+    const [itemsModal, setItemsModal] = useState([]);
+    const [totalModal, setTotalModal] = useState(0);
+    const [fechaModal, setFechaModal] = useState('');
+    const [temaModal, setTemaModal] = useState('indigo');
+
     const obtenerMesActual = () => {
         const hoy = new Date();
         return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
     };
 
     const [mesSeleccionado, setMesSeleccionado] = useState(obtenerMesActual());
-    
-    // Volvemos a strings de fecha completa 'YYYY-MM-DD' para los rangos
     const [rangoInicio, setRangoInicio] = useState('');
     const [rangoFin, setRangoFin] = useState('');
 
@@ -241,43 +264,28 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
         return datos.filter(p => p.estado !== 'Cancelado');
     }, [pedidosPasteleria, ventasCafeteria, vistaActiva]);
 
-    // --- CÁLCULO DE LÍMITES INTELIGENTES (MIN/MAX) ---
-    // Esto evita que selecciones años anteriores a tu negocio o fechas futuras
     const limitesFechas = useMemo(() => {
         if (todosLosDatosCompletos.length === 0) {
             const hoy = getFechaHoy();
             return { min: hoy, max: hoy };
         }
-        
-        // Ordenamos todas las fechas de ventas que existen
-        const fechasOrdenadas = todosLosDatosCompletos
-            .map(d => d.fecha)
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b));
-
-        return {
-            min: fechasOrdenadas[0], // La fecha de la primerísima venta registrada
-            max: getFechaHoy()       // El día de hoy
-        };
+        const fechasOrdenadas = todosLosDatosCompletos.map(d => d.fecha).filter(Boolean).sort();
+        return { min: fechasOrdenadas[0], max: getFechaHoy() };
     }, [todosLosDatosCompletos]);
 
-    // Lista de meses para el selector PRINCIPAL (Este sí se queda por meses)
     const mesesDisponibles = useMemo(() => {
         const setMeses = new Set();
         setMeses.add(obtenerMesActual());
-
         todosLosDatosCompletos.forEach(d => {
-            if (d.fecha && d.fecha.length >= 7) {
-                setMeses.add(d.fecha.substring(0, 7));
-            }
+            if (d.fecha && d.fecha.length >= 7) setMeses.add(d.fecha.substring(0, 7));
         });
         return Array.from(setMeses).sort().reverse();
     }, [todosLosDatosCompletos]);
 
     const formatearNombreMes = (mesStr) => {
         const [anio, mes] = mesStr.split('-');
-        const fechaObj = new Date(parseInt(anio), parseInt(mes) - 1, 1);
-        return fechaObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
+        const date = new Date(parseInt(anio), parseInt(mes) - 1, 1);
+        return date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase();
     };
 
     const datosReporte = useMemo(() => {
@@ -290,30 +298,21 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
         let mes = parseInt(mesBase) - 1;
 
         if (rangoInicio && rangoFin) {
-            // Lógica de rango exacto por DÍA
             datosFiltrados = datosFiltrados.filter(d => d.fecha >= rangoInicio && d.fecha <= rangoFin);
             tituloPeriodo = `Del ${formatearFechaLocal(rangoInicio)} al ${formatearFechaLocal(rangoFin)}`;
-            
-            // Para la gráfica, usamos el mes de inicio como referencia visual
             const [y, m] = rangoInicio.split('-').map(Number);
-            anio = y;
-            mes = m - 1;
+            anio = y; mes = m - 1;
         } else {
-            // Lógica de mes completo
             datosFiltrados = datosFiltrados.filter(d => d.fecha.startsWith(mesSeguro));
-            const fechaObj = new Date(anio, mes, 1);
-            tituloPeriodo = fechaObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+            const date = new Date(anio, mes, 1);
+            tituloPeriodo = date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
         }
 
         let totalPasteleria = 0, totalCafeteria = 0;
         let desglose = [];
-        
-        // Generamos los días para la gráfica (Si es rango, mostramos hasta 31 días genéricos)
         const diasGrafica = (rangoInicio && rangoFin) ? 31 : new Date(anio, mes + 1, 0).getDate();
 
-        for (let i = 1; i <= diasGrafica; i++) {
-            desglose.push({ label: `${i}`, valorP: 0, valorC: 0 });
-        }
+        for (let i = 1; i <= diasGrafica; i++) desglose.push({ label: `${i}`, valorP: 0, valorC: 0 });
 
         datosFiltrados.forEach(p => {
             let montoReal = 0;
@@ -329,27 +328,74 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
             else totalCafeteria += montoReal;
 
             const [y, m, d] = p.fecha.split('-').map(Number);
-            
-            // Lógica visual para la gráfica:
-            // Si es mes normal, asignamos al día exacto.
-            // Si es rango, asignamos al día del mes correspondiente (si el rango cruza meses, se puede ver extraño en gráfica de 1-31, pero el total es correcto).
             if (desglose[d-1]) {
                  if (p.origen === 'Pastelería') desglose[d-1].valorP += montoReal;
                  else desglose[d-1].valorC += montoReal;
             }
         });
 
-        return {
-            totalPasteleria,
-            totalCafeteria,
-            totalGlobal: totalPasteleria + totalCafeteria,
-            desglose,
-            tituloPeriodo,
-            anio, mes
-        };
+        return { totalPasteleria, totalCafeteria, totalGlobal: totalPasteleria + totalCafeteria, desglose, tituloPeriodo, anio, mes };
     }, [todosLosDatosCompletos, mesSeleccionado, rangoInicio, rangoFin, vistaActiva]);
 
     const limpiarRango = () => { setRangoInicio(''); setRangoFin(''); };
+
+    const handleBarClick = (data) => {
+        if (data && data.label && !rangoInicio) {
+            const dia = data.label;
+            const mesActual = datosReporte.mes;
+            const anioActual = datosReporte.anio;
+            const fechaStr = `${anioActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+            
+            const datosDia = todosLosDatosCompletos.filter(d => d.fecha === fechaStr);
+
+            const itemsProcesados = datosDia.map(p => {
+                let montoCalculado = 0;
+                let etiqueta = 'VENTA';
+                let folio = '';
+                let hora = '';
+
+                if (p.origen === 'Pastelería') {
+                    const numPagos = parseInt(p.numPagos) || 1;
+                    const pagosHechos = p.pagosRealizados || 0;
+                    montoCalculado = (p.total / numPagos) * pagosHechos;
+                    folio = p.folio;
+                    hora = p.horaPago || null;
+                    if (numPagos === 1) etiqueta = 'CONTADO';
+                    else if (pagosHechos === numPagos) etiqueta = 'LIQUIDACIÓN';
+                    else etiqueta = 'ABONO';
+                } else {
+                    montoCalculado = p.total;
+                    etiqueta = 'TICKET';
+                    folio = p.folioLocal;
+                    hora = p.hora;
+                }
+
+                return {
+                    id: p.id,
+                    folio: folio,
+                    descripcion: p.cliente || 'Cliente General',
+                    monto: montoCalculado,
+                    etiqueta: etiqueta,
+                    origen: p.origen,
+                    original: p,
+                    hora: hora
+                };
+            }).filter(item => item.monto > 0);
+
+            itemsProcesados.sort((a, b) => (a.hora || '00:00').localeCompare(b.hora || '00:00'));
+            const sumaTotalDia = itemsProcesados.reduce((acc, curr) => acc + curr.monto, 0);
+
+            setItemsModal(itemsProcesados);
+            setTotalModal(sumaTotalDia);
+            setFechaModal(fechaStr);
+            
+            if (vistaActiva === 'pasteleria') setTemaModal('pink');
+            else if (vistaActiva === 'cafeteria') setTemaModal('orange');
+            else setTemaModal('indigo');
+
+            setModalDetalleOpen(true);
+        }
+    };
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
@@ -357,116 +403,49 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                 <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg pointer-events-none">
                     <p className="font-bold text-gray-700 mb-1">Día {label}</p>
                     {payload.map((entry, index) => (
-                        <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
-                            {entry.name}: ${formatoMoneda(entry.value)}
-                        </p>
+                        <p key={index} style={{ color: entry.color }} className="text-sm font-medium">{entry.name}: ${formatoMoneda(entry.value)}</p>
                     ))}
-                    <div className="border-t pt-1 mt-1">
-                        <p className="font-bold text-gray-800 text-sm">Total: ${formatoMoneda(payload.reduce((acc, curr) => acc + curr.value, 0))}</p>
-                    </div>
+                    <div className="border-t pt-1 mt-1"><p className="font-bold text-gray-800 text-sm">Total: ${formatoMoneda(payload.reduce((acc, curr) => acc + curr.value, 0))}</p></div>
                 </div>
             );
         }
         return null;
     };
 
-    const handleBarClick = (data) => {
-        if (data && data.label && !rangoInicio) {
-            onAbrirModalDia(data.label, datosReporte.mes, datosReporte.anio, todosLosDatosCompletos);
-        }
-    };
-
     return (
         <div className="p-4 md:p-8">
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Reporte Ventas</h2>
-                
                 <div className="flex flex-col xl:flex-row gap-4 w-full lg:w-auto items-stretch lg:items-center">
-                    
                     <div className="bg-gray-100 p-1 rounded-xl grid grid-cols-3 gap-1 shadow-inner w-full xl:w-auto min-w-[300px]">
-                        <button 
-                            onClick={() => setVistaActiva('todos')}
-                            className={`flex justify-center items-center px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'todos' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                        >
-                            Global
-                        </button>
-                        <button 
-                            onClick={() => setVistaActiva('pasteleria')}
-                            className={`flex justify-center items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'pasteleria' ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-pink-400 hover:bg-gray-200/50'}`}
-                        >
-                            Pastelería
-                        </button>
-                        <button 
-                            onClick={() => setVistaActiva('cafeteria')}
-                            className={`flex justify-center items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'cafeteria' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-orange-400 hover:bg-gray-200/50'}`}
-                        >
-                            Cafetería
-                        </button>
+                        <button onClick={() => setVistaActiva('todos')} className={`flex justify-center items-center px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'todos' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}>Global</button>
+                        <button onClick={() => setVistaActiva('pasteleria')} className={`flex justify-center items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'pasteleria' ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-pink-400 hover:bg-gray-200/50'}`}>Pastelería</button>
+                        <button onClick={() => setVistaActiva('cafeteria')} className={`flex justify-center items-center gap-1 px-4 py-2 rounded-lg text-sm font-bold transition-all ${vistaActiva === 'cafeteria' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-orange-400 hover:bg-gray-200/50'}`}>Cafetería</button>
                     </div>
-
                     <div className="flex flex-col md:flex-row flex-wrap gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-200 items-start md:items-end flex-1">
                         <div className="w-full md:w-auto">
                             <label className="text-xs font-bold text-gray-500 block mb-1">Mes Principal</label>
                             <div className="relative">
-                                <select 
-                                    value={mesSeleccionado} 
-                                    onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} 
-                                    className="w-full md:w-auto border rounded-lg p-2 pr-8 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase appearance-none cursor-pointer focus:outline-none focus:border-blue-500"
-                                >
-                                    {mesesDisponibles.map(mes => (
-                                        <option key={mes} value={mes}>
-                                            {formatearNombreMes(mes)}
-                                        </option>
-                                    ))}
+                                <select value={mesSeleccionado} onChange={(e) => { setMesSeleccionado(e.target.value); limpiarRango(); }} className="w-full md:w-auto border rounded-lg p-2 pr-8 text-sm font-bold text-gray-700 bg-gray-50 hover:bg-white transition uppercase appearance-none cursor-pointer focus:outline-none focus:border-blue-500">
+                                    {mesesDisponibles.map(mes => (<option key={mes} value={mes}>{formatearNombreMes(mes)}</option>))}
                                 </select>
-                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500">
-                                    <Calendar size={14} />
-                                </div>
+                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500"><Calendar size={14} /></div>
                             </div>
                         </div>
                         <div className="h-10 w-px bg-gray-300 mx-2 hidden md:block"></div>
-                        
-                        {/* --- AQUÍ ESTÁN LOS INPUTS DE FECHA EXACTA CON LÍMITES --- */}
                         <div className="grid grid-cols-1 gap-2 w-full sm:grid-cols-2 md:w-auto">
-                            <div className="w-full">
-                                <label className="text-xs font-bold text-gray-500 block mb-1">Desde</label>
-                                <input 
-                                    type="date" 
-                                    value={rangoInicio} 
-                                    min={limitesFechas.min} 
-                                    max={limitesFechas.max}
-                                    onChange={(e) => setRangoInicio(e.target.value)} 
-                                    className="w-full border rounded-lg p-2 text-sm text-gray-600 focus:outline-none focus:border-blue-500" 
-                                />
-                            </div>
-                            <div className="w-full">
-                                <label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label>
-                                <input 
-                                    type="date" 
-                                    value={rangoFin} 
-                                    min={limitesFechas.min} 
-                                    max={limitesFechas.max}
-                                    onChange={(e) => setRangoFin(e.target.value)} 
-                                    className="w-full border rounded-lg p-2 text-sm text-gray-600 focus:outline-none focus:border-blue-500" 
-                                />
-                            </div>
+                            <div className="w-full"><label className="text-xs font-bold text-gray-500 block mb-1">Desde</label><input type="date" value={rangoInicio} min={limitesFechas.min} max={limitesFechas.max} onChange={(e) => setRangoInicio(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600 focus:outline-none focus:border-blue-500" /></div>
+                            <div className="w-full"><label className="text-xs font-bold text-gray-500 block mb-1">Hasta</label><input type="date" value={rangoFin} min={limitesFechas.min} max={limitesFechas.max} onChange={(e) => setRangoFin(e.target.value)} className="w-full border rounded-lg p-2 text-sm text-gray-600 focus:outline-none focus:border-blue-500" /></div>
                         </div>
-
                         {(rangoInicio || rangoFin) && (<button onClick={limpiarRango} className="text-xs text-red-500 font-bold hover:underline mb-3 md:mb-1 self-end flex items-center gap-1"><X size={12} /> Limpiar</button>)}
                     </div>
                 </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 animate-fade-in">
-                {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
-                    <CardStat titulo="Total Pastelería" valor={`$${formatoMoneda(datosReporte.totalPasteleria)}`} color="bg-pink-100 text-pink-800" />
-                )}
-                {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (
-                    <CardStat titulo="Total Cafetería" valor={`$${formatoMoneda(datosReporte.totalCafeteria)}`} color="bg-orange-100 text-orange-800" />
-                )}
-                {vistaActiva === 'todos' && (
-                    <CardStat titulo="Gran Total" valor={`$${formatoMoneda(datosReporte.totalGlobal)}`} color="bg-green-100 text-green-800" />
-                )}
+                {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (<CardStat titulo="Ingresos Pastelería" valor={`$${formatoMoneda(datosReporte.totalPasteleria)}`} color="bg-pink-400 text-pink-800" />)}
+                {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (<CardStat titulo="Ingresos Cafetería" valor={`$${formatoMoneda(datosReporte.totalCafeteria)}`} color="bg-orange-400 text-orange-800" />)}
+                {vistaActiva === 'todos' && (<CardStat titulo="Total Recaudado" valor={`$${formatoMoneda(datosReporte.totalGlobal)}`} color="bg-green-400 text-green-800" />)}
             </div>
 
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 h-[500px] flex flex-col relative transition-all">
@@ -474,58 +453,32 @@ export const VistaReporteUniversal = ({ pedidosPasteleria, ventasCafeteria, onAb
                     <h3 className="font-bold text-gray-700 flex items-center gap-2 capitalize text-sm md:text-base"><BarChart3 size={20} /> {datosReporte.tituloPeriodo}</h3>
                     <span className="text-xs font-bold uppercase bg-gray-100 text-gray-500 px-2 py-1 rounded">Vista: {vistaActiva}</span>
                 </div>
-                
                 <div className="flex-1 w-full min-h-0">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                            data={datosReporte.desglose}
-                            margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                        >
+                        <BarChart data={datosReporte.desglose} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb"/>
-                            <XAxis 
-                                dataKey="label" 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{ fill: '#9ca3af', fontSize: 12 }} 
-                                dy={10}
-                            />
-                            <YAxis 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                                tickFormatter={(value) => `$${value}`}
-                            />
+                            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} dy={10}/>
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={(value) => `$${value}`}/>
                             <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(0,0,0,0.05)'}} />
                             <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                            
-                            {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (
-                                <Bar 
-                                    dataKey="valorP" 
-                                    name="Pastelería" 
-                                    stackId="a" 
-                                    fill="#ec4899" 
-                                    radius={vistaActiva === 'pasteleria' ? [4, 4, 0, 0] : [0, 0, 0, 0]} 
-                                    maxBarSize={50}
-                                    onClick={handleBarClick}
-                                    cursor="pointer"
-                                />
-                            )}
-                            {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (
-                                <Bar 
-                                    dataKey="valorC" 
-                                    name="Cafetería" 
-                                    stackId="a" 
-                                    fill="#f97316" 
-                                    radius={[4, 4, 0, 0]} 
-                                    maxBarSize={50}
-                                    onClick={handleBarClick}
-                                    cursor="pointer"
-                                />
-                            )}
+                            {(vistaActiva === 'todos' || vistaActiva === 'pasteleria') && (<Bar dataKey="valorP" name="Pastelería (Cobrado)" stackId="a" fill="#ec4899" radius={vistaActiva === 'pasteleria' ? [4, 4, 0, 0] : [0, 0, 0, 0]} maxBarSize={50} onClick={handleBarClick} cursor="pointer"/>)}
+                            {(vistaActiva === 'todos' || vistaActiva === 'cafeteria') && (<Bar dataKey="valorC" name="Cafetería" stackId="a" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={50} onClick={handleBarClick} cursor="pointer"/>)}
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            {/* --- MODAL DETALLE CON INTERACCIÓN --- */}
+            <ModalDetalleCorte 
+                isOpen={modalDetalleOpen} 
+                onClose={() => setModalDetalleOpen(false)} 
+                titulo="Detalle de Ingresos" 
+                items={itemsModal} 
+                total={totalModal} 
+                colorTheme={temaModal}
+                fecha={fechaModal}
+                onItemClick={onVerDetalles} // <--- ¡AQUÍ ESTÁ LA MAGIA!
+            />
         </div>
     );
 };
