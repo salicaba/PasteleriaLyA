@@ -1107,7 +1107,7 @@ export const VistaGestionMesas = ({ mesas, onAgregarMesa, onEliminarMesa, servic
                 mensaje={servicioActivo 
                     ? "Al apagarlo, los clientes verán una pantalla de 'Servicio Cerrado' al escanear los códigos y no podrán hacer pedidos." 
                     : "Los códigos QR volverán a funcionar y los clientes podrán ver el menú."}
-                tipo={servicioActivo ? "eliminar" : "pago"} // Usamos "eliminar" para rojo y "pago" para verde
+                tipo={servicioActivo ? "advertencia" : "pago"} // Usamos "eliminar" para rojo y "pago" para verde
             />
         </div> 
     ); 

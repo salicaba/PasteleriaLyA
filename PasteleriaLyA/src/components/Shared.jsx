@@ -327,6 +327,13 @@ export const ModalConfirmacion = ({ isOpen, onClose, onConfirm, titulo = "Â¿EstÃ
             boton: "bg-blue-600 hover:bg-blue-700 text-white"
         };
     }
+    else if (tipo === 'advertencia') {
+        estilos = {
+            borde: "border-orange-500",
+            icono: <div className="bg-orange-100 p-3 rounded-full w-fit mx-auto mb-4 animate-bounce-in"><AlertCircle size={32} className="text-orange-600" /></div>,
+            boton: "bg-orange-600 hover:bg-orange-700 text-white"
+        };
+    }
 
     return ( 
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[280] p-4 backdrop-blur-sm transition-all"> 
