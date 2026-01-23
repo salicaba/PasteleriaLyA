@@ -567,7 +567,7 @@ const PantallaDespedida = ({ cuentaCerrada, onFinalizar, tiempoRestante }) => {
             
             <div className="bg-white text-gray-800 p-6 rounded-2xl shadow-2xl w-full max-w-sm mb-8">
                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Total Pagado</p>
-                <p className="text-4xl font-bold text-green-600 mb-4">${cuentaCerrada.total}</p>
+                <p className="text-4xl font-bold text-green-600 mb-4">${formatoMoneda(cuentaCerrada.total)}</p>
                 
                 {/* --- BOTÓN DE DESCARGA MEJORADO --- */}
                 <button 
