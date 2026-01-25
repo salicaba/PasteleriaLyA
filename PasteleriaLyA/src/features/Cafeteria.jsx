@@ -1419,20 +1419,38 @@ export const VistaCocina = ({ mesas, pedidosLlevar, mostrarNotificacion }) => {
     }, [mesas, pedidosLlevar, despachados]);
 
     const confirmarDespacho = () => {
-        if (pedidoParaCompletar) {
-            const nuevosDespachados = { 
-                ...despachados, 
-                [pedidoParaCompletar]: Date.now() 
-            };
-            setDespachados(nuevosDespachados);
-            localStorage.setItem('lya_cocina_despachados_v2', JSON.stringify(nuevosDespachados));
+    if (pedidoParaCompletar) {
+        const comandaActual = comandasActivas.find(c => c.id === pedidoParaCompletar);
+        
+        // Por defecto usamos la hora actual, pero intentaremos ser más precisos
+        let nuevoTimestampCorte = Date.now(); 
+
+        if (comandaActual && comandaActual.cuenta) {
+            // AQUÍ LA CLAVE: Usamos la misma lógica de "Plan B" (comanda.timestamp)
+            const timestampsItems = comandaActual.cuenta.map(i => i.timestampEntrega || comandaActual.timestamp || 0);
             
-            if (mostrarNotificacion) {
-                mostrarNotificacion("¡Orden confirmada y lista para entregar!", "exito");
+            // Buscamos la fecha más reciente de todos los productos
+            const maxItemTime = Math.max(...timestampsItems);
+
+            if (maxItemTime > 0) {
+                nuevoTimestampCorte = maxItemTime;
             }
-            setPedidoParaCompletar(null);
         }
-    };
+
+        const nuevosDespachados = { 
+            ...despachados, 
+            [pedidoParaCompletar]: nuevoTimestampCorte 
+        };
+        
+        setDespachados(nuevosDespachados);
+        localStorage.setItem('lya_cocina_despachados_v2', JSON.stringify(nuevosDespachados));
+        
+        if (mostrarNotificacion) {
+            mostrarNotificacion("¡Orden confirmada y lista para entregar!", "exito");
+        }
+        setPedidoParaCompletar(null);
+    }
+};
 
     return (
         <div className="p-4 md:p-6 bg-gray-900 min-h-screen text-white">
@@ -1455,13 +1473,23 @@ export const VistaCocina = ({ mesas, pedidosLlevar, mostrarNotificacion }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {comandasActivas.map((comanda, index) => {
                         const ultimoDespacho = despachados[comanda.id] || 0;
-                        const itemsNuevos = comanda.cuenta.filter(i => (i.timestampEntrega || 0) > ultimoDespacho);
-                        const itemsAnteriores = comanda.cuenta.filter(i => (i.timestampEntrega || 0) <= ultimoDespacho);
+                        const obtenerHoraItem = (item) => {
+                            // 1. Si el producto tiene su propia fecha (pedidos nuevos), la respetamos.
+                            if (item.timestampEntrega) return item.timestampEntrega;
+        
+                             // 2. Si NO tiene fecha (es del pedido original) Y la orden ya se ha despachado antes,
+                             // forzamos a que sea '0' (viejo) para que no reviva al actualizar la comanda.
+                            if (ultimoDespacho > 0) return 0;
+
+                             // 3. Solo si es la PRIMERA vez que vemos la orden, usamos la fecha general.
+                             return comanda.timestamp || 0;
+                         };
+                         
+                        const itemsNuevos = comanda.cuenta.filter(i => obtenerHoraItem(i) > ultimoDespacho);
+                        const itemsAnteriores = comanda.cuenta.filter(i => obtenerHoraItem(i) <= ultimoDespacho);
 
                         // --- LÓGICA DEL RELOJITO ---
-                        // Calculamos el tiempo basado en el item NUEVO más antiguo.
-                        // Si no hay items nuevos, usamos la fecha de la comanda.
-                        const timestampsPendientes = itemsNuevos.map(i => i.timestampEntrega || comanda.timestamp);
+                        const timestampsPendientes = itemsNuevos.map(i => obtenerHoraItem(i));
                         const inicioReloj = timestampsPendientes.length > 0 ? Math.min(...timestampsPendientes) : comanda.timestamp;
                         
                         return (
